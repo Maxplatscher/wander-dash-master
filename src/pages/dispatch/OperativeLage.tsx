@@ -1,4 +1,5 @@
 import { Activity, MapPin, Clock, Fuel, User } from 'lucide-react';
+import { LiveMap } from '@/components/dispatch/LiveMap';
 import { KpiCard } from '@/components/dispatch/KpiCard';
 import { cn } from '@/lib/utils';
 
