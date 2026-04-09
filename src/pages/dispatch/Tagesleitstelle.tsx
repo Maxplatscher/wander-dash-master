@@ -75,7 +75,7 @@ export function Tagesleitstelle() {
           </div>
           <p className="text-xs text-muted-foreground">3 unbearbeitete Probleme, 2 Konflikte</p>
         </button>
-        <button onClick={() => navigateTo('versionen')} className="rounded-lg border border-border bg-card p-4 text-left hover:border-primary/40 transition-colors">
+        <button onClick={() => navigateTo('kontrollzentrale')} className="rounded-lg border border-border bg-card p-4 text-left hover:border-primary/40 transition-colors">
           <div className="flex items-center gap-2 mb-1">
             <Route className="w-4 h-4 text-primary" />
             <span className="font-medium text-sm text-card-foreground">Planversionen</span>

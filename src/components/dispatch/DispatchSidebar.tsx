@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Activity, Calendar, Settings, AlertTriangle,
-  Users, GitBranch, Radio, ChevronLeft, ChevronRight, Truck
+  Users, Radio, ChevronLeft, ChevronRight, Truck
 } from 'lucide-react';
 import { useDispatch, UserRole } from '@/lib/dispatch-context';
 import { SectionId } from '@/lib/navigation';
@@ -17,10 +17,9 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'tagesleitstelle', label: 'Startseite', icon: LayoutDashboard, roles: ['admin', 'dispatcher'] },
-  { id: 'operative-lage', label: 'Operative Lage', icon: Activity, roles: ['admin', 'dispatcher', 'driver'] },
+  { id: 'operative-lage', label: 'Aktuelle Lage', icon: Activity, roles: ['admin', 'dispatcher', 'driver'] },
   { id: 'kalender', label: 'Kalender', icon: Calendar, roles: ['admin', 'dispatcher'] },
-  { id: 'kontrollzentrale', label: 'Kontrollzentrale', icon: Radio, roles: ['admin', 'dispatcher'] },
-  { id: 'versionen', label: 'Versionen & Freigabe', icon: GitBranch, roles: ['admin', 'dispatcher'] },
+  { id: 'kontrollzentrale', label: 'Lieferscheine & mehr', icon: Radio, roles: ['admin', 'dispatcher'] },
   { id: 'fahrer', label: 'Fahrer & Fahrzeuge', icon: Users, roles: ['admin', 'dispatcher'] },
   { id: 'probleme', label: 'Probleme', icon: AlertTriangle, roles: ['admin', 'dispatcher'], badge: 3 },
   { id: 'einstellungen', label: 'Einstellungen', icon: Settings, roles: ['admin'] },

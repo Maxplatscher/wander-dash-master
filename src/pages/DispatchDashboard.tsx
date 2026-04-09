@@ -5,7 +5,6 @@ import { Tagesleitstelle } from './dispatch/Tagesleitstelle';
 import { OperativeLage } from './dispatch/OperativeLage';
 import { Kalender } from './dispatch/Kalender';
 import { Kontrollzentrale } from './dispatch/Kontrollzentrale';
-import { Versionen } from './dispatch/Versionen';
 import { Fahrer } from './dispatch/Fahrer';
 import { Einstellungen } from './dispatch/Einstellungen';
 import { Probleme } from './dispatch/Probleme';
@@ -20,7 +19,7 @@ function PageContent() {
     case 'operative-lage': return <OperativeLage />;
     case 'kalender': return <Kalender />;
     case 'kontrollzentrale': return <Kontrollzentrale />;
-    case 'versionen': return <Versionen />;
+    
     case 'fahrer': return <Fahrer />;
     case 'einstellungen': return <Einstellungen />;
     case 'probleme': return <Probleme />;

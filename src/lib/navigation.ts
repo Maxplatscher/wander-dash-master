@@ -3,17 +3,15 @@ export type SectionId =
   | 'operative-lage'
   | 'kalender'
   | 'kontrollzentrale'
-  | 'versionen'
   | 'fahrer'
   | 'einstellungen'
   | 'probleme';
 
 export const SECTIONS: { id: SectionId; label: string }[] = [
   { id: 'tagesleitstelle', label: 'Startseite' },
-  { id: 'operative-lage', label: 'Operative Lage' },
+  { id: 'operative-lage', label: 'Aktuelle Lage' },
   { id: 'kalender', label: 'Kalender' },
-  { id: 'kontrollzentrale', label: 'Kontrollzentrale' },
-  { id: 'versionen', label: 'Versionen & Freigabe' },
+  { id: 'kontrollzentrale', label: 'Lieferscheine & mehr' },
   { id: 'fahrer', label: 'Fahrer & Fahrzeuge' },
   { id: 'einstellungen', label: 'Einstellungen' },
   { id: 'probleme', label: 'Probleme' },
