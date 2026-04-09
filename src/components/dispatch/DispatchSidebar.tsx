@@ -16,7 +16,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: 'tagesleitstelle', label: 'Tagesleitstelle', icon: LayoutDashboard, roles: ['admin', 'dispatcher'] },
+  { id: 'tagesleitstelle', label: 'Startseite', icon: LayoutDashboard, roles: ['admin', 'dispatcher'] },
   { id: 'operative-lage', label: 'Operative Lage', icon: Activity, roles: ['admin', 'dispatcher', 'driver'] },
   { id: 'kalender', label: 'Kalender', icon: Calendar, roles: ['admin', 'dispatcher'] },
   { id: 'kontrollzentrale', label: 'Kontrollzentrale', icon: Radio, roles: ['admin', 'dispatcher'] },
