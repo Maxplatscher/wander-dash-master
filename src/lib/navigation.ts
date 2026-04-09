@@ -9,7 +9,7 @@ export type SectionId =
   | 'probleme';
 
 export const SECTIONS: { id: SectionId; label: string }[] = [
-  { id: 'tagesleitstelle', label: 'Tagesleitstelle' },
+  { id: 'tagesleitstelle', label: 'Startseite' },
   { id: 'operative-lage', label: 'Operative Lage' },
   { id: 'kalender', label: 'Kalender' },
   { id: 'kontrollzentrale', label: 'Kontrollzentrale' },
