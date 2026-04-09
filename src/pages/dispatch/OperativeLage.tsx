@@ -1,4 +1,5 @@
 import { Activity, MapPin, Clock, Fuel, User } from 'lucide-react';
+import { LiveMap } from '@/components/dispatch/LiveMap';
 import { KpiCard } from '@/components/dispatch/KpiCard';
 import { cn } from '@/lib/utils';
 
@@ -97,14 +98,7 @@ export function OperativeLage() {
         <div className="space-y-3">
           <h3 className="font-semibold text-foreground text-sm">Live-Karte & Route</h3>
           <div className="rounded-lg border border-border bg-card overflow-hidden">
-            <div className="aspect-[4/3] bg-muted flex items-center justify-center relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-info/5" />
-              <div className="text-center z-10">
-                <MapPin className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Kartenansicht</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Stops · Verkehr · Wetter</p>
-              </div>
-            </div>
+            <LiveMap />
           </div>
         </div>
       </div>
