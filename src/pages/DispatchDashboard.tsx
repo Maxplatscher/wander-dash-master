@@ -5,7 +5,6 @@ import { Tagesleitstelle } from './dispatch/Tagesleitstelle';
 import { OperativeLage } from './dispatch/OperativeLage';
 import { Kalender } from './dispatch/Kalender';
 import { Kontrollzentrale } from './dispatch/Kontrollzentrale';
-import { Versionen } from './dispatch/Versionen';
 import { Fahrer } from './dispatch/Fahrer';
 import { Einstellungen } from './dispatch/Einstellungen';
 import { Probleme } from './dispatch/Probleme';

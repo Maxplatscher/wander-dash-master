@@ -17,10 +17,9 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'tagesleitstelle', label: 'Startseite', icon: LayoutDashboard, roles: ['admin', 'dispatcher'] },
-  { id: 'operative-lage', label: 'Operative Lage', icon: Activity, roles: ['admin', 'dispatcher', 'driver'] },
+  { id: 'operative-lage', label: 'Aktuelle Lage', icon: Activity, roles: ['admin', 'dispatcher', 'driver'] },
   { id: 'kalender', label: 'Kalender', icon: Calendar, roles: ['admin', 'dispatcher'] },
-  { id: 'kontrollzentrale', label: 'Kontrollzentrale', icon: Radio, roles: ['admin', 'dispatcher'] },
-  { id: 'versionen', label: 'Versionen & Freigabe', icon: GitBranch, roles: ['admin', 'dispatcher'] },
+  { id: 'kontrollzentrale', label: 'Lieferscheine & mehr', icon: Radio, roles: ['admin', 'dispatcher'] },
   { id: 'fahrer', label: 'Fahrer & Fahrzeuge', icon: Users, roles: ['admin', 'dispatcher'] },
   { id: 'probleme', label: 'Probleme', icon: AlertTriangle, roles: ['admin', 'dispatcher'], badge: 3 },
   { id: 'einstellungen', label: 'Einstellungen', icon: Settings, roles: ['admin'] },
