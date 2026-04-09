@@ -1,5 +1,7 @@
 import { Truck, Phone, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDispatch } from '@/lib/dispatch-context';
+import { DriverTourView } from '@/components/dispatch/DriverTourView';
 
 const drivers = [
   { name: 'Max Müller', initials: 'MM', phone: '+49 171 1234567', vehicle: 'MB Sprinter · B-DI 1001', status: 'aktiv', tours: 3 },
@@ -17,6 +19,14 @@ const statusColors: Record<string, string> = {
 };
 
 export function Fahrer() {
+  const { role } = useDispatch();
+
+  // Driver role: show "Meine Tour heute"
+  if (role === 'driver') {
+    return <DriverTourView />;
+  }
+
+  // Admin/Dispatcher: show driver grid
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
