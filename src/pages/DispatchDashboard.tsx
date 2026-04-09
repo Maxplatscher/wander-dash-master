@@ -19,7 +19,7 @@ function PageContent() {
     case 'operative-lage': return <OperativeLage />;
     case 'kalender': return <Kalender />;
     case 'kontrollzentrale': return <Kontrollzentrale />;
-    case 'versionen': return <Versionen />;
+    
     case 'fahrer': return <Fahrer />;
     case 'einstellungen': return <Einstellungen />;
     case 'probleme': return <Probleme />;
