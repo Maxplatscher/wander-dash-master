@@ -14,13 +14,483 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      company: {
+        Row: {
+          id: string
+          name: string
+        }
+        Insert: {
+          id?: string
+          name: string
+        }
+        Update: {
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      driver: {
+        Row: {
+          company_id: string
+          id: string
+          name: string | null
+          phone: string | null
+          shift_end: string | null
+          shift_start: string | null
+          status: string | null
+        }
+        Insert: {
+          company_id: string
+          id?: string
+          name?: string | null
+          phone?: string | null
+          shift_end?: string | null
+          shift_start?: string | null
+          status?: string | null
+        }
+        Update: {
+          company_id?: string
+          id?: string
+          name?: string | null
+          phone?: string | null
+          shift_end?: string | null
+          shift_start?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_log: {
+        Row: {
+          body_preview: string | null
+          created_at: string
+          error_detail: string | null
+          from_addr: string | null
+          id: string
+          message_id: string | null
+          processed_at: string | null
+          shipment_id: string | null
+          status: string
+          subject: string | null
+        }
+        Insert: {
+          body_preview?: string | null
+          created_at?: string
+          error_detail?: string | null
+          from_addr?: string | null
+          id?: string
+          message_id?: string | null
+          processed_at?: string | null
+          shipment_id?: string | null
+          status: string
+          subject?: string | null
+        }
+        Update: {
+          body_preview?: string | null
+          created_at?: string
+          error_detail?: string | null
+          from_addr?: string | null
+          id?: string
+          message_id?: string | null
+          processed_at?: string | null
+          shipment_id?: string | null
+          status?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_log_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_run: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          input_snapshot: Json | null
+          result_snapshot: Json | null
+          status: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          input_snapshot?: Json | null
+          result_snapshot?: Json | null
+          status?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          input_snapshot?: Json | null
+          result_snapshot?: Json | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_run_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipment: {
+        Row: {
+          company_id: string
+          customer_name: string | null
+          delivery_address: string | null
+          demand: number | null
+          email_notes: string | null
+          email_processed_at: string | null
+          email_received_at: string | null
+          id: string
+          intake_source: string | null
+          intake_status: string | null
+          location_x: number | null
+          location_y: number | null
+          missing_fields: Json | null
+          name: string | null
+          positionen: Json | null
+          raw_email: string | null
+          released_at: string | null
+          released_by: string | null
+          seller_email: string | null
+          service_date: string | null
+          weight_kg: number | null
+          window_end: string | null
+          window_start: string | null
+        }
+        Insert: {
+          company_id: string
+          customer_name?: string | null
+          delivery_address?: string | null
+          demand?: number | null
+          email_notes?: string | null
+          email_processed_at?: string | null
+          email_received_at?: string | null
+          id?: string
+          intake_source?: string | null
+          intake_status?: string | null
+          location_x?: number | null
+          location_y?: number | null
+          missing_fields?: Json | null
+          name?: string | null
+          positionen?: Json | null
+          raw_email?: string | null
+          released_at?: string | null
+          released_by?: string | null
+          seller_email?: string | null
+          service_date?: string | null
+          weight_kg?: number | null
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Update: {
+          company_id?: string
+          customer_name?: string | null
+          delivery_address?: string | null
+          demand?: number | null
+          email_notes?: string | null
+          email_processed_at?: string | null
+          email_received_at?: string | null
+          id?: string
+          intake_source?: string | null
+          intake_status?: string | null
+          location_x?: number | null
+          location_y?: number | null
+          missing_fields?: Json | null
+          name?: string | null
+          positionen?: Json | null
+          raw_email?: string | null
+          released_at?: string | null
+          released_by?: string | null
+          seller_email?: string | null
+          service_date?: string | null
+          weight_kg?: number | null
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipment_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tour: {
+        Row: {
+          company_id: string
+          created_at: string
+          date: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          plan_run_id: string | null
+          plan_version_id: string | null
+          total_cost: number | null
+          version: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          date?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          plan_run_id?: string | null
+          plan_version_id?: string | null
+          total_cost?: number | null
+          version?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          date?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          plan_run_id?: string | null
+          plan_version_id?: string | null
+          total_cost?: number | null
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tour_plan_run_id_fkey"
+            columns: ["plan_run_id"]
+            isOneToOne: false
+            referencedRelation: "plan_run"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tour_plan_version_id_fkey"
+            columns: ["plan_version_id"]
+            isOneToOne: false
+            referencedRelation: "touren_plan"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tour_stop: {
+        Row: {
+          arrival_time: string | null
+          departure_time: string | null
+          driver_completed: boolean | null
+          driver_completed_at: string | null
+          id: string
+          segment_cost: number | null
+          shipment_id: string | null
+          stop_index: number | null
+          tour_id: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          arrival_time?: string | null
+          departure_time?: string | null
+          driver_completed?: boolean | null
+          driver_completed_at?: string | null
+          id?: string
+          segment_cost?: number | null
+          shipment_id?: string | null
+          stop_index?: number | null
+          tour_id: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          arrival_time?: string | null
+          departure_time?: string | null
+          driver_completed?: boolean | null
+          driver_completed_at?: string | null
+          id?: string
+          segment_cost?: number | null
+          shipment_id?: string | null
+          stop_index?: number | null
+          tour_id?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_stop_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tour_stop_tour_id_fkey"
+            columns: ["tour_id"]
+            isOneToOne: false
+            referencedRelation: "tour"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tour_stop_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      touren_plan: {
+        Row: {
+          company_id: string
+          created_at: string
+          date: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          plan_run_id: string | null
+          total_cost: number | null
+          version: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          date?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          plan_run_id?: string | null
+          total_cost?: number | null
+          version?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          date?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          plan_run_id?: string | null
+          total_cost?: number | null
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "touren_plan_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "touren_plan_plan_run_id_fkey"
+            columns: ["plan_run_id"]
+            isOneToOne: false
+            referencedRelation: "plan_run"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          driver_id: string | null
+          email: string
+          id: string
+          is_active: boolean | null
+          password_hash: string | null
+          role: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          driver_id?: string | null
+          email: string
+          id?: string
+          is_active?: boolean | null
+          password_hash?: string | null
+          role?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          driver_id?: string | null
+          email?: string
+          id?: string
+          is_active?: boolean | null
+          password_hash?: string | null
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "driver"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle: {
+        Row: {
+          capacity: number | null
+          company_id: string
+          id: string
+          name: string | null
+        }
+        Insert: {
+          capacity?: number | null
+          company_id: string
+          id?: string
+          name?: string | null
+        }
+        Update: {
+          capacity?: number | null
+          company_id?: string
+          id?: string
+          name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_company_id: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
