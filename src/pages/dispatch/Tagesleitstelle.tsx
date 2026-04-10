@@ -73,6 +73,7 @@ export function Tagesleitstelle() {
   const { data: kpis, isLoading, refetch } = useKpis(dateStr);
   const [planning, setPlanning] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [detailType, setDetailType] = useState<'activeTours' | 'vehicles' | 'drivers' | 'unassigned' | 'conflicts' | null>(null);
 
   const handleDemo = async (scenario = 'A') => {
     setDemoLoading(true);
