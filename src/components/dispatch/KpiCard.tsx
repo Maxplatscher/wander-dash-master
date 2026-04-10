@@ -9,6 +9,7 @@ interface KpiCardProps {
   subtitle?: string;
   variant?: 'default' | 'success' | 'warning' | 'destructive';
   pulse?: boolean;
+  onClick?: () => void;
 }
 
 const variantStyles = {
