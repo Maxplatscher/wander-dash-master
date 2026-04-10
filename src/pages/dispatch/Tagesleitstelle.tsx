@@ -1,5 +1,6 @@
 import { Route, Truck, Users, AlertTriangle, PackageX, Play, RefreshCw, MoreHorizontal, Zap, Loader2, ArrowRight, Clock, CheckCircle2 } from 'lucide-react';
 import { KpiCard } from '@/components/dispatch/KpiCard';
+import { KpiDetailDialog } from '@/components/dispatch/KpiDetailDialog';
 import { Button } from '@/components/ui/button';
 import { useDispatch } from '@/lib/dispatch-context';
 import {
@@ -72,6 +73,7 @@ export function Tagesleitstelle() {
   const { data: kpis, isLoading, refetch } = useKpis(dateStr);
   const [planning, setPlanning] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [detailType, setDetailType] = useState<'activeTours' | 'vehicles' | 'drivers' | 'unassigned' | 'conflicts' | null>(null);
 
   const handleDemo = async (scenario = 'A') => {
     setDemoLoading(true);
@@ -123,11 +125,11 @@ export function Tagesleitstelle() {
       : 'Alles im grünen Bereich';
 
   const kpiCards = [
-    { icon: Route, label: 'Aktive Touren', value: kpis?.activeTours ?? 0, subtitle: `${kpis?.totalTours ?? 0} gesamt`, variant: 'default' as const, pulse: (kpis?.activeTours ?? 0) > 0 },
-    { icon: Truck, label: 'Fahrzeuge im Einsatz', value: kpis?.vehiclesInUse ?? 0, subtitle: `von ${kpis?.totalVehicles ?? 0} verfügbar`, variant: 'success' as const },
-    { icon: Users, label: 'Fahrer im Einsatz', value: kpis?.activeDrivers ?? 0, subtitle: `${kpis?.absentDrivers ?? 0} abwesend`, variant: 'default' as const },
-    { icon: PackageX, label: 'Unzugewiesen', value: kpis?.unassigned ?? 0, subtitle: 'Sendungen ohne Tour', variant: (kpis?.unassigned ?? 0) > 0 ? 'warning' as const : 'default' as const },
-    { icon: AlertTriangle, label: 'Konflikte', value: kpis?.conflicts ?? 0, subtitle: 'Zeitfenster / Kapazität', variant: (kpis?.conflicts ?? 0) > 0 ? 'destructive' as const : 'default' as const },
+    { icon: Route, label: 'Aktive Touren', value: kpis?.activeTours ?? 0, subtitle: `${kpis?.totalTours ?? 0} gesamt`, variant: 'default' as const, pulse: (kpis?.activeTours ?? 0) > 0, onClick: () => setDetailType('activeTours') },
+    { icon: Truck, label: 'Fahrzeuge im Einsatz', value: kpis?.vehiclesInUse ?? 0, subtitle: `von ${kpis?.totalVehicles ?? 0} verfügbar`, variant: 'success' as const, onClick: () => setDetailType('vehicles') },
+    { icon: Users, label: 'Fahrer im Einsatz', value: kpis?.activeDrivers ?? 0, subtitle: `${kpis?.absentDrivers ?? 0} abwesend`, variant: 'default' as const, onClick: () => setDetailType('drivers') },
+    { icon: PackageX, label: 'Unzugewiesen', value: kpis?.unassigned ?? 0, subtitle: 'Sendungen ohne Tour', variant: (kpis?.unassigned ?? 0) > 0 ? 'warning' as const : 'default' as const, onClick: () => setDetailType('unassigned') },
+    { icon: AlertTriangle, label: 'Konflikte', value: kpis?.conflicts ?? 0, subtitle: 'Zeitfenster / Kapazität', variant: (kpis?.conflicts ?? 0) > 0 ? 'destructive' as const : 'default' as const, onClick: () => setDetailType('conflicts') },
   ];
 
   const quickLinks = [
@@ -236,6 +238,14 @@ export function Tagesleitstelle() {
           ))}
         </div>
       </div>
+
+      {/* KPI Detail Dialog */}
+      <KpiDetailDialog
+        open={detailType !== null}
+        onOpenChange={(open) => { if (!open) setDetailType(null); }}
+        type={detailType ?? 'activeTours'}
+        date={dateStr}
+      />
     </div>
   );
 }

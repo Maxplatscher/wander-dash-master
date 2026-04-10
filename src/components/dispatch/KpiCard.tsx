@@ -9,6 +9,7 @@ interface KpiCardProps {
   subtitle?: string;
   variant?: 'default' | 'success' | 'warning' | 'destructive';
   pulse?: boolean;
+  onClick?: () => void;
 }
 
 const variantStyles = {
@@ -59,16 +60,23 @@ function AnimatedNumber({ value }: { value: number }) {
   return <>{display}</>;
 }
 
-export function KpiCard({ icon: Icon, label, value, subtitle, variant = 'default', pulse }: KpiCardProps) {
+export function KpiCard({ icon: Icon, label, value, subtitle, variant = 'default', pulse, onClick }: KpiCardProps) {
   const styles = variantStyles[variant];
   const isNumber = typeof value === 'number';
 
   return (
-    <div className={cn(
-      'rounded-xl border border-border bg-card p-5 flex flex-col gap-3 border-l-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg',
-      styles.border,
-      styles.glow,
-    )}>
+    <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter') onClick(); } : undefined}
+      className={cn(
+        'rounded-xl border border-border bg-card p-5 flex flex-col gap-3 border-l-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg',
+        styles.border,
+        styles.glow,
+        onClick && 'cursor-pointer',
+      )}
+    >
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
         <div className="relative">
