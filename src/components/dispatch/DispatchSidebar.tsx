@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Activity, Calendar, Settings, AlertTriangle,
-  Users, Radio, ChevronLeft, ChevronRight, Truck
+  Users, Package, ChevronLeft, ChevronRight, Truck
 } from 'lucide-react';
 import { useDispatch, UserRole } from '@/lib/dispatch-context';
 import { SectionId } from '@/lib/navigation';
