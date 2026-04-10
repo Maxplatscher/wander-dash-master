@@ -1,9 +1,8 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { PackageX, AlertTriangle, AlertCircle, Clock, Bot, Loader2, Truck, User, X, ChevronRight } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { AlertTriangle, Bot, Loader2, Truck, User, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useDispatch } from '@/lib/dispatch-context';
@@ -12,7 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 /* ── Types ── */
-type ProblemType = 'unassigned' | 'conflict' | 'capacity' | 'absent';
+type ProblemType = 'unassigned' | 'conflict' | 'absent';
 type SeverityLevel = 'kritisch' | 'warnung';
 
 interface Problem {
@@ -25,8 +24,7 @@ interface Problem {
 }
 
 /* ── Filter config ── */
-const filterLabels: { key: ProblemType | 'all'; label: string }[] = [
-  { key: 'capacity', label: 'Kapazität' },
+const filterLabels: { key: ProblemType; label: string }[] = [
   { key: 'conflict', label: 'Zeitkonflikt' },
   { key: 'unassigned', label: 'Ohne Tour' },
   { key: 'absent', label: 'Abwesend' },
@@ -50,61 +48,39 @@ function useProblems(date: string) {
       const problems: Problem[] = [];
 
       const [{ data: shipments }, { data: activePlan }, { data: allActiveTours }, { data: drivers }] = await Promise.all([
-        supabase
-          .from('shipment')
-          .select('id, customer_name, delivery_address, weight_kg')
-          .eq('service_date', date),
-        supabase
-          .from('touren_plan')
-          .select('id, version')
-          .eq('date', date)
-          .eq('is_active', true)
-          .order('version', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('tour')
-          .select('id, description, is_active, version, plan_version_id')
-          .eq('date', date)
-          .eq('is_active', true),
-        supabase
-          .from('driver')
-          .select('id, name, status'),
+        supabase.from('shipment').select('id, customer_name, delivery_address, weight_kg').eq('service_date', date),
+        supabase.from('touren_plan').select('id, version').eq('date', date).eq('is_active', true).order('version', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('tour').select('id, description, is_active, version, plan_version_id').eq('date', date).eq('is_active', true),
+        supabase.from('driver').select('id, name, status'),
       ]);
 
-      const fallbackVersion = (allActiveTours ?? []).reduce<number | null>((maxVersion, tour) => {
-        const version = tour.version ?? 0;
-        return maxVersion === null || version > maxVersion ? version : maxVersion;
+      const fallbackVersion = (allActiveTours ?? []).reduce<number | null>((max, t) => {
+        const v = t.version ?? 0;
+        return max === null || v > max ? v : max;
       }, null);
 
-      const currentTours = (allActiveTours ?? []).filter((tour) => {
-        if (activePlan?.id) return tour.plan_version_id === activePlan.id;
+      const currentTours = (allActiveTours ?? []).filter((t) => {
+        if (activePlan?.id) return t.plan_version_id === activePlan.id;
         if (fallbackVersion === null) return false;
-        return (tour.version ?? 0) === fallbackVersion;
+        return (t.version ?? 0) === fallbackVersion;
       });
 
-      const currentTourIds = currentTours.map((tour) => tour.id);
+      const currentTourIds = currentTours.map((t) => t.id);
       let assignedIds = new Set<string>();
 
       if (currentTourIds.length > 0) {
-        const { data: assignedStops } = await supabase
-          .from('tour_stop')
-          .select('shipment_id, tour_id')
-          .in('tour_id', currentTourIds);
-
-        assignedIds = new Set(
-          (assignedStops ?? []).map((stop) => stop.shipment_id).filter(Boolean) as string[]
-        );
+        const { data: assignedStops } = await supabase.from('tour_stop').select('shipment_id, tour_id').in('tour_id', currentTourIds);
+        assignedIds = new Set((assignedStops ?? []).map((s) => s.shipment_id).filter(Boolean) as string[]);
       }
 
       if (shipments?.length) {
-        const unassigned = shipments.filter((shipment) => !assignedIds.has(shipment.id));
+        const unassigned = shipments.filter((s) => !assignedIds.has(s.id));
         if (unassigned.length > 0) {
           problems.push({
             id: 'P-UA',
             type: 'unassigned',
             title: `${unassigned.length} Sendung${unassigned.length > 1 ? 'en' : ''} ohne Tour`,
-            detail: unassigned.map((shipment) => shipment.customer_name ?? shipment.id.slice(0, 8)).join(', '),
+            detail: unassigned.map((s) => s.customer_name ?? s.id.slice(0, 8)).join(', '),
             severity: 'warnung',
             meta: { shipments: unassigned },
           });
@@ -118,59 +94,26 @@ function useProblems(date: string) {
           .eq('tour_id', tour.id)
           .order('stop_index');
 
-        if (!stops?.length) continue;
+        if (!stops?.length || stops.length < 2) continue;
 
-        const vehicleId = stops[0].vehicle_id;
-        if (vehicleId) {
-          const shipmentIds = stops.map((stop) => stop.shipment_id).filter(Boolean) as string[];
-          if (shipmentIds.length > 0) {
-            const [{ data: shipmentData }, { data: vehicle }] = await Promise.all([
-              supabase.from('shipment').select('id, weight_kg').in('id', shipmentIds),
-              supabase.from('vehicle').select('capacity, name').eq('id', vehicleId).single(),
-            ]);
-
-            const totalWeight = shipmentData?.reduce((sum, shipment) => sum + (shipment.weight_kg ?? 0), 0) ?? 0;
-            if (vehicle && totalWeight > (vehicle.capacity ?? Number.POSITIVE_INFINITY)) {
-              const name = vehicle.name ?? tour.description ?? tour.id.slice(0, 8);
-              const affected = shipmentData?.length ?? 0;
-              problems.push({
-                id: `P-CAP-${tour.id.slice(0, 6)}`,
-                type: 'capacity',
-                title: `${name} — Kapazität`,
-                detail: `${totalWeight} kg / ${vehicle.capacity} kg Limit · ${affected} Sendungen betroffen`,
-                severity: 'kritisch',
-                meta: {
-                  tourId: tour.id,
-                  totalWeight,
-                  vehicleCapacity: vehicle.capacity,
-                  vehicleName: name,
-                  shipmentCount: affected,
-                },
-              });
-            }
-          }
-        }
-
-        if (stops.length >= 2) {
-          for (let i = 0; i < stops.length - 1; i++) {
-            const currentStop = stops[i];
-            const nextStop = stops[i + 1];
-            if (currentStop.departure_time && nextStop.arrival_time && currentStop.departure_time > nextStop.arrival_time) {
-              const tourName = tour.description ?? `Tour-${tour.id.slice(0, 4)}`;
-              problems.push({
-                id: `P-CF-${tour.id.slice(0, 6)}-${i}`,
-                type: 'conflict',
-                title: `${tourName} — Zeitfenster`,
-                detail: `Ankunft ${nextStop.arrival_time?.slice(11, 16)}, Fenster endet ${currentStop.departure_time?.slice(11, 16)}`,
-                severity: 'warnung',
-                meta: { tourId: tour.id, stopA: currentStop, stopB: nextStop },
-              });
-            }
+        for (let i = 0; i < stops.length - 1; i++) {
+          const cur = stops[i];
+          const next = stops[i + 1];
+          if (cur.departure_time && next.arrival_time && cur.departure_time > next.arrival_time) {
+            const tourName = tour.description ?? `Tour-${tour.id.slice(0, 4)}`;
+            problems.push({
+              id: `P-CF-${tour.id.slice(0, 6)}-${i}`,
+              type: 'conflict',
+              title: `${tourName} — Zeitfenster`,
+              detail: `Ankunft ${next.arrival_time?.slice(11, 16)}, Fenster endet ${cur.departure_time?.slice(11, 16)}`,
+              severity: 'warnung',
+              meta: { tourId: tour.id, stopA: cur, stopB: next },
+            });
           }
         }
       }
 
-      const absentDrivers = drivers?.filter((driver) => driver.status === 'abwesend' || driver.status === 'krank') ?? [];
+      const absentDrivers = drivers?.filter((d) => d.status === 'abwesend' || d.status === 'krank') ?? [];
       for (const driver of absentDrivers) {
         problems.push({
           id: `P-ABS-${driver.id.slice(0, 6)}`,
@@ -178,7 +121,7 @@ function useProblems(date: string) {
           title: `Fahrer ${driver.name ?? 'Unbekannt'} — Abwesend`,
           detail: `${driver.status === 'krank' ? 'Krank' : 'Abwesend'} ab heute · ${currentTours.length} Touren nicht besetzt`,
           severity: 'warnung',
-          meta: { driver, availableDrivers: drivers?.filter((candidate) => candidate.status === 'aktiv') ?? [] },
+          meta: { driver, availableDrivers: drivers?.filter((c) => c.status === 'aktiv') ?? [] },
         });
       }
 
@@ -193,87 +136,22 @@ function useAvailableTours(date: string) {
     queryKey: ['available-tours', date],
     queryFn: async () => {
       const [{ data: activePlan }, { data: tours }] = await Promise.all([
-        supabase
-          .from('touren_plan')
-          .select('id, version')
-          .eq('date', date)
-          .eq('is_active', true)
-          .order('version', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from('tour')
-          .select('id, description, version, plan_version_id')
-          .eq('date', date)
-          .eq('is_active', true),
+        supabase.from('touren_plan').select('id, version').eq('date', date).eq('is_active', true).order('version', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('tour').select('id, description, version, plan_version_id').eq('date', date).eq('is_active', true),
       ]);
 
-      const fallbackVersion = (tours ?? []).reduce<number | null>((maxVersion, tour) => {
-        const version = tour.version ?? 0;
-        return maxVersion === null || version > maxVersion ? version : maxVersion;
+      const fallbackVersion = (tours ?? []).reduce<number | null>((max, t) => {
+        const v = t.version ?? 0;
+        return max === null || v > max ? v : max;
       }, null);
 
-      return (tours ?? []).filter((tour) => {
-        if (activePlan?.id) return tour.plan_version_id === activePlan.id;
+      return (tours ?? []).filter((t) => {
+        if (activePlan?.id) return t.plan_version_id === activePlan.id;
         if (fallbackVersion === null) return false;
-        return (tour.version ?? 0) === fallbackVersion;
+        return (t.version ?? 0) === fallbackVersion;
       });
     },
   });
-}
-
-/* ── Auto-resolve capacity issues ── */
-function useAutoResolveCapacity(problems: Problem[] | undefined, dateStr: string) {
-  const qc = useQueryClient();
-  const [autoResolving, setAutoResolving] = useState<Set<string>>(new Set());
-  const [autoResolved, setAutoResolved] = useState<Set<string>>(new Set());
-  const [autoFailed, setAutoFailed] = useState<Set<string>>(new Set());
-  const attemptedDateRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    attemptedDateRef.current = null;
-    setAutoResolving(new Set());
-    setAutoResolved(new Set());
-    setAutoFailed(new Set());
-  }, [dateStr]);
-
-  useEffect(() => {
-    const capacityProblems = (problems ?? []).filter((problem) => problem.type === 'capacity');
-    if (!capacityProblems.length) return;
-    if (attemptedDateRef.current === dateStr) return;
-
-    attemptedDateRef.current = dateStr;
-    const capacityIds = capacityProblems.map((problem) => problem.id);
-    const leadProblem = capacityProblems[0];
-
-    setAutoResolving(new Set(capacityIds));
-
-    supabase.functions.invoke('ai-resolve', {
-      body: { type: 'capacity', context: { ...leadProblem.meta, date: dateStr } },
-    }).then(({ data, error }) => {
-      setAutoResolving(new Set());
-
-      if (error || !data?.resolved) {
-        setAutoFailed(new Set(capacityIds));
-        toast.error(
-          data?.message ??
-          error?.message ??
-          `KI konnte ${leadProblem.meta?.vehicleName ?? 'das Kapazitätsproblem'} nicht automatisch lösen — manueller Eingriff nötig`
-        );
-        return;
-      }
-
-      setAutoResolved(new Set(capacityIds));
-      toast.success(data.message ?? 'Kapazitätsprobleme automatisch umgeplant');
-      qc.invalidateQueries({ queryKey: ['problems'] });
-    }).catch((error: Error) => {
-      setAutoResolving(new Set());
-      setAutoFailed(new Set(capacityIds));
-      toast.error(error.message ?? 'Automatische KI-Umplanung fehlgeschlagen');
-    });
-  }, [problems, dateStr, qc]);
-
-  return { autoResolving, autoResolved, autoFailed };
 }
 
 /* ── Detail Sheets ── */
@@ -285,9 +163,7 @@ function UnassignedDetail({ meta, date }: { meta: any; date: string }) {
 
   const assignToTour = async (shipmentId: string) => {
     if (!selectedTour) { toast.error('Bitte Tour auswählen'); return; }
-    const { error } = await supabase.from('tour_stop').insert({
-      tour_id: selectedTour, shipment_id: shipmentId, stop_index: 999,
-    });
+    const { error } = await supabase.from('tour_stop').insert({ tour_id: selectedTour, shipment_id: shipmentId, stop_index: 999 });
     if (error) toast.error(error.message);
     else { toast.success('Sendung zugeordnet'); qc.invalidateQueries({ queryKey: ['problems'] }); }
   };
@@ -295,15 +171,12 @@ function UnassignedDetail({ meta, date }: { meta: any; date: string }) {
   const aiAssign = async () => {
     setResolving(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-resolve', {
-        body: { type: 'unassigned', context: { shipments: meta.shipments, date } },
-      });
+      const { data, error } = await supabase.functions.invoke('ai-resolve', { body: { type: 'unassigned', context: { shipments: meta.shipments, date } } });
       if (error) throw error;
       toast.success(data?.message ?? 'KI-Zuordnung abgeschlossen');
       qc.invalidateQueries({ queryKey: ['problems'] });
-    } catch (e: any) {
-      toast.error(e.message ?? 'KI-Fehler');
-    } finally { setResolving(false); }
+    } catch (e: any) { toast.error(e.message ?? 'KI-Fehler'); }
+    finally { setResolving(false); }
   };
 
   return (
@@ -333,74 +206,6 @@ function UnassignedDetail({ meta, date }: { meta: any; date: string }) {
   );
 }
 
-function CapacityDetail({ meta, autoStatus }: { meta: any; autoStatus: 'resolving' | 'failed' | 'resolved' | 'idle' }) {
-  const [resolving, setResolving] = useState(false);
-  const qc = useQueryClient();
-
-  const manualReplan = async () => {
-    setResolving(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-resolve', {
-        body: { type: 'capacity', context: meta },
-      });
-      if (error) throw error;
-      if (!data?.resolved) {
-        toast.error(data?.message ?? 'Kapazitätsproblem erfordert manuellen Eingriff');
-        return;
-      }
-      toast.success(data.message ?? 'Kapazität aufgelöst');
-      qc.invalidateQueries({ queryKey: ['problems'] });
-    } catch (e: any) {
-      toast.error(e.message ?? 'KI-Fehler');
-    } finally { setResolving(false); }
-  };
-
-  return (
-    <div className="space-y-4 mt-4">
-      {autoStatus === 'resolving' && (
-        <Alert className="border-blue-500/30 bg-blue-500/10">
-          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-          <AlertDescription className="text-blue-400">KI löst Kapazitätsproblem automatisch im Hintergrund...</AlertDescription>
-        </Alert>
-      )}
-      {autoStatus === 'resolved' && (
-        <Alert className="border-green-500/30 bg-green-500/10">
-          <Bot className="h-4 w-4 text-green-500" />
-          <AlertDescription className="text-green-400">Kapazitätsproblem wurde automatisch von der KI gelöst.</AlertDescription>
-        </Alert>
-      )}
-      {autoStatus === 'failed' && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>KI konnte das Problem nicht automatisch lösen. Manueller Eingriff erforderlich.</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="rounded-lg border bg-card p-4 space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Aktuelles Gewicht</span>
-          <span className="font-medium text-destructive">{meta.totalWeight} kg</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Fahrzeuglimit</span>
-          <span className="font-medium">{meta.vehicleCapacity} kg</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Überschreitung</span>
-          <span className="font-medium text-destructive">+{(meta.totalWeight ?? 0) - (meta.vehicleCapacity ?? 0)} kg</span>
-        </div>
-      </div>
-
-      {(autoStatus === 'failed' || autoStatus === 'idle') && (
-        <Button className="w-full" variant="destructive" onClick={manualReplan} disabled={resolving}>
-          {resolving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Bot className="w-4 h-4 mr-2" />}
-          {autoStatus === 'failed' ? 'Erneut versuchen' : 'KI-Umplanung starten'}
-        </Button>
-      )}
-    </div>
-  );
-}
-
 function ConflictDetail({ meta }: { meta: any }) {
   const [resolving, setResolving] = useState(false);
   const qc = useQueryClient();
@@ -408,15 +213,12 @@ function ConflictDetail({ meta }: { meta: any }) {
   const aiReplan = async () => {
     setResolving(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-resolve', {
-        body: { type: 'conflict', context: meta },
-      });
+      const { data, error } = await supabase.functions.invoke('ai-resolve', { body: { type: 'conflict', context: meta } });
       if (error) throw error;
       toast.success(data?.message ?? 'Zeitkonflikt aufgelöst');
       qc.invalidateQueries({ queryKey: ['problems'] });
-    } catch (e: any) {
-      toast.error(e.message ?? 'KI-Fehler');
-    } finally { setResolving(false); }
+    } catch (e: any) { toast.error(e.message ?? 'KI-Fehler'); }
+    finally { setResolving(false); }
   };
 
   return (
@@ -472,8 +274,6 @@ export function Probleme() {
   const [filter, setFilter] = useState<ProblemType | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  
-  const { autoResolving, autoResolved, autoFailed } = useAutoResolveCapacity(problems, dateStr);
 
   const activeProblem = useMemo(() => {
     if (!problems) return [];
@@ -494,16 +294,8 @@ export function Probleme() {
     if (selectedProblem?.id === id) setSelectedProblem(null);
   }, [selectedProblem]);
 
-  const getAutoStatus = (id: string): 'resolving' | 'failed' | 'resolved' | 'idle' => {
-    if (autoResolving.has(id)) return 'resolving';
-    if (autoFailed.has(id)) return 'failed';
-    if (autoResolved.has(id)) return 'resolved';
-    return 'idle';
-  };
-
-  // Count per filter type for badges
   const typeCounts = useMemo(() => {
-    const counts: Record<ProblemType, number> = { capacity: 0, conflict: 0, unassigned: 0, absent: 0 };
+    const counts: Record<ProblemType, number> = { conflict: 0, unassigned: 0, absent: 0 };
     activeProblem.forEach(p => counts[p.type]++);
     return counts;
   }, [activeProblem]);
@@ -511,7 +303,6 @@ export function Probleme() {
   const sheetTitle: Record<ProblemType, string> = {
     unassigned: 'Sendungen ohne Tour',
     conflict: 'Zeitfensterkonflikt',
-    capacity: 'Kapazitätsüberschreitung',
     absent: 'Fahrer abwesend',
   };
 
@@ -519,30 +310,24 @@ export function Probleme() {
 
   return (
     <div className="space-y-4">
-      {/* Header row: filters + date */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex gap-2 flex-wrap">
           {filterLabels.map(f => {
-            const count = typeCounts[f.key as ProblemType] ?? 0;
+            const count = typeCounts[f.key] ?? 0;
             const isActive = filter === f.key;
             return (
               <Badge
                 key={f.key}
                 variant={isActive ? 'default' : 'outline'}
-                className={cn(
-                  "cursor-pointer px-3 py-1 text-xs gap-1.5 transition-all",
-                  isActive && "ring-1 ring-primary/30"
-                )}
-                onClick={() => setFilter(isActive ? null : f.key as ProblemType)}
+                className={cn("cursor-pointer px-3 py-1 text-xs gap-1.5 transition-all", isActive && "ring-1 ring-primary/30")}
+                onClick={() => setFilter(isActive ? null : f.key)}
               >
                 {f.label}
                 {count > 0 && (
                   <span className={cn(
                     "inline-flex items-center justify-center rounded-full text-[10px] font-bold min-w-[18px] h-[18px] px-1",
                     isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-destructive text-destructive-foreground"
-                  )}>
-                    {count}
-                  </span>
+                  )}>{count}</span>
                 )}
               </Badge>
             );
@@ -563,9 +348,7 @@ export function Probleme() {
         </div>
       )}
 
-      {/* Two-column layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Kritisch column */}
         {kritisch.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -573,18 +356,11 @@ export function Probleme() {
               <span className="text-sm font-medium text-card-foreground">Kritisch ({kritisch.length})</span>
             </div>
             {kritisch.map(p => (
-              <ProblemCard
-                key={p.id}
-                problem={p}
-                autoStatus={p.type === 'capacity' ? getAutoStatus(p.id) : undefined}
-                onClick={() => setSelectedProblem(p)}
-                onDismiss={(e) => dismiss(p.id, e)}
-              />
+              <ProblemCard key={p.id} problem={p} onClick={() => setSelectedProblem(p)} onDismiss={(e) => dismiss(p.id, e)} />
             ))}
           </div>
         )}
 
-        {/* Warnung column */}
         {warnung.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -592,18 +368,12 @@ export function Probleme() {
               <span className="text-sm font-medium text-card-foreground">Warnung ({warnung.length})</span>
             </div>
             {warnung.map(p => (
-              <ProblemCard
-                key={p.id}
-                problem={p}
-                onClick={() => setSelectedProblem(p)}
-                onDismiss={(e) => dismiss(p.id, e)}
-              />
+              <ProblemCard key={p.id} problem={p} onClick={() => setSelectedProblem(p)} onDismiss={(e) => dismiss(p.id, e)} />
             ))}
           </div>
         )}
       </div>
 
-      {/* Detail Sheet */}
       <Sheet open={!!selectedProblem} onOpenChange={open => !open && setSelectedProblem(null)}>
         <SheetContent className="overflow-y-auto">
           <SheetHeader>
@@ -611,7 +381,6 @@ export function Probleme() {
             <SheetDescription>{selectedProblem?.detail}</SheetDescription>
           </SheetHeader>
           {selectedProblem?.type === 'unassigned' && <UnassignedDetail meta={selectedProblem.meta} date={dateStr} />}
-          {selectedProblem?.type === 'capacity' && <CapacityDetail meta={selectedProblem.meta} autoStatus={getAutoStatus(selectedProblem.id)} />}
           {selectedProblem?.type === 'conflict' && <ConflictDetail meta={selectedProblem.meta} />}
           {selectedProblem?.type === 'absent' && <AbsentDetail meta={selectedProblem.meta} />}
         </SheetContent>
@@ -621,21 +390,14 @@ export function Probleme() {
 }
 
 /* ── Problem Card ── */
-function ProblemCard({ problem, autoStatus, onClick, onDismiss }: {
-  problem: Problem;
-  autoStatus?: 'resolving' | 'failed' | 'resolved' | 'idle';
-  onClick: () => void;
-  onDismiss: (e: React.MouseEvent) => void;
-}) {
+function ProblemCard({ problem, onClick, onDismiss }: { problem: Problem; onClick: () => void; onDismiss: (e: React.MouseEvent) => void }) {
   const actionLabel: Record<ProblemType, { primary: string; secondary: string }> = {
-    capacity: { primary: 'KI-Umplanung', secondary: 'Details' },
-    conflict: { primary: 'Neuplanung', secondary: 'Ignorieren' },
+    conflict: { primary: 'Neuplanung', secondary: 'Details' },
     unassigned: { primary: 'Zuordnen', secondary: 'Details' },
     absent: { primary: 'Vertretung', secondary: 'Details' },
   };
 
   const actionColor: Record<ProblemType, string> = {
-    capacity: 'bg-red-600 hover:bg-red-700 text-white',
     conflict: 'bg-amber-600 hover:bg-amber-700 text-white',
     unassigned: 'bg-primary hover:bg-primary/90 text-primary-foreground',
     absent: 'bg-green-600 hover:bg-green-700 text-white',
@@ -643,13 +405,9 @@ function ProblemCard({ problem, autoStatus, onClick, onDismiss }: {
 
   return (
     <div
-      className={cn(
-        "rounded-lg border-l-4 border bg-card p-4 cursor-pointer transition-all hover:bg-accent/30 group relative",
-        borderColor[problem.severity],
-      )}
+      className={cn("rounded-lg border-l-4 border bg-card p-4 cursor-pointer transition-all hover:bg-accent/30 group relative", borderColor[problem.severity])}
       onClick={onClick}
     >
-      {/* Dismiss button */}
       <button
         onClick={onDismiss}
         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted"
@@ -661,27 +419,11 @@ function ProblemCard({ problem, autoStatus, onClick, onDismiss }: {
       <h4 className="text-sm font-semibold text-card-foreground mb-1 pr-6">{problem.title}</h4>
       <p className="text-xs text-muted-foreground mb-3">{problem.detail}</p>
 
-      {autoStatus === 'resolving' && (
-        <div className="flex items-center gap-2 text-xs text-blue-400 mb-3">
-          <Loader2 className="w-3 h-3 animate-spin" />
-          KI löst automatisch...
-        </div>
-      )}
-
       <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          className={cn("h-7 text-xs px-3", actionColor[problem.type])}
-          onClick={(e) => { e.stopPropagation(); onClick(); }}
-        >
+        <Button size="sm" className={cn("h-7 text-xs px-3", actionColor[problem.type])} onClick={(e) => { e.stopPropagation(); onClick(); }}>
           {actionLabel[problem.type].primary}
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 text-xs px-3"
-          onClick={(e) => { e.stopPropagation(); onClick(); }}
-        >
+        <Button size="sm" variant="outline" className="h-7 text-xs px-3" onClick={(e) => { e.stopPropagation(); onClick(); }}>
           {actionLabel[problem.type].secondary}
         </Button>
       </div>
@@ -689,5 +431,4 @@ function ProblemCard({ problem, autoStatus, onClick, onDismiss }: {
   );
 }
 
-/* ── Export problem count for sidebar ── */
 export { useProblems };
