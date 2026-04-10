@@ -1,4 +1,5 @@
 import { DispatchProvider, useDispatch } from '@/lib/dispatch-context';
+import { useAuth } from '@/hooks/useAuth';
 import { DispatchSidebar } from '@/components/dispatch/DispatchSidebar';
 import { getSectionLabel } from '@/lib/navigation';
 import { Tagesleitstelle } from './dispatch/Tagesleitstelle';
@@ -8,8 +9,9 @@ import { Kontrollzentrale } from './dispatch/Kontrollzentrale';
 import { Fahrer } from './dispatch/Fahrer';
 import { Einstellungen } from './dispatch/Einstellungen';
 import { Probleme } from './dispatch/Probleme';
-import { CalendarDays, Building, UserCircle } from 'lucide-react';
+import { CalendarDays, Building, LogOut } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 function PageContent() {
   const { currentSection } = useDispatch();
@@ -19,7 +21,6 @@ function PageContent() {
     case 'operative-lage': return <OperativeLage />;
     case 'kalender': return <Kalender />;
     case 'kontrollzentrale': return <Kontrollzentrale />;
-    
     case 'fahrer': return <Fahrer />;
     case 'einstellungen': return <Einstellungen />;
     case 'probleme': return <Probleme />;
@@ -28,7 +29,8 @@ function PageContent() {
 }
 
 function ContextBar() {
-  const { selectedDate, setSelectedDate, tenant, setTenant, role, setRole, currentSection } = useDispatch();
+  const { selectedDate, setSelectedDate, tenant, setTenant, currentSection } = useDispatch();
+  const { user, role, signOut } = useAuth();
 
   return (
     <header className="h-14 flex items-center border-b border-border px-4 bg-card/80 backdrop-blur-sm sticky top-0 z-10 gap-4">
@@ -59,18 +61,13 @@ function ContextBar() {
           </SelectContent>
         </Select>
 
-        {/* Role switcher (dev) */}
-        <Select value={role} onValueChange={(v) => setRole(v as any)}>
-          <SelectTrigger className="h-8 w-[120px] text-xs">
-            <UserCircle className="w-3 h-3 mr-1" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="admin">Admin</SelectItem>
-            <SelectItem value="dispatcher">Dispatcher</SelectItem>
-            <SelectItem value="driver">Driver</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* User info + logout */}
+        <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+          {user?.email} ({role ?? '...'})
+        </span>
+        <Button size="sm" variant="ghost" onClick={signOut} title="Abmelden">
+          <LogOut className="w-3.5 h-3.5" />
+        </Button>
       </div>
     </header>
   );

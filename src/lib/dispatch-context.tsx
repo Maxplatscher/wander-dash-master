@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { SectionId, getInitialSection } from './navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 export type UserRole = 'admin' | 'dispatcher' | 'driver';
 
@@ -11,7 +12,6 @@ interface DispatchContextType {
   selectedDate: Date;
   setSelectedDate: (d: Date) => void;
   role: UserRole;
-  setRole: (r: UserRole) => void;
   refreshAll: () => void;
   refreshKey: number;
 }
@@ -22,8 +22,10 @@ export function DispatchProvider({ children }: { children: React.ReactNode }) {
   const [currentSection, setCurrentSection] = useState<SectionId>(getInitialSection);
   const [tenant, setTenant] = useState('Mandant A');
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [role, setRole] = useState<UserRole>('dispatcher');
   const [refreshKey, setRefreshKey] = useState(0);
+  const { role: authRole } = useAuth();
+
+  const role = (authRole as UserRole) ?? 'dispatcher';
 
   const navigateTo = useCallback((sectionId: SectionId) => {
     setCurrentSection(sectionId);
@@ -45,7 +47,6 @@ export function DispatchProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('hashchange', onHash);
   }, [currentSection]);
 
-  // refresh on context change
   useEffect(() => {
     refreshAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,7 +57,7 @@ export function DispatchProvider({ children }: { children: React.ReactNode }) {
       currentSection, navigateTo,
       tenant, setTenant,
       selectedDate, setSelectedDate,
-      role, setRole,
+      role,
       refreshAll, refreshKey,
     }}>
       {children}
