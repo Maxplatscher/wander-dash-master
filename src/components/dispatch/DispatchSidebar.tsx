@@ -6,8 +6,7 @@ import { useDispatch, UserRole } from '@/lib/dispatch-context';
 import { SectionId } from '@/lib/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useProblems } from '@/pages/dispatch/Probleme';
 
 interface NavItem {
   id: SectionId;
@@ -26,49 +25,12 @@ const navItems: NavItem[] = [
   { id: 'einstellungen', label: 'Einstellungen', icon: Settings, roles: ['admin'] },
 ];
 
-function useProblemCount(date: string) {
-  return useQuery({
-    queryKey: ['problem-count', date],
-    queryFn: async () => {
-      let count = 0;
-
-      // Unassigned shipments
-      const { data: shipments } = await supabase
-        .from('shipment')
-        .select('id')
-        .eq('service_date', date);
-      if (shipments?.length) {
-        const { data: stops } = await supabase.from('tour_stop').select('shipment_id');
-        const assignedIds = new Set(stops?.map(s => s.shipment_id) ?? []);
-        const unassigned = shipments.filter(s => !assignedIds.has(s.id));
-        if (unassigned.length > 0) count++;
-      }
-
-      // Absent drivers
-      const { data: drivers } = await supabase.from('driver').select('id, status');
-      count += (drivers?.filter(d => d.status === 'abwesend' || d.status === 'krank') ?? []).length;
-
-      // Incomplete emails
-      const { count: emailCount } = await supabase
-        .from('email_log')
-        .select('id', { count: 'exact', head: true })
-        .in('status', ['error', 'pending']);
-      if ((emailCount ?? 0) > 0) count++;
-
-      // If no real data, show demo count
-      if (count === 0) count = 5;
-
-      return count;
-    },
-    refetchInterval: 30000,
-  });
-}
-
 export function DispatchSidebar() {
   const { currentSection, navigateTo, role, tenant, selectedDate } = useDispatch();
   const [collapsed, setCollapsed] = useState(false);
   const dateStr = selectedDate.toISOString().split('T')[0];
-  const { data: problemCount } = useProblemCount(dateStr);
+  const { data: problems } = useProblems(dateStr);
+  const problemCount = problems?.length ?? 0;
 
   const visibleItems = navItems.filter(item => item.roles.includes(role));
 
@@ -77,7 +39,6 @@ export function DispatchSidebar() {
       "h-screen bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border transition-all duration-200 shrink-0 sticky top-0",
       collapsed ? "w-16" : "w-60"
     )}>
-      {/* Header */}
       <div className="p-3 flex items-center gap-3 border-b border-sidebar-border min-h-[56px]">
         <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center shrink-0">
           <Truck className="w-5 h-5 text-sidebar-primary-foreground" />
@@ -90,11 +51,11 @@ export function DispatchSidebar() {
         )}
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 py-2 overflow-y-auto">
         {visibleItems.map(item => {
           const active = currentSection === item.id;
-          const badge = item.id === 'probleme' ? (problemCount ?? 0) : 0;
+          const badge = item.id === 'probleme' ? problemCount : 0;
+
           return (
             <button
               key={item.id}
@@ -119,7 +80,6 @@ export function DispatchSidebar() {
         })}
       </nav>
 
-      {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
         className="p-3 border-t border-sidebar-border text-sidebar-foreground/50 hover:text-sidebar-foreground flex items-center justify-center"
