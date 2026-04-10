@@ -33,7 +33,7 @@ export function DispatchSidebar() {
 
   return (
     <aside className={cn(
-      "h-screen bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border transition-all duration-200 shrink-0",
+      "h-screen bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border transition-all duration-200 shrink-0 sticky top-0",
       collapsed ? "w-16" : "w-60"
     )}>
       {/* Header */}
