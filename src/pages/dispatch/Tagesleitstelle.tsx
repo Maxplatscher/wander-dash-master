@@ -238,6 +238,14 @@ export function Tagesleitstelle() {
           ))}
         </div>
       </div>
+
+      {/* KPI Detail Dialog */}
+      <KpiDetailDialog
+        open={detailType !== null}
+        onOpenChange={(open) => { if (!open) setDetailType(null); }}
+        type={detailType ?? 'activeTours'}
+        date={dateStr}
+      />
     </div>
   );
 }
