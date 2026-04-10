@@ -1,53 +1,53 @@
 
 
-# Tagesleitstelle Redesign: Erweiterte Zusammenfassung + Wetter-Widget
+# Probleme-Seite: Interaktive Detailansichten + KI-gesteuerte Problemlösung
 
 ## Überblick
 
-Die Startseite wird umgebaut:
-- **Entfernen**: Quick Links (Offene Probleme, Planversionen, Fahrer & Fahrzeuge) und "Letzte Aktivitäten" Timeline
-- **Tageszusammenfassung erweitern**: Fahrer-Übersicht pro Fahrer (gefahrene/aktive/offene Touren), Personalausfälle-Hinweis, Verkehrshinweise (auto-refresh alle 2 Min)
-- **Wetter-Widget unten**: Zeigt aktuelles Wetter am Standort mit animiertem Hintergrund, Standort per Klick änderbar
+Jedes Problem in der Liste wird klickbar und öffnet einen Detail-Dialog mit kontextspezifischen Aktionen. Kapazitätsüberschreitungen werden automatisch von der KI gelöst. Probleme werden aus echten DB-Daten generiert statt aus statischen Dummy-Daten.
 
 ## Änderungen
 
-### 1. `src/pages/dispatch/Tagesleitstelle.tsx` — Großer Umbau
+### 1. `src/pages/dispatch/Probleme.tsx` — Kompletter Neubau
 
-**Entfernen:**
-- `quickLinks` Array + Quick Links Grid (Zeilen 135-222)
-- `activityItems` Array + Activity Timeline (Zeilen 64-68, 224-240)
+**Dynamische Probleme aus DB statt statischer Liste:**
+- `useProblems(date)` Hook: Prüft `shipment` (ohne Tour-Zuordnung), `tour_stop` (Zeitkonflikte), `tour` + `vehicle` (Kapazität), `driver` (Abwesenheiten), `email_log` (unvollständige Emails)
+- Fallback auf Demo-Daten wenn DB leer
 
-**Tageszusammenfassung erweitern (Hero-Block):**
-- Neuen `useDriverSummary(date)` Hook: Lädt alle Fahrer + deren zugewiesene Touren (über `tour_stop` → `tour`), berechnet pro Fahrer: gefahrene Touren (completed stops), aktive Touren, offene Touren
-- Fahrer-Liste innerhalb der Zusammenfassung: Jeder Fahrer als kompakte Zeile mit Name, 3 Mini-Badges (gefahren/aktiv/offen)
-- Personalausfälle-Hinweis: Wenn `absentDrivers > 0`, gelber Alert-Banner mit Anzahl abwesender Fahrer
-- Verkehrshinweise: Statischer Platzhalter-Bereich (simulierte Verkehrsmeldungen), `useEffect` mit `setInterval` alle 120s für Refresh-Animation/Timestamp
+**Klick auf Problem öffnet Dialog (`Sheet` oder `Dialog`) mit spezifischem Inhalt:**
 
-**Wetter-Widget (neuer Bereich unten):**
-- Neue Komponente `WeatherWidget` inline oder als separate Datei
-- Nutzt kostenlose Open-Meteo API (`https://api.open-meteo.com/v1/forecast?latitude=X&longitude=Y&current_weather=true`) — kein API-Key nötig
-- Standort: Default München (48.14, 11.58), gespeichert in `useState`
-- Klick auf Standort-Name öffnet kleines Popover mit Eingabefeld für Stadt + Geocoding via Open-Meteo
-- Animierter Hintergrund: CSS-Gradient/Animation basierend auf Wetter-Code (Sonne = warm gradient, Regen = blau/grau, Schnee = weiß/hellblau, Wolken = grau)
-- Zeigt: Temperatur, Windgeschwindigkeit, Wetterbeschreibung, Wetter-Icon (Lucide: Sun, Cloud, CloudRain, Snowflake etc.)
-- Auto-Refresh alle 10 Minuten
+| Problem-Typ | Dialog-Inhalt |
+|---|---|
+| **Sendungen ohne Tour** | Liste der unzugeordneten Sendungen mit Details (Name, Adresse, Gewicht). Dropdown zur manuellen Zuordnung zu bestehender Tour. Button "Neue Tour erstellen" (Insert in `tour` + `tour_stop`). Button "KI zuordnen lassen" (ruft `plan-tour` Edge Function). |
+| **Zeitfensterkonflikt** | Zeigt betroffene Stops mit Zeitfenstern. Verkehrshinweise für die Region. Grund-Analyse: vorherige Abladezeit, Fahrzeit, Verkehrslage. Button "KI-Umplanung" → ruft `plan-tour` auf. |
+| **Kapazitätsüberschreitung** | Zeigt Fahrzeug-Limit vs. tatsächliches Gewicht. **Automatisch**: KI-Banner "Wird automatisch umgeplant". Button "Jetzt umplanen" → ruft `plan-tour`. Diese Probleme dürfen nicht bestehen bleiben. |
+| **Fahrer abwesend** | Zeigt Fahrer-Info, betroffene Touren. Liste verfügbarer Vertretungsfahrer. Button "Vertretung zuweisen". |
+| **E-Mails unvollständig** | Zeigt Email-Details aus `email_log`. Fehlende Felder hervorgehoben. Manuelles Formular zum Ergänzen. |
 
-### 2. `src/components/dispatch/WeatherWidget.tsx` — Neue Komponente
+**Filter-Tabs werden funktional:** Klick filtert die Liste nach Typ.
 
-- Props: keine (self-contained mit eigenem State)
-- Open-Meteo fetch mit `useQuery`
-- Standort-Popover mit `Popover` + Input
-- Wetter-Code → Icon + Animation Mapping
-- Hintergrund-Animation via Tailwind classes + inline gradient
+### 2. Neue Edge Function `supabase/functions/ai-resolve/index.ts`
+
+KI-gesteuerte Problemlösung über Lovable AI Gateway:
+- Nimmt Problem-Typ + Kontext (Sendungen, Touren, Fahrzeuge)
+- Nutzt `google/gemini-3-flash-preview` für Analyse und Lösungsvorschlag
+- Bei Kapazitätsproblemen: Automatische Neuplanung via `plan-tour`
+- Gibt strukturierte Lösung zurück (welche Sendung wohin, neue Touraufteilung)
+
+### 3. `supabase/functions/plan-tour/index.ts` — Erweitern
+
+- Neuer Parameter `exclude_shipment_ids` für partielle Neuplanung
+- Parameter `force_replan: true` für Kapazitätsüberschreitungen
 
 ### Betroffene Dateien
-- `src/pages/dispatch/Tagesleitstelle.tsx` — Umbau
-- `src/components/dispatch/WeatherWidget.tsx` — Neu
-- Keine DB-Änderungen nötig
+- `src/pages/dispatch/Probleme.tsx` — Kompletter Neubau (~400 Zeilen)
+- `supabase/functions/ai-resolve/index.ts` — Neue Edge Function
+- `supabase/functions/plan-tour/index.ts` — Kleine Erweiterung
 
 ### Technische Details
-- Open-Meteo API ist kostenlos, kein Key nötig, CORS-frei
-- Geocoding: `https://geocoding-api.open-meteo.com/v1/search?name=Berlin`
-- WMO Weather Codes → Lucide Icons Mapping (0-1: Sun, 2-3: Cloud, 45-48: CloudFog, 51-67: CloudRain, 71-77: Snowflake, 80-82: CloudRain, 95-99: CloudLightning)
-- Verkehrshinweise sind simuliert (statische Beispieldaten mit Timestamp), da echte Traffic-APIs einen Key benötigen
+- Dialog nutzt shadcn `Sheet` (von rechts einblendend) für großen Inhalt
+- Unzugeordnete Sendungen: `shipment` LEFT JOIN `tour_stop` WHERE `tour_stop.id IS NULL`
+- Kapazitätsprüfung: SUM(`shipment.weight_kg`) per Tour vs. `vehicle.capacity`
+- KI-Aufruf über Lovable AI Gateway mit LOVABLE_API_KEY (bereits konfiguriert)
+- Manuelle Tour-Erstellung: Insert in `tour` + `tour_stop` direkt via Supabase SDK
 
