@@ -80,9 +80,32 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { company_id, date, auto_activate = true } = await req.json();
-    if (!company_id || !date) {
-      return new Response(JSON.stringify({ error: "company_id and date required" }), {
+    // Parse body safely — allow empty body for UI calls
+    let body: Record<string, unknown> = {};
+    try {
+      body = await req.json();
+    } catch {
+      // empty body is fine — we'll resolve from auth
+    }
+
+    let company_id = body.company_id as string | undefined;
+    const date = (body.date as string) || new Date().toISOString().split('T')[0];
+    const auto_activate = body.auto_activate !== false;
+
+    // If no company_id provided, resolve from the caller's JWT
+    if (!company_id) {
+      const authHeader = req.headers.get("authorization");
+      if (authHeader) {
+        const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data: cid } = await userClient.rpc("get_user_company_id");
+        if (cid) company_id = cid as string;
+      }
+    }
+
+    if (!company_id) {
+      return new Response(JSON.stringify({ error: "company_id required (provide in body or sign in)" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
