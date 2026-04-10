@@ -1,5 +1,6 @@
 import { Route, Truck, Users, AlertTriangle, PackageX, Play, RefreshCw, MoreHorizontal, Zap, Loader2, ArrowRight, Clock, CheckCircle2 } from 'lucide-react';
 import { KpiCard } from '@/components/dispatch/KpiCard';
+import { KpiDetailDialog } from '@/components/dispatch/KpiDetailDialog';
 import { Button } from '@/components/ui/button';
 import { useDispatch } from '@/lib/dispatch-context';
 import {
