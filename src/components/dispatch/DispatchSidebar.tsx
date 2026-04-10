@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Activity, Calendar, Settings, AlertTriangle,
-  Users, Radio, ChevronLeft, ChevronRight, Truck
+  Users, Package, ChevronLeft, ChevronRight, Truck
 } from 'lucide-react';
 import { useDispatch, UserRole } from '@/lib/dispatch-context';
 import { SectionId } from '@/lib/navigation';
@@ -19,7 +19,7 @@ const navItems: NavItem[] = [
   { id: 'tagesleitstelle', label: 'Startseite', icon: LayoutDashboard, roles: ['admin', 'dispatcher'] },
   { id: 'operative-lage', label: 'Aktuelle Lage', icon: Activity, roles: ['admin', 'dispatcher', 'driver'] },
   { id: 'kalender', label: 'Kalender', icon: Calendar, roles: ['admin', 'dispatcher'] },
-  { id: 'kontrollzentrale', label: 'Lieferscheine & mehr', icon: Radio, roles: ['admin', 'dispatcher'] },
+  { id: 'kontrollzentrale', label: 'Lieferscheine & mehr', icon: Package, roles: ['admin', 'dispatcher'] },
   { id: 'fahrer', label: 'Fahrer & Fahrzeuge', icon: Users, roles: ['admin', 'dispatcher'] },
   { id: 'probleme', label: 'Probleme', icon: AlertTriangle, roles: ['admin', 'dispatcher'], badge: 3 },
   { id: 'einstellungen', label: 'Einstellungen', icon: Settings, roles: ['admin'] },
