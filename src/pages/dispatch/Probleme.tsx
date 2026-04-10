@@ -228,57 +228,49 @@ function useAutoResolveCapacity(problems: Problem[] | undefined, dateStr: string
   const [autoResolving, setAutoResolving] = useState<Set<string>>(new Set());
   const [autoResolved, setAutoResolved] = useState<Set<string>>(new Set());
   const [autoFailed, setAutoFailed] = useState<Set<string>>(new Set());
-  const attemptedRef = useRef<Set<string>>(new Set());
+  const attemptedDateRef = useRef<string | null>(null);
 
   useEffect(() => {
-    attemptedRef.current.clear();
+    attemptedDateRef.current = null;
     setAutoResolving(new Set());
     setAutoResolved(new Set());
     setAutoFailed(new Set());
   }, [dateStr]);
 
   useEffect(() => {
-    if (!problems?.length) return;
+    const capacityProblems = (problems ?? []).filter((problem) => problem.type === 'capacity');
+    if (!capacityProblems.length) return;
+    if (attemptedDateRef.current === dateStr) return;
 
-    const capacityProblems = problems.filter((problem) => problem.type === 'capacity');
+    attemptedDateRef.current = dateStr;
+    const capacityIds = capacityProblems.map((problem) => problem.id);
+    const leadProblem = capacityProblems[0];
 
-    for (const problem of capacityProblems) {
-      if (attemptedRef.current.has(problem.id)) continue;
-      attemptedRef.current.add(problem.id);
-      setAutoResolving((prev) => new Set(prev).add(problem.id));
+    setAutoResolving(new Set(capacityIds));
 
-      supabase.functions.invoke('ai-resolve', {
-        body: { type: 'capacity', context: { ...problem.meta, date: dateStr } },
-      }).then(({ data, error }) => {
-        setAutoResolving((prev) => {
-          const next = new Set(prev);
-          next.delete(problem.id);
-          return next;
-        });
+    supabase.functions.invoke('ai-resolve', {
+      body: { type: 'capacity', context: { ...leadProblem.meta, date: dateStr } },
+    }).then(({ data, error }) => {
+      setAutoResolving(new Set());
 
-        if (error || !data?.resolved) {
-          setAutoFailed((prev) => new Set(prev).add(problem.id));
-          toast.error(
-            data?.message ??
-            error?.message ??
-            `KI konnte ${problem.meta?.vehicleName ?? 'das Kapazitätsproblem'} nicht automatisch lösen — manueller Eingriff nötig`
-          );
-          return;
-        }
+      if (error || !data?.resolved) {
+        setAutoFailed(new Set(capacityIds));
+        toast.error(
+          data?.message ??
+          error?.message ??
+          `KI konnte ${leadProblem.meta?.vehicleName ?? 'das Kapazitätsproblem'} nicht automatisch lösen — manueller Eingriff nötig`
+        );
+        return;
+      }
 
-        setAutoResolved((prev) => new Set(prev).add(problem.id));
-        toast.success(data.message ?? `${problem.meta?.vehicleName ?? 'Tour'} automatisch umgeplant`);
-        qc.invalidateQueries({ queryKey: ['problems'] });
-      }).catch((error: Error) => {
-        setAutoResolving((prev) => {
-          const next = new Set(prev);
-          next.delete(problem.id);
-          return next;
-        });
-        setAutoFailed((prev) => new Set(prev).add(problem.id));
-        toast.error(error.message ?? 'Automatische KI-Umplanung fehlgeschlagen');
-      });
-    }
+      setAutoResolved(new Set(capacityIds));
+      toast.success(data.message ?? 'Kapazitätsprobleme automatisch umgeplant');
+      qc.invalidateQueries({ queryKey: ['problems'] });
+    }).catch((error: Error) => {
+      setAutoResolving(new Set());
+      setAutoFailed(new Set(capacityIds));
+      toast.error(error.message ?? 'Automatische KI-Umplanung fehlgeschlagen');
+    });
   }, [problems, dateStr, qc]);
 
   return { autoResolving, autoResolved, autoFailed };
