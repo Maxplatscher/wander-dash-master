@@ -91,6 +91,8 @@ Deno.serve(async (req) => {
     let company_id = body.company_id as string | undefined;
     const date = (body.date as string) || new Date().toISOString().split('T')[0];
     const auto_activate = body.auto_activate !== false;
+    const force_replan = body.force_replan === true;
+    const exclude_shipment_ids = (body.exclude_shipment_ids as string[]) ?? [];
 
     // If no company_id provided, resolve from the caller's JWT
     if (!company_id) {
