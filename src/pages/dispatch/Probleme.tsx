@@ -172,17 +172,6 @@ function useProblems(date: string) {
         });
       }
 
-      // Fallback demo data
-      if (problems.length === 0) {
-        problems.push(
-          { id: 'D-001', type: 'capacity', title: 'LKW-01 — Kapazität', detail: '915 kg / 20 kg Limit · 4 Sendungen betroffen', severity: 'kritisch', meta: { totalWeight: 915, vehicleCapacity: 20, vehicleName: 'LKW-01', shipmentCount: 4 } },
-          { id: 'D-002', type: 'capacity', title: 'LKW-02 — Kapazität', detail: '300 kg / 15 kg Limit · 2 Sendungen betroffen', severity: 'kritisch', meta: { totalWeight: 300, vehicleCapacity: 15, vehicleName: 'LKW-02', shipmentCount: 2 } },
-          { id: 'D-003', type: 'conflict', title: 'Tour-09 — Zeitfenster', detail: 'Ankunft 14:30, Fenster endet 14:00', severity: 'warnung', meta: {} },
-          { id: 'D-004', type: 'absent', title: 'Fahrer Schmidt — Abwesend', detail: 'Krank ab heute · 3 Touren nicht besetzt', severity: 'warnung', meta: { driver: { name: 'Schmidt', status: 'krank' }, availableDrivers: [{ id: 'x', name: 'Maria Schulz', status: 'aktiv' }] } },
-          { id: 'D-005', type: 'unassigned', title: '3 Sendungen ohne Tour', detail: 'Kundenaufträge #4821, #4822, #4825', severity: 'warnung', meta: { shipments: [{ id: '1', customer_name: 'Müller GmbH', delivery_address: 'Berliner Str. 12', weight_kg: 120 }, { id: '2', customer_name: 'Schmidt AG', delivery_address: 'Hauptstr. 5', weight_kg: 80 }, { id: '3', customer_name: 'Weber KG', delivery_address: 'Industrieweg 3', weight_kg: 200 }] } },
-        );
-      }
-
       return problems;
     },
   });
@@ -433,8 +422,8 @@ export function Probleme() {
 
   const activeProblem = useMemo(() => {
     if (!problems) return [];
-    return problems.filter(p => !dismissed.has(p.id) && !autoResolved.has(p.id));
-  }, [problems, dismissed, autoResolved]);
+    return problems.filter(p => !dismissed.has(p.id));
+  }, [problems, dismissed]);
 
   const filtered = useMemo(() => {
     if (!filter) return activeProblem;
