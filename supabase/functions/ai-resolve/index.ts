@@ -1,9 +1,39 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+async function resolveCompanyId(type: string, context: Record<string, any>, supabase: ReturnType<typeof createClient>) {
+  if ((type === "capacity" || type === "conflict") && context.tourId) {
+    const { data } = await supabase
+      .from("tour")
+      .select("company_id")
+      .eq("id", context.tourId)
+      .maybeSingle();
+    return data?.company_id ?? null;
+  }
+
+  const firstShipmentId = context.shipments?.find((shipment: { id?: string }) => shipment?.id)?.id;
+  if (firstShipmentId) {
+    const { data } = await supabase
+      .from("shipment")
+      .select("company_id")
+      .eq("id", firstShipmentId)
+      .maybeSingle();
+    return data?.company_id ?? null;
+  }
+
+  return null;
+}
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -19,15 +49,12 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
-    const { type, context } = body;
+    const { type, context = {} } = body;
 
     if (!type) {
-      return new Response(JSON.stringify({ error: "type required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ error: "type required" }, 400);
     }
 
-    // Build prompt based on problem type
     let systemPrompt = "Du bist ein KI-Disponent für eine Spedition. Analysiere das Problem und gib eine strukturierte Lösung.";
     let userPrompt = "";
 
@@ -38,9 +65,9 @@ Deno.serve(async (req) => {
       }
       case "capacity": {
         userPrompt = `Tour hat Kapazitätsüberschreitung: ${context.totalWeight}kg bei einem Fahrzeuglimit von ${context.vehicleCapacity}kg. Tour-ID: ${context.tourId}. Plane die Tour um, sodass das Gewichtslimit eingehalten wird. Welche Sendungen sollen auf eine andere Tour verschoben werden?`;
-        
-        // For capacity issues, also trigger automatic replan
+
         try {
+          const companyId = await resolveCompanyId(type, context, supabase);
           const planResponse = await fetch(`${supabaseUrl}/functions/v1/plan-tour`, {
             method: "POST",
             headers: {
@@ -48,21 +75,38 @@ Deno.serve(async (req) => {
               "Authorization": `Bearer ${serviceKey}`,
             },
             body: JSON.stringify({
+              company_id: companyId,
               force_replan: true,
               date: context.date,
             }),
           });
-          const planResult = await planResponse.json();
-          if (planResult.success) {
-            return new Response(JSON.stringify({
+
+          const rawPlanResult = await planResponse.text();
+          const planResult = rawPlanResult ? JSON.parse(rawPlanResult) : {};
+
+          if (planResponse.ok && planResult.success) {
+            return jsonResponse({
               message: `Kapazitätsproblem gelöst: ${planResult.tours} Touren mit ${planResult.total_stops} Stops neu geplant.`,
+              actions: [],
+              resolved: true,
+              requires_manual: false,
               result: planResult,
-            }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
-        } catch (e) {
-          console.error("Auto-replan failed, falling back to AI analysis:", e);
+
+          if (planResponse.status === 422) {
+            return jsonResponse({
+              message: planResult.error ?? "Kapazitätsproblem konnte nicht automatisch gelöst werden. Manueller Eingriff erforderlich.",
+              actions: [],
+              resolved: false,
+              requires_manual: true,
+              result: planResult,
+            });
+          }
+
+          console.error("Auto-replan failed:", planResponse.status, rawPlanResult);
+        } catch (error) {
+          console.error("Auto-replan failed, falling back to AI analysis:", error);
         }
         break;
       }
@@ -75,7 +119,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Call Lovable AI Gateway
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -119,14 +162,10 @@ Deno.serve(async (req) => {
 
     if (!aiResponse.ok) {
       if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "KI-Ratenlimit erreicht. Bitte versuchen Sie es in einer Minute erneut." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return jsonResponse({ error: "KI-Ratenlimit erreicht. Bitte versuchen Sie es in einer Minute erneut." }, 429);
       }
       if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "KI-Guthaben aufgebraucht. Bitte laden Sie Ihr Guthaben auf." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return jsonResponse({ error: "KI-Guthaben aufgebraucht. Bitte laden Sie Ihr Guthaben auf." }, 402);
       }
       const errText = await aiResponse.text();
       console.error("AI gateway error:", aiResponse.status, errText);
@@ -134,27 +173,33 @@ Deno.serve(async (req) => {
     }
 
     const aiResult = await aiResponse.json();
-    let resolution = { message: "KI-Analyse abgeschlossen", actions: [] };
+    let resolution: { message: string; actions: Array<{ action: string; details: string }>; resolved: boolean; requires_manual: boolean } = {
+      message: "KI-Analyse abgeschlossen",
+      actions: [],
+      resolved: false,
+      requires_manual: false,
+    };
 
     try {
       const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
       if (toolCall?.function?.arguments) {
-        resolution = JSON.parse(toolCall.function.arguments);
+        resolution = {
+          ...resolution,
+          ...JSON.parse(toolCall.function.arguments),
+        };
       }
     } catch {
-      // Fallback to content
       resolution.message = aiResult.choices?.[0]?.message?.content ?? "Analyse abgeschlossen";
     }
 
-    return new Response(JSON.stringify(resolution), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (type === "capacity") {
+      resolution.resolved = false;
+      resolution.requires_manual = true;
+    }
 
+    return jsonResponse(resolution);
   } catch (error) {
     console.error("ai-resolve error:", error);
-    return new Response(
-      JSON.stringify({ error: (error as Error).message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ error: (error as Error).message }, 500);
   }
 });
