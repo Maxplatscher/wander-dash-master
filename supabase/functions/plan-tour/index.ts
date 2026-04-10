@@ -113,11 +113,13 @@ Deno.serve(async (req) => {
     }
 
     // Load shipments for the date
-    const { data: shipments, error: sErr } = await supabase
+    let shipmentQuery = supabase
       .from("shipment")
       .select("id, demand, location_x, location_y, window_start, window_end")
       .eq("company_id", company_id)
       .eq("service_date", date);
+    
+    const { data: shipments, error: sErr } = await shipmentQuery;
     if (sErr) throw sErr;
     if (!shipments?.length) {
       return new Response(JSON.stringify({ error: "No shipments for this date" }), {
