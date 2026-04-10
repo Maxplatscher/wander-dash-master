@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { PackageX, AlertTriangle, AlertCircle, Clock, Bot, Loader2, Truck, User, X, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -49,126 +49,136 @@ function useProblems(date: string) {
     queryFn: async () => {
       const problems: Problem[] = [];
 
-      // 1. Unassigned shipments
-      const { data: shipments } = await supabase
-        .from('shipment')
-        .select('id, customer_name, delivery_address, weight_kg')
-        .eq('service_date', date);
+      const [{ data: shipments }, { data: activePlan }, { data: allActiveTours }, { data: drivers }] = await Promise.all([
+        supabase
+          .from('shipment')
+          .select('id, customer_name, delivery_address, weight_kg')
+          .eq('service_date', date),
+        supabase
+          .from('touren_plan')
+          .select('id, version')
+          .eq('date', date)
+          .eq('is_active', true)
+          .order('version', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('tour')
+          .select('id, description, is_active, version, plan_version_id')
+          .eq('date', date)
+          .eq('is_active', true),
+        supabase
+          .from('driver')
+          .select('id, name, status'),
+      ]);
 
-      if (shipments?.length) {
+      const fallbackVersion = (allActiveTours ?? []).reduce<number | null>((maxVersion, tour) => {
+        const version = tour.version ?? 0;
+        return maxVersion === null || version > maxVersion ? version : maxVersion;
+      }, null);
+
+      const currentTours = (allActiveTours ?? []).filter((tour) => {
+        if (activePlan?.id) return tour.plan_version_id === activePlan.id;
+        if (fallbackVersion === null) return false;
+        return (tour.version ?? 0) === fallbackVersion;
+      });
+
+      const currentTourIds = currentTours.map((tour) => tour.id);
+      let assignedIds = new Set<string>();
+
+      if (currentTourIds.length > 0) {
         const { data: assignedStops } = await supabase
           .from('tour_stop')
-          .select('shipment_id');
-        const assignedIds = new Set(assignedStops?.map(s => s.shipment_id) ?? []);
-        const unassigned = shipments.filter(s => !assignedIds.has(s.id));
+          .select('shipment_id, tour_id')
+          .in('tour_id', currentTourIds);
+
+        assignedIds = new Set(
+          (assignedStops ?? []).map((stop) => stop.shipment_id).filter(Boolean) as string[]
+        );
+      }
+
+      if (shipments?.length) {
+        const unassigned = shipments.filter((shipment) => !assignedIds.has(shipment.id));
         if (unassigned.length > 0) {
           problems.push({
             id: 'P-UA',
             type: 'unassigned',
             title: `${unassigned.length} Sendung${unassigned.length > 1 ? 'en' : ''} ohne Tour`,
-            detail: unassigned.map(s => s.customer_name ?? s.id.slice(0, 8)).join(', '),
+            detail: unassigned.map((shipment) => shipment.customer_name ?? shipment.id.slice(0, 8)).join(', '),
             severity: 'warnung',
             meta: { shipments: unassigned },
           });
         }
       }
 
-      // 2. Capacity issues
-      const { data: tours } = await supabase
-        .from('tour')
-        .select('id, description, is_active')
-        .eq('date', date)
-        .eq('is_active', true);
+      for (const tour of currentTours) {
+        const { data: stops } = await supabase
+          .from('tour_stop')
+          .select('id, shipment_id, vehicle_id, arrival_time, departure_time, stop_index')
+          .eq('tour_id', tour.id)
+          .order('stop_index');
 
-      if (tours?.length) {
-        for (const tour of tours) {
-          const { data: stops } = await supabase
-            .from('tour_stop')
-            .select('shipment_id, vehicle_id')
-            .eq('tour_id', tour.id);
-          if (!stops?.length) continue;
+        if (!stops?.length) continue;
 
-          const vehicleId = stops[0].vehicle_id;
-          if (!vehicleId) continue;
+        const vehicleId = stops[0].vehicle_id;
+        if (vehicleId) {
+          const shipmentIds = stops.map((stop) => stop.shipment_id).filter(Boolean) as string[];
+          if (shipmentIds.length > 0) {
+            const [{ data: shipmentData }, { data: vehicle }] = await Promise.all([
+              supabase.from('shipment').select('id, weight_kg').in('id', shipmentIds),
+              supabase.from('vehicle').select('capacity, name').eq('id', vehicleId).single(),
+            ]);
 
-          const shipmentIds = stops.map(s => s.shipment_id).filter(Boolean) as string[];
-          if (!shipmentIds.length) continue;
-          const { data: shipmentData } = await supabase
-            .from('shipment')
-            .select('id, weight_kg')
-            .in('id', shipmentIds);
-
-          const totalWeight = shipmentData?.reduce((s, sh) => s + (sh.weight_kg ?? 0), 0) ?? 0;
-
-          const { data: vehicle } = await supabase
-            .from('vehicle')
-            .select('capacity, name')
-            .eq('id', vehicleId)
-            .single();
-
-          if (vehicle && totalWeight > (vehicle.capacity ?? Infinity)) {
-            const name = vehicle.name ?? tour.description ?? tour.id.slice(0, 8);
-            const affected = shipmentData?.length ?? 0;
-            problems.push({
-              id: `P-CAP-${tour.id.slice(0, 6)}`,
-              type: 'capacity',
-              title: `${name} — Kapazität`,
-              detail: `${totalWeight} kg / ${vehicle.capacity} kg Limit · ${affected} Sendungen betroffen`,
-              severity: 'kritisch',
-              meta: { tourId: tour.id, totalWeight, vehicleCapacity: vehicle.capacity, vehicleName: name, shipmentCount: affected },
-            });
+            const totalWeight = shipmentData?.reduce((sum, shipment) => sum + (shipment.weight_kg ?? 0), 0) ?? 0;
+            if (vehicle && totalWeight > (vehicle.capacity ?? Number.POSITIVE_INFINITY)) {
+              const name = vehicle.name ?? tour.description ?? tour.id.slice(0, 8);
+              const affected = shipmentData?.length ?? 0;
+              problems.push({
+                id: `P-CAP-${tour.id.slice(0, 6)}`,
+                type: 'capacity',
+                title: `${name} — Kapazität`,
+                detail: `${totalWeight} kg / ${vehicle.capacity} kg Limit · ${affected} Sendungen betroffen`,
+                severity: 'kritisch',
+                meta: {
+                  tourId: tour.id,
+                  totalWeight,
+                  vehicleCapacity: vehicle.capacity,
+                  vehicleName: name,
+                  shipmentCount: affected,
+                },
+              });
+            }
           }
         }
-      }
 
-      // 3. Time conflicts (demo if no real data)
-      // Check if any tour stops have overlapping windows
-      if (tours?.length) {
-        for (const tour of tours) {
-          const { data: stops } = await supabase
-            .from('tour_stop')
-            .select('id, shipment_id, arrival_time, departure_time, stop_index')
-            .eq('tour_id', tour.id)
-            .order('stop_index');
-          if (!stops || stops.length < 2) continue;
-
+        if (stops.length >= 2) {
           for (let i = 0; i < stops.length - 1; i++) {
-            const curr = stops[i];
-            const next = stops[i + 1];
-            if (curr.departure_time && next.arrival_time && curr.departure_time > next.arrival_time) {
+            const currentStop = stops[i];
+            const nextStop = stops[i + 1];
+            if (currentStop.departure_time && nextStop.arrival_time && currentStop.departure_time > nextStop.arrival_time) {
               const tourName = tour.description ?? `Tour-${tour.id.slice(0, 4)}`;
               problems.push({
                 id: `P-CF-${tour.id.slice(0, 6)}-${i}`,
                 type: 'conflict',
                 title: `${tourName} — Zeitfenster`,
-                detail: `Ankunft ${next.arrival_time?.slice(0, 5)}, Fenster endet ${curr.departure_time?.slice(0, 5)}`,
+                detail: `Ankunft ${nextStop.arrival_time?.slice(11, 16)}, Fenster endet ${currentStop.departure_time?.slice(11, 16)}`,
                 severity: 'warnung',
-                meta: { tourId: tour.id, stopA: curr, stopB: next },
+                meta: { tourId: tour.id, stopA: currentStop, stopB: nextStop },
               });
             }
           }
         }
       }
 
-      // 4. Absent drivers
-      const { data: drivers } = await supabase
-        .from('driver')
-        .select('id, name, status');
-      const absent = drivers?.filter(d => d.status === 'abwesend' || d.status === 'krank') ?? [];
-      for (const d of absent) {
-        // Count affected tours
-        const { count } = await supabase
-          .from('tour')
-          .select('id', { count: 'exact', head: true })
-          .eq('date', date)
-          .eq('is_active', true);
+      const absentDrivers = drivers?.filter((driver) => driver.status === 'abwesend' || driver.status === 'krank') ?? [];
+      for (const driver of absentDrivers) {
         problems.push({
-          id: `P-ABS-${d.id.slice(0, 6)}`,
+          id: `P-ABS-${driver.id.slice(0, 6)}`,
           type: 'absent',
-          title: `Fahrer ${d.name ?? 'Unbekannt'} — Abwesend`,
-          detail: `${d.status === 'krank' ? 'Krank' : 'Abwesend'} ab heute · ${count ?? 0} Touren nicht besetzt`,
+          title: `Fahrer ${driver.name ?? 'Unbekannt'} — Abwesend`,
+          detail: `${driver.status === 'krank' ? 'Krank' : 'Abwesend'} ab heute · ${currentTours.length} Touren nicht besetzt`,
           severity: 'warnung',
-          meta: { driver: d, availableDrivers: drivers?.filter(dr => dr.status === 'aktiv') ?? [] },
+          meta: { driver, availableDrivers: drivers?.filter((candidate) => candidate.status === 'aktiv') ?? [] },
         });
       }
 
@@ -182,12 +192,32 @@ function useAvailableTours(date: string) {
   return useQuery({
     queryKey: ['available-tours', date],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('tour')
-        .select('id, description')
-        .eq('date', date)
-        .eq('is_active', true);
-      return data ?? [];
+      const [{ data: activePlan }, { data: tours }] = await Promise.all([
+        supabase
+          .from('touren_plan')
+          .select('id, version')
+          .eq('date', date)
+          .eq('is_active', true)
+          .order('version', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('tour')
+          .select('id, description, version, plan_version_id')
+          .eq('date', date)
+          .eq('is_active', true),
+      ]);
+
+      const fallbackVersion = (tours ?? []).reduce<number | null>((maxVersion, tour) => {
+        const version = tour.version ?? 0;
+        return maxVersion === null || version > maxVersion ? version : maxVersion;
+      }, null);
+
+      return (tours ?? []).filter((tour) => {
+        if (activePlan?.id) return tour.plan_version_id === activePlan.id;
+        if (fallbackVersion === null) return false;
+        return (tour.version ?? 0) === fallbackVersion;
+      });
     },
   });
 }
@@ -198,29 +228,50 @@ function useAutoResolveCapacity(problems: Problem[] | undefined, dateStr: string
   const [autoResolving, setAutoResolving] = useState<Set<string>>(new Set());
   const [autoResolved, setAutoResolved] = useState<Set<string>>(new Set());
   const [autoFailed, setAutoFailed] = useState<Set<string>>(new Set());
+  const attemptedDateRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!problems) return;
-    const capacityProblems = problems.filter(p => p.type === 'capacity' && !autoResolved.has(p.id) && !autoResolving.has(p.id) && !autoFailed.has(p.id));
-    
-    for (const p of capacityProblems) {
-      setAutoResolving(prev => new Set(prev).add(p.id));
-      
-      supabase.functions.invoke('ai-resolve', {
-        body: { type: 'capacity', context: { ...p.meta, date: dateStr } },
-      }).then(({ data, error }) => {
-        setAutoResolving(prev => { const n = new Set(prev); n.delete(p.id); return n; });
-        if (error || !data) {
-          setAutoFailed(prev => new Set(prev).add(p.id));
-          toast.error(`KI konnte ${p.meta?.vehicleName ?? 'Kapazitätsproblem'} nicht automatisch lösen — manueller Eingriff nötig`);
-        } else {
-          setAutoResolved(prev => new Set(prev).add(p.id));
-          toast.success(data?.message ?? `${p.meta?.vehicleName} automatisch umgeplant`);
-          qc.invalidateQueries({ queryKey: ['problems'] });
-        }
-      });
-    }
-  }, [problems, dateStr]);
+    attemptedDateRef.current = null;
+    setAutoResolving(new Set());
+    setAutoResolved(new Set());
+    setAutoFailed(new Set());
+  }, [dateStr]);
+
+  useEffect(() => {
+    const capacityProblems = (problems ?? []).filter((problem) => problem.type === 'capacity');
+    if (!capacityProblems.length) return;
+    if (attemptedDateRef.current === dateStr) return;
+
+    attemptedDateRef.current = dateStr;
+    const capacityIds = capacityProblems.map((problem) => problem.id);
+    const leadProblem = capacityProblems[0];
+
+    setAutoResolving(new Set(capacityIds));
+
+    supabase.functions.invoke('ai-resolve', {
+      body: { type: 'capacity', context: { ...leadProblem.meta, date: dateStr } },
+    }).then(({ data, error }) => {
+      setAutoResolving(new Set());
+
+      if (error || !data?.resolved) {
+        setAutoFailed(new Set(capacityIds));
+        toast.error(
+          data?.message ??
+          error?.message ??
+          `KI konnte ${leadProblem.meta?.vehicleName ?? 'das Kapazitätsproblem'} nicht automatisch lösen — manueller Eingriff nötig`
+        );
+        return;
+      }
+
+      setAutoResolved(new Set(capacityIds));
+      toast.success(data.message ?? 'Kapazitätsprobleme automatisch umgeplant');
+      qc.invalidateQueries({ queryKey: ['problems'] });
+    }).catch((error: Error) => {
+      setAutoResolving(new Set());
+      setAutoFailed(new Set(capacityIds));
+      toast.error(error.message ?? 'Automatische KI-Umplanung fehlgeschlagen');
+    });
+  }, [problems, dateStr, qc]);
 
   return { autoResolving, autoResolved, autoFailed };
 }
@@ -293,7 +344,11 @@ function CapacityDetail({ meta, autoStatus }: { meta: any; autoStatus: 'resolvin
         body: { type: 'capacity', context: meta },
       });
       if (error) throw error;
-      toast.success(data?.message ?? 'Kapazität aufgelöst');
+      if (!data?.resolved) {
+        toast.error(data?.message ?? 'Kapazitätsproblem erfordert manuellen Eingriff');
+        return;
+      }
+      toast.success(data.message ?? 'Kapazität aufgelöst');
       qc.invalidateQueries({ queryKey: ['problems'] });
     } catch (e: any) {
       toast.error(e.message ?? 'KI-Fehler');
