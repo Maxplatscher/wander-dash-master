@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 /* ── Types ── */
-type ProblemType = 'unassigned' | 'conflict' | 'capacity' | 'absent';
+type ProblemType = 'unassigned' | 'conflict' | 'absent';
 type SeverityLevel = 'kritisch' | 'warnung';
 
 interface Problem {
@@ -26,7 +26,6 @@ interface Problem {
 
 /* ── Filter config ── */
 const filterLabels: { key: ProblemType | 'all'; label: string }[] = [
-  { key: 'capacity', label: 'Kapazität' },
   { key: 'conflict', label: 'Zeitkonflikt' },
   { key: 'unassigned', label: 'Ohne Tour' },
   { key: 'absent', label: 'Abwesend' },
@@ -120,37 +119,6 @@ function useProblems(date: string) {
 
         if (!stops?.length) continue;
 
-        const vehicleId = stops[0].vehicle_id;
-        if (vehicleId) {
-          const shipmentIds = stops.map((stop) => stop.shipment_id).filter(Boolean) as string[];
-          if (shipmentIds.length > 0) {
-            const [{ data: shipmentData }, { data: vehicle }] = await Promise.all([
-              supabase.from('shipment').select('id, weight_kg').in('id', shipmentIds),
-              supabase.from('vehicle').select('capacity, name').eq('id', vehicleId).single(),
-            ]);
-
-            const totalWeight = shipmentData?.reduce((sum, shipment) => sum + (shipment.weight_kg ?? 0), 0) ?? 0;
-            if (vehicle && totalWeight > (vehicle.capacity ?? Number.POSITIVE_INFINITY)) {
-              const name = vehicle.name ?? tour.description ?? tour.id.slice(0, 8);
-              const affected = shipmentData?.length ?? 0;
-              problems.push({
-                id: `P-CAP-${tour.id.slice(0, 6)}`,
-                type: 'capacity',
-                title: `${name} — Kapazität`,
-                detail: `${totalWeight} kg / ${vehicle.capacity} kg Limit · ${affected} Sendungen betroffen`,
-                severity: 'kritisch',
-                meta: {
-                  tourId: tour.id,
-                  totalWeight,
-                  vehicleCapacity: vehicle.capacity,
-                  vehicleName: name,
-                  shipmentCount: affected,
-                },
-              });
-            }
-          }
-        }
-
         if (stops.length >= 2) {
           for (let i = 0; i < stops.length - 1; i++) {
             const currentStop = stops[i];
@@ -222,59 +190,6 @@ function useAvailableTours(date: string) {
   });
 }
 
-/* ── Auto-resolve capacity issues ── */
-function useAutoResolveCapacity(problems: Problem[] | undefined, dateStr: string) {
-  const qc = useQueryClient();
-  const [autoResolving, setAutoResolving] = useState<Set<string>>(new Set());
-  const [autoResolved, setAutoResolved] = useState<Set<string>>(new Set());
-  const [autoFailed, setAutoFailed] = useState<Set<string>>(new Set());
-  const attemptedDateRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    attemptedDateRef.current = null;
-    setAutoResolving(new Set());
-    setAutoResolved(new Set());
-    setAutoFailed(new Set());
-  }, [dateStr]);
-
-  useEffect(() => {
-    const capacityProblems = (problems ?? []).filter((problem) => problem.type === 'capacity');
-    if (!capacityProblems.length) return;
-    if (attemptedDateRef.current === dateStr) return;
-
-    attemptedDateRef.current = dateStr;
-    const capacityIds = capacityProblems.map((problem) => problem.id);
-    const leadProblem = capacityProblems[0];
-
-    setAutoResolving(new Set(capacityIds));
-
-    supabase.functions.invoke('ai-resolve', {
-      body: { type: 'capacity', context: { ...leadProblem.meta, date: dateStr } },
-    }).then(({ data, error }) => {
-      setAutoResolving(new Set());
-
-      if (error || !data?.resolved) {
-        setAutoFailed(new Set(capacityIds));
-        toast.error(
-          data?.message ??
-          error?.message ??
-          `KI konnte ${leadProblem.meta?.vehicleName ?? 'das Kapazitätsproblem'} nicht automatisch lösen — manueller Eingriff nötig`
-        );
-        return;
-      }
-
-      setAutoResolved(new Set(capacityIds));
-      toast.success(data.message ?? 'Kapazitätsprobleme automatisch umgeplant');
-      qc.invalidateQueries({ queryKey: ['problems'] });
-    }).catch((error: Error) => {
-      setAutoResolving(new Set());
-      setAutoFailed(new Set(capacityIds));
-      toast.error(error.message ?? 'Automatische KI-Umplanung fehlgeschlagen');
-    });
-  }, [problems, dateStr, qc]);
-
-  return { autoResolving, autoResolved, autoFailed };
-}
 
 /* ── Detail Sheets ── */
 function UnassignedDetail({ meta, date }: { meta: any; date: string }) {
@@ -473,7 +388,7 @@ export function Probleme() {
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   
-  const { autoResolving, autoResolved, autoFailed } = useAutoResolveCapacity(problems, dateStr);
+  
 
   const activeProblem = useMemo(() => {
     if (!problems) return [];
@@ -494,16 +409,9 @@ export function Probleme() {
     if (selectedProblem?.id === id) setSelectedProblem(null);
   }, [selectedProblem]);
 
-  const getAutoStatus = (id: string): 'resolving' | 'failed' | 'resolved' | 'idle' => {
-    if (autoResolving.has(id)) return 'resolving';
-    if (autoFailed.has(id)) return 'failed';
-    if (autoResolved.has(id)) return 'resolved';
-    return 'idle';
-  };
-
   // Count per filter type for badges
   const typeCounts = useMemo(() => {
-    const counts: Record<ProblemType, number> = { capacity: 0, conflict: 0, unassigned: 0, absent: 0 };
+    const counts: Record<ProblemType, number> = { conflict: 0, unassigned: 0, absent: 0 };
     activeProblem.forEach(p => counts[p.type]++);
     return counts;
   }, [activeProblem]);
@@ -511,7 +419,6 @@ export function Probleme() {
   const sheetTitle: Record<ProblemType, string> = {
     unassigned: 'Sendungen ohne Tour',
     conflict: 'Zeitfensterkonflikt',
-    capacity: 'Kapazitätsüberschreitung',
     absent: 'Fahrer abwesend',
   };
 
@@ -576,7 +483,6 @@ export function Probleme() {
               <ProblemCard
                 key={p.id}
                 problem={p}
-                autoStatus={p.type === 'capacity' ? getAutoStatus(p.id) : undefined}
                 onClick={() => setSelectedProblem(p)}
                 onDismiss={(e) => dismiss(p.id, e)}
               />
@@ -611,7 +517,6 @@ export function Probleme() {
             <SheetDescription>{selectedProblem?.detail}</SheetDescription>
           </SheetHeader>
           {selectedProblem?.type === 'unassigned' && <UnassignedDetail meta={selectedProblem.meta} date={dateStr} />}
-          {selectedProblem?.type === 'capacity' && <CapacityDetail meta={selectedProblem.meta} autoStatus={getAutoStatus(selectedProblem.id)} />}
           {selectedProblem?.type === 'conflict' && <ConflictDetail meta={selectedProblem.meta} />}
           {selectedProblem?.type === 'absent' && <AbsentDetail meta={selectedProblem.meta} />}
         </SheetContent>
@@ -621,21 +526,18 @@ export function Probleme() {
 }
 
 /* ── Problem Card ── */
-function ProblemCard({ problem, autoStatus, onClick, onDismiss }: {
+function ProblemCard({ problem, onClick, onDismiss }: {
   problem: Problem;
-  autoStatus?: 'resolving' | 'failed' | 'resolved' | 'idle';
   onClick: () => void;
   onDismiss: (e: React.MouseEvent) => void;
 }) {
   const actionLabel: Record<ProblemType, { primary: string; secondary: string }> = {
-    capacity: { primary: 'KI-Umplanung', secondary: 'Details' },
     conflict: { primary: 'Neuplanung', secondary: 'Ignorieren' },
     unassigned: { primary: 'Zuordnen', secondary: 'Details' },
     absent: { primary: 'Vertretung', secondary: 'Details' },
   };
 
   const actionColor: Record<ProblemType, string> = {
-    capacity: 'bg-red-600 hover:bg-red-700 text-white',
     conflict: 'bg-amber-600 hover:bg-amber-700 text-white',
     unassigned: 'bg-primary hover:bg-primary/90 text-primary-foreground',
     absent: 'bg-green-600 hover:bg-green-700 text-white',
@@ -660,13 +562,6 @@ function ProblemCard({ problem, autoStatus, onClick, onDismiss }: {
 
       <h4 className="text-sm font-semibold text-card-foreground mb-1 pr-6">{problem.title}</h4>
       <p className="text-xs text-muted-foreground mb-3">{problem.detail}</p>
-
-      {autoStatus === 'resolving' && (
-        <div className="flex items-center gap-2 text-xs text-blue-400 mb-3">
-          <Loader2 className="w-3 h-3 animate-spin" />
-          KI löst automatisch...
-        </div>
-      )}
 
       <div className="flex items-center gap-2">
         <Button
