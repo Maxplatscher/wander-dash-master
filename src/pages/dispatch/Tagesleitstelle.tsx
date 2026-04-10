@@ -1,7 +1,10 @@
-import { Route, Truck, Users, AlertTriangle, PackageX, Play, RefreshCw, MoreHorizontal, Zap, Loader2, ArrowRight, Clock, CheckCircle2 } from 'lucide-react';
+import { Route, Truck, Users, AlertTriangle, PackageX, Play, RefreshCw, MoreHorizontal, Zap, Loader2, Car, Clock } from 'lucide-react';
 import { KpiCard } from '@/components/dispatch/KpiCard';
 import { KpiDetailDialog } from '@/components/dispatch/KpiDetailDialog';
+import { WeatherWidget } from '@/components/dispatch/WeatherWidget';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDispatch } from '@/lib/dispatch-context';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -9,8 +12,9 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
+/* ── KPIs ── */
 function useKpis(date: string) {
   return useQuery({
     queryKey: ['kpis', date],
@@ -54,6 +58,58 @@ function useKpis(date: string) {
   });
 }
 
+/* ── Driver Summary ── */
+function useDriverSummary(date: string) {
+  return useQuery({
+    queryKey: ['driver-summary', date],
+    queryFn: async () => {
+      const { data: drivers } = await supabase.from('driver').select('id, name, status');
+      const { data: tours } = await supabase.from('tour').select('id, is_active').eq('date', date);
+      const tourIds = (tours ?? []).map(t => t.id);
+
+      let stops: any[] = [];
+      if (tourIds.length > 0) {
+        const { data } = await supabase
+          .from('tour_stop')
+          .select('tour_id, vehicle_id, driver_completed')
+          .in('tour_id', tourIds);
+        stops = data ?? [];
+      }
+
+      // Group stops by vehicle_id as a proxy for driver assignment
+      const { data: vehicles } = await supabase.from('vehicle').select('id, name');
+      const vehicleMap = new Map((vehicles ?? []).map(v => [v.id, v.name]));
+
+      return (drivers ?? []).map(driver => {
+        // In this schema, drivers don't have direct tour assignment,
+        // so we show overall tour stats per driver
+        const activeTourIds = (tours ?? []).filter(t => t.is_active).map(t => t.id);
+        const driverStops = stops.filter(s => activeTourIds.includes(s.tour_id));
+        const completed = driverStops.filter(s => s.driver_completed).length;
+        const total = driverStops.length;
+
+        return {
+          id: driver.id,
+          name: driver.name ?? 'Unbenannt',
+          status: driver.status ?? 'unknown',
+          completedStops: completed,
+          totalStops: total,
+          openStops: total - completed,
+        };
+      });
+    },
+  });
+}
+
+/* ── Traffic hints (simulated) ── */
+const trafficHints = [
+  { road: 'A9', text: 'Stau zwischen München-Nord und Garching, +15 Min', severity: 'warning' as const },
+  { road: 'B2', text: 'Baustelle Höhe Dachau, einspurig, leichte Verzögerungen', severity: 'info' as const },
+  { road: 'A99', text: 'Freie Fahrt auf dem Autobahnring', severity: 'ok' as const },
+  { road: 'A8', text: 'Unfall bei Augsburg-West, rechter Fahrstreifen gesperrt', severity: 'warning' as const },
+  { road: 'B304', text: 'Wasserrohrbruch in Markt Schwaben, Umleitung eingerichtet', severity: 'warning' as const },
+];
+
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return 'Guten Morgen';
@@ -61,26 +117,26 @@ function getGreeting() {
   return 'Guten Abend';
 }
 
-const activityItems = [
-  { icon: CheckCircle2, text: 'System bereit', time: 'Jetzt', color: 'text-emerald-500' },
-  { icon: Clock, text: 'Tagesplanung verfügbar', time: 'Heute', color: 'text-primary' },
-  { icon: Zap, text: 'Demo-Daten können geladen werden', time: '', color: 'text-amber-500' },
-];
-
 export function Tagesleitstelle() {
   const { navigateTo, selectedDate } = useDispatch();
   const dateStr = selectedDate.toISOString().split('T')[0];
   const { data: kpis, isLoading, refetch } = useKpis(dateStr);
+  const { data: driverSummary } = useDriverSummary(dateStr);
   const [planning, setPlanning] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   const [detailType, setDetailType] = useState<'activeTours' | 'vehicles' | 'drivers' | 'unassigned' | 'conflicts' | null>(null);
+  const [trafficTime, setTrafficTime] = useState(new Date());
+
+  // Refresh traffic timestamp every 2 minutes
+  useEffect(() => {
+    const interval = setInterval(() => setTrafficTime(new Date()), 120_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleDemo = async (scenario = 'A') => {
     setDemoLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('demo-setup', {
-        body: { scenario },
-      });
+      const { data, error } = await supabase.functions.invoke('demo-setup', { body: { scenario } });
       if (error) throw error;
       const { data: planResult, error: planErr } = await supabase.functions.invoke('plan-tour', {
         body: { company_id: data.company_id, date: dateStr, auto_activate: true },
@@ -132,11 +188,7 @@ export function Tagesleitstelle() {
     { icon: AlertTriangle, label: 'Konflikte', value: kpis?.conflicts ?? 0, subtitle: 'Zeitfenster / Kapazität', variant: (kpis?.conflicts ?? 0) > 0 ? 'destructive' as const : 'default' as const, onClick: () => setDetailType('conflicts') },
   ];
 
-  const quickLinks = [
-    { onClick: () => navigateTo('probleme'), icon: AlertTriangle, iconColor: 'bg-red-500/10 text-red-500', title: 'Offene Probleme', desc: `${kpis?.unassigned ?? 0} unzugewiesene Sendungen` },
-    { onClick: () => navigateTo('kontrollzentrale'), icon: Route, iconColor: 'bg-primary/10 text-primary', title: 'Planversionen', desc: `${kpis?.totalTours ?? 0} Touren geplant` },
-    { onClick: () => navigateTo('fahrer'), icon: Users, iconColor: 'bg-primary/10 text-primary', title: 'Fahrer & Fahrzeuge', desc: `${kpis?.activeDrivers ?? 0} aktiv · ${kpis?.absentDrivers ?? 0} abwesend` },
-  ];
+  const absentDrivers = driverSummary?.filter(d => d.status !== 'active') ?? [];
 
   return (
     <div className="space-y-6">
@@ -160,6 +212,16 @@ export function Tagesleitstelle() {
         ))}
       </div>
 
+      {/* Personnel Absence Alert */}
+      {absentDrivers.length > 0 && (
+        <Alert className="border-amber-500/50 bg-amber-500/10 animate-fade-in">
+          <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <AlertDescription className="text-amber-700 dark:text-amber-400 font-medium">
+            ⚠️ {absentDrivers.length} Fahrer abwesend: {absentDrivers.map(d => d.name).join(', ')}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Hero Summary */}
       <div className="rounded-xl bg-gradient-to-br from-primary to-primary/80 p-6 text-primary-foreground shadow-lg">
         <div className="flex items-center gap-2 mb-1">
@@ -169,9 +231,38 @@ export function Tagesleitstelle() {
           </span>
         </div>
         <h3 className="text-lg font-bold mb-1">Tageszusammenfassung</h3>
-        <p className="text-sm opacity-90 mb-5">
+        <p className="text-sm opacity-90 mb-4">
           {isLoading ? 'Lade...' : `${kpis?.activeTours ?? 0} Touren aktiv · ${kpis?.totalShipments ?? 0} Sendungen · ${kpis?.unassigned ?? 0} offen`}
         </p>
+
+        {/* Driver Overview */}
+        {driverSummary && driverSummary.length > 0 && (
+          <div className="mb-4 bg-primary-foreground/10 rounded-lg p-3 backdrop-blur-sm">
+            <h4 className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-2">Fahrer-Übersicht</h4>
+            <div className="space-y-1.5 max-h-36 overflow-y-auto">
+              {driverSummary.map(driver => (
+                <div key={driver.id} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex h-1.5 w-1.5 rounded-full ${driver.status === 'active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                    <span className="font-medium">{driver.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Badge className="bg-emerald-500/20 text-emerald-200 border-0 text-[10px] px-1.5 py-0">
+                      ✓ {driver.completedStops}
+                    </Badge>
+                    <Badge className="bg-primary-foreground/20 text-primary-foreground border-0 text-[10px] px-1.5 py-0">
+                      ▶ {driver.totalStops - driver.completedStops - driver.openStops}
+                    </Badge>
+                    <Badge className="bg-amber-500/20 text-amber-200 border-0 text-[10px] px-1.5 py-0">
+                      ○ {driver.openStops}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" className="bg-primary-foreground text-primary hover:bg-primary-foreground/90 font-semibold" onClick={() => navigateTo('operative-lage')}>
             <Play className="w-3.5 h-3.5 mr-1.5" /> Plan öffnen
@@ -200,44 +291,36 @@ export function Tagesleitstelle() {
         </div>
       </div>
 
-      {/* Quick Links + Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Quick Links */}
-        {quickLinks.map((link) => (
-          <button key={link.title} onClick={link.onClick} className="group rounded-xl border border-border bg-card p-5 text-left hover:border-primary/40 hover:shadow-md transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${link.iconColor}`}>
-                  <link.icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="font-semibold text-sm text-card-foreground">{link.title}</span>
-                  <p className="text-xs text-muted-foreground mt-0.5">{link.desc}</p>
-                </div>
-              </div>
-              <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-200" />
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* Activity Timeline */}
+      {/* Traffic Hints */}
       <div className="rounded-xl border border-border bg-card p-5">
-        <h3 className="font-semibold text-card-foreground mb-4 text-sm">Letzte Aktivitäten</h3>
-        <div className="space-y-3">
-          {activityItems.map((item, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-lg bg-muted flex items-center justify-center ${item.color}`}>
-                <item.icon className="w-4 h-4" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-card-foreground">{item.text}</p>
-              </div>
-              {item.time && <span className="text-xs text-muted-foreground">{item.time}</span>}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Car className="w-4 h-4 text-muted-foreground" />
+            <h3 className="font-semibold text-card-foreground text-sm">Verkehrshinweise</h3>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Clock className="w-3 h-3" />
+            <span>Aktualisiert {trafficTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {trafficHints.map((hint, i) => (
+            <div key={i} className="flex items-start gap-3 text-sm">
+              <span className={`inline-flex shrink-0 mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold ${
+                hint.severity === 'warning' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' :
+                hint.severity === 'ok' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+              }`}>
+                {hint.road}
+              </span>
+              <span className="text-muted-foreground">{hint.text}</span>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Weather Widget */}
+      <WeatherWidget />
 
       {/* KPI Detail Dialog */}
       <KpiDetailDialog
