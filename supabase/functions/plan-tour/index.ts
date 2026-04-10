@@ -119,8 +119,14 @@ Deno.serve(async (req) => {
       .eq("company_id", company_id)
       .eq("service_date", date);
     
-    const { data: shipments, error: sErr } = await shipmentQuery;
+    let { data: shipments, error: sErr } = await shipmentQuery;
     if (sErr) throw sErr;
+    
+    // Filter excluded shipments
+    if (exclude_shipment_ids.length > 0 && shipments) {
+      shipments = shipments.filter(s => !exclude_shipment_ids.includes(s.id));
+    }
+    
     if (!shipments?.length) {
       return new Response(JSON.stringify({ error: "No shipments for this date" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
