@@ -47,7 +47,7 @@ function DashboardLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col w-full bg-[#FAFAF8]">
+    <div className="min-h-screen flex flex-col w-full bg-dashboard">
       {/* Top header */}
       <header className="h-14 flex items-center px-5 bg-white border-b border-[#F0EEE9] sticky top-0 z-20 gap-4 shadow-[0_1px_3px_0_rgb(0,0,0,0.04)]">
         <button
