@@ -63,6 +63,13 @@
     @apply bg-background text-foreground;
     font-family: var(--font-body);
   }
+  .bg-dashboard {
+    background:
+      radial-gradient(ellipse 80% 60% at 10% 0%, hsl(174 50% 92% / 0.5), transparent 50%),
+      radial-gradient(ellipse 60% 50% at 90% 100%, hsl(210 40% 93% / 0.45), transparent 50%),
+      radial-gradient(ellipse 40% 40% at 50% 50%, hsl(38 30% 96% / 0.3), transparent 60%),
+      #FAFAF8;
+  }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
   }

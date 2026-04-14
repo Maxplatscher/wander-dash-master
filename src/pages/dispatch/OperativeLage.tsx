@@ -319,7 +319,7 @@ export function OperativeLage() {
   const activeProblems = (problems ?? []).slice(0, 4);
 
   return (
-    <div className="space-y-3 max-w-[1400px] mx-auto" style={{ background: '#FAFAF8' }}>
+    <div className="space-y-3 max-w-[1400px] mx-auto relative">
 
       {/* ═══ ROW 1 — 7 cards ═══ */}
       <div className="grid grid-cols-7 gap-3">
