@@ -17,14 +17,14 @@ function PageContent() {
   const { currentSection } = useDispatch();
 
   switch (currentSection) {
-    case 'tagesleitstelle': return <Tagesleitstelle />;
+    case 'tagesleitstelle': return <OperativeLage />;
     case 'operative-lage': return <OperativeLage />;
     case 'kalender': return <Kalender />;
     case 'kontrollzentrale': return <Kontrollzentrale />;
     case 'fahrer': return <Fahrer />;
     case 'einstellungen': return <Einstellungen />;
     case 'probleme': return <Probleme />;
-    default: return <Tagesleitstelle />;
+    default: return <OperativeLage />;
   }
 }
 
