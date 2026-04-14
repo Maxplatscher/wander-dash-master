@@ -49,7 +49,7 @@ function DashboardLayout() {
   return (
     <div className="min-h-screen flex flex-col w-full bg-dashboard">
       {/* Top header */}
-      <header className="h-14 flex items-center px-5 bg-white border-b border-[#F0EEE9] sticky top-0 z-20 gap-4 shadow-[0_1px_3px_0_rgb(0,0,0,0.04)]">
+      <header className="h-14 flex items-center px-5 bg-[#1a2340] border-b border-[#2a3a5a] sticky top-0 z-20 gap-4 shadow-lg">
         <button
           onClick={() => setDrawerOpen(true)}
           className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
