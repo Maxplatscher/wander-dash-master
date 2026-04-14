@@ -405,7 +405,7 @@ function ProblemCard({ problem, onClick, onDismiss }: { problem: Problem; onClic
 
   return (
     <div
-      className={cn("rounded-lg border-l-4 border bg-card p-4 cursor-pointer transition-all hover:bg-accent/30 group relative", borderColor[problem.severity])}
+      className={cn("rounded-2xl border-l-4 border border-border/60 bg-gradient-to-br from-card to-accent/10 p-4 cursor-pointer transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5 group relative", borderColor[problem.severity])}
       onClick={onClick}
     >
       <button
