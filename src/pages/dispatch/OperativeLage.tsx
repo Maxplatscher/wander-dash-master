@@ -136,7 +136,7 @@ function MiniCalendar() {
               key={day}
               className={cn(
                 'text-[10px] w-5 h-5 flex items-center justify-center rounded-full mx-auto',
-                isToday ? 'bg-teal-500 text-white font-bold' : 'text-[#666]'
+                isToday ? 'bg-blue-600 text-white font-bold' : 'text-[#666]'
               )}
             >
               {day}
@@ -376,7 +376,7 @@ export function OperativeLage() {
           onClick={() => navigateTo('tagesleitstelle')}
         >
           <p className={CARD_TITLE}>Tageszusammenfassung</p>
-          <ClipboardList className="w-10 h-10 text-teal-500 mb-2" />
+          <ClipboardList className="w-10 h-10 text-blue-600 mb-2" />
           <p className={cn('text-xs text-center', SECONDARY_TEXT)}>Klicken für Details</p>
         </div>
 
@@ -405,7 +405,7 @@ export function OperativeLage() {
           onClick={() => navigateTo('kontrollzentrale')}
         >
           <p className={CARD_TITLE}>Lieferscheine & mehr</p>
-          <FileText className="w-10 h-10 text-teal-500 mb-2" />
+          <FileText className="w-10 h-10 text-blue-600 mb-2" />
           <p className={cn('text-xs text-center', SECONDARY_TEXT)}>Klicken zum Öffnen</p>
         </div>
       </div>
