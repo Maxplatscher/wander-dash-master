@@ -52,26 +52,26 @@ function DashboardLayout() {
       <header className="h-14 flex items-center px-5 bg-[#1a2340] border-b border-[#2a3a5a] sticky top-0 z-20 gap-4 shadow-lg">
         <button
           onClick={() => setDrawerOpen(true)}
-          className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
+          className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors"
         >
-          <Menu className="w-5 h-5 text-[#1a1a1a]" />
+          <Menu className="w-5 h-5 text-white" />
         </button>
 
-        <h2 className="font-semibold text-[#1a1a1a] text-sm">{getSectionLabel(currentSection)}</h2>
+        <h2 className="font-semibold text-white text-sm">{getSectionLabel(currentSection)}</h2>
 
         <div className="ml-auto flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-[#aaa]">
+          <div className="flex items-center gap-1.5 text-xs text-blue-200/70">
             <CalendarDays className="w-3.5 h-3.5" />
             <input
               type="date"
               value={selectedDate.toISOString().split('T')[0]}
               onChange={e => setSelectedDate(new Date(e.target.value))}
-              className="bg-white text-xs text-[#1a1a1a] border border-[#F0EEE9] rounded-lg px-2.5 py-1.5 transition-colors focus:border-teal-400 focus:ring-1 focus:ring-teal-200 outline-none"
+              className="bg-white/10 text-xs text-white border border-white/20 rounded-lg px-2.5 py-1.5 transition-colors focus:border-blue-400 focus:ring-1 focus:ring-blue-300/30 outline-none"
             />
           </div>
 
           <Select value={tenant} onValueChange={setTenant}>
-            <SelectTrigger className="h-8 w-[130px] text-xs rounded-lg border-[#F0EEE9] bg-white">
+            <SelectTrigger className="h-8 w-[130px] text-xs rounded-lg border-white/20 bg-white/10 text-white">
               <Building className="w-3 h-3 mr-1" />
               <SelectValue />
             </SelectTrigger>
@@ -82,10 +82,10 @@ function DashboardLayout() {
             </SelectContent>
           </Select>
 
-          <span className="text-xs text-[#aaa] truncate max-w-[150px]">
+          <span className="text-xs text-blue-200/60 truncate max-w-[150px]">
             {user?.email} ({role ?? '...'})
           </span>
-          <Button size="sm" variant="ghost" onClick={signOut} title="Abmelden" className="rounded-lg hover:bg-red-50 hover:text-red-500">
+          <Button size="sm" variant="ghost" onClick={signOut} title="Abmelden" className="rounded-lg text-white/70 hover:bg-red-500/20 hover:text-red-300">
             <LogOut className="w-3.5 h-3.5" />
           </Button>
         </div>
