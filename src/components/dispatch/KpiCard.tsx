@@ -14,24 +14,28 @@ interface KpiCardProps {
 
 const variantStyles = {
   default: {
-    icon: 'bg-primary/10 text-primary',
-    border: 'border-l-primary/60',
-    glow: 'hover:shadow-primary/5',
+    icon: 'bg-gradient-to-br from-primary/15 to-primary-glow/10 text-primary',
+    card: 'from-card to-accent/20',
+    border: 'border-l-primary/50',
+    shadow: 'hover:shadow-[0_8px_25px_-5px_hsl(var(--primary)/0.12)]',
   },
   success: {
-    icon: 'bg-emerald-500/10 text-emerald-500',
-    border: 'border-l-emerald-500/60',
-    glow: 'hover:shadow-emerald-500/5',
+    icon: 'bg-gradient-to-br from-emerald-500/15 to-emerald-400/10 text-emerald-500',
+    card: 'from-card to-emerald-50/30',
+    border: 'border-l-emerald-500/50',
+    shadow: 'hover:shadow-[0_8px_25px_-5px_rgba(16,185,129,0.12)]',
   },
   warning: {
-    icon: 'bg-amber-500/10 text-amber-500',
-    border: 'border-l-amber-500/60',
-    glow: 'hover:shadow-amber-500/5',
+    icon: 'bg-gradient-to-br from-amber-500/15 to-amber-400/10 text-amber-500',
+    card: 'from-card to-amber-50/30',
+    border: 'border-l-amber-500/50',
+    shadow: 'hover:shadow-[0_8px_25px_-5px_rgba(245,158,11,0.12)]',
   },
   destructive: {
-    icon: 'bg-red-500/10 text-red-500',
-    border: 'border-l-destructive/60',
-    glow: 'hover:shadow-red-500/5',
+    icon: 'bg-gradient-to-br from-red-500/15 to-red-400/10 text-red-500',
+    card: 'from-card to-red-50/30',
+    border: 'border-l-destructive/50',
+    shadow: 'hover:shadow-[0_8px_25px_-5px_rgba(239,68,68,0.12)]',
   },
 };
 
@@ -71,14 +75,15 @@ export function KpiCard({ icon: Icon, label, value, subtitle, variant = 'default
       onClick={onClick}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter') onClick(); } : undefined}
       className={cn(
-        'rounded-xl border border-border bg-card p-5 flex flex-col gap-3 border-l-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg',
+        'rounded-2xl border border-border/60 bg-gradient-to-br p-5 flex flex-col gap-3 border-l-4 transition-all duration-300 hover:-translate-y-1 shadow-card',
+        styles.card,
         styles.border,
-        styles.glow,
+        styles.shadow,
         onClick && 'cursor-pointer',
       )}
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
+        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
         <div className="relative">
           <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', styles.icon)}>
             <Icon className="w-5 h-5" />

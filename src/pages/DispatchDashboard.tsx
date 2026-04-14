@@ -33,24 +33,22 @@ function ContextBar() {
   const { user, role, signOut } = useAuth();
 
   return (
-    <header className="h-14 flex items-center border-b border-border px-4 bg-card/80 backdrop-blur-sm sticky top-0 z-10 gap-4">
+    <header className="h-14 flex items-center px-5 glass-strong sticky top-0 z-10 gap-4 shadow-[0_1px_3px_0_rgb(0,0,0,0.04)]">
       <h2 className="font-semibold text-foreground text-sm">{getSectionLabel(currentSection)}</h2>
 
       <div className="ml-auto flex items-center gap-3">
-        {/* Date */}
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <CalendarDays className="w-3.5 h-3.5" />
           <input
             type="date"
             value={selectedDate.toISOString().split('T')[0]}
             onChange={e => setSelectedDate(new Date(e.target.value))}
-            className="bg-transparent text-xs text-foreground border border-border rounded px-2 py-1"
+            className="bg-card/50 text-xs text-foreground border border-border/60 rounded-lg px-2.5 py-1.5 transition-colors focus:border-primary/40 focus:ring-1 focus:ring-primary/20 outline-none"
           />
         </div>
 
-        {/* Tenant */}
         <Select value={tenant} onValueChange={setTenant}>
-          <SelectTrigger className="h-8 w-[130px] text-xs">
+          <SelectTrigger className="h-8 w-[130px] text-xs rounded-lg border-border/60 bg-card/50">
             <Building className="w-3 h-3 mr-1" />
             <SelectValue />
           </SelectTrigger>
@@ -61,11 +59,10 @@ function ContextBar() {
           </SelectContent>
         </Select>
 
-        {/* User info + logout */}
         <span className="text-xs text-muted-foreground truncate max-w-[150px]">
           {user?.email} ({role ?? '...'})
         </span>
-        <Button size="sm" variant="ghost" onClick={signOut} title="Abmelden">
+        <Button size="sm" variant="ghost" onClick={signOut} title="Abmelden" className="rounded-lg hover:bg-destructive/10 hover:text-destructive">
           <LogOut className="w-3.5 h-3.5" />
         </Button>
       </div>
@@ -75,7 +72,7 @@ function ContextBar() {
 
 function DashboardLayout() {
   return (
-    <div className="min-h-screen flex w-full">
+    <div className="min-h-screen flex w-full bg-background">
       <DispatchSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <ContextBar />
