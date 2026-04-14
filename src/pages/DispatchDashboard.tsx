@@ -100,19 +100,19 @@ function DashboardLayout() {
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex">
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
 
           {/* Drawer */}
-          <div className="relative w-64 bg-white h-full shadow-2xl flex flex-col animate-fade-in">
-            <div className="p-4 flex items-center justify-between border-b border-[#F0EEE9]">
+          <div className="relative w-64 bg-[#0f1a2e] h-full shadow-2xl flex flex-col animate-fade-in border-r border-white/10">
+            <div className="p-4 flex items-center justify-between border-b border-white/10">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
                   <LayoutDashboard className="w-4 h-4 text-white" />
                 </div>
-                <span className="font-semibold text-sm text-[#1a1a1a]">DispoCenter</span>
+                <span className="font-semibold text-sm text-white">DispoCenter</span>
               </div>
-              <button onClick={() => setDrawerOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100">
-                <X className="w-4 h-4 text-[#666]" />
+              <button onClick={() => setDrawerOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10">
+                <X className="w-4 h-4 text-blue-200/60" />
               </button>
             </div>
 
@@ -127,19 +127,19 @@ function DashboardLayout() {
                     className={cn(
                       'w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-all',
                       active
-                        ? 'bg-teal-50 text-teal-700 font-medium'
-                        : 'text-[#666] hover:bg-gray-50 hover:text-[#1a1a1a]'
+                        ? 'bg-blue-600/20 text-blue-300 font-medium'
+                        : 'text-blue-200/60 hover:bg-white/5 hover:text-white'
                     )}
                   >
-                    <Icon className={cn('w-4 h-4', active ? 'text-teal-500' : 'text-[#aaa]')} />
+                    <Icon className={cn('w-4 h-4', active ? 'text-blue-400' : 'text-blue-300/40')} />
                     <span>{section.label}</span>
                   </button>
                 );
               })}
             </nav>
 
-            <div className="p-3 border-t border-[#F0EEE9]">
-              <p className="text-[10px] text-[#aaa] text-center">DispoCenter · {tenant}</p>
+            <div className="p-3 border-t border-white/10">
+              <p className="text-[10px] text-blue-200/40 text-center">DispoCenter · {tenant}</p>
             </div>
           </div>
         </div>
