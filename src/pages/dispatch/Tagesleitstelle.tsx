@@ -208,8 +208,8 @@ export function Tagesleitstelle() {
     <div className="space-y-6">
       {/* Welcome Header */}
       <div className="animate-fade-in">
-        <h1 className="text-2xl font-extrabold text-card-foreground tracking-tight">
-          {getGreeting()} 👋
+        <h1 className="text-2xl font-extrabold tracking-tight">
+          <span className="gradient-text">{getGreeting()}</span> 👋
         </h1>
         <div className="flex items-center gap-2 mt-1">
           <span className={`inline-flex h-2 w-2 rounded-full ${hasProblems ? 'bg-amber-500' : 'bg-emerald-500'}`} />
@@ -239,7 +239,7 @@ export function Tagesleitstelle() {
       {/* Collapsible Summary */}
       <button
         onClick={() => setSummaryOpen(!summaryOpen)}
-        className="w-full rounded-xl bg-gradient-to-br from-primary to-primary/80 p-5 text-primary-foreground shadow-lg text-left transition-all hover:shadow-xl"
+        className="w-full rounded-2xl bg-gradient-to-r from-primary via-primary to-primary-glow p-5 text-primary-foreground shadow-glow-lg text-left transition-all duration-300 hover:shadow-[0_0_35px_-5px_hsl(var(--primary)/0.4)] hover:brightness-105"
       >
         <div className="flex items-center justify-between">
           <div>
@@ -297,7 +297,7 @@ export function Tagesleitstelle() {
       )}
 
       {/* Traffic Hints - route-based */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-accent/10 p-5 shadow-card">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Car className="w-4 h-4 text-muted-foreground" />
