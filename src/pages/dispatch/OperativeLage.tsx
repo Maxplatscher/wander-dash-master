@@ -13,13 +13,13 @@ import { useProblems } from '@/pages/dispatch/Probleme';
 /* ═══════════════════════════════════════════
    Styles — Management Dashboard
    ═══════════════════════════════════════════ */
-const CARD = 'bg-white border border-[#F0EEE9] rounded-xl p-4 flex flex-col';
-const CARD_TITLE = 'text-[11px] uppercase tracking-wider text-[#aaa] font-semibold mb-3';
-const PRIMARY_TEXT = 'text-[#1a1a1a]';
-const SECONDARY_TEXT = 'text-[#aaa]';
+const CARD = 'bg-white border border-[#e2e8f0] rounded-xl p-4 flex flex-col shadow-sm';
+const CARD_TITLE = 'text-[11px] uppercase tracking-wider text-[#1e3a5f] font-semibold mb-3';
+const PRIMARY_TEXT = 'text-[#1a2340]';
+const SECONDARY_TEXT = 'text-[#6b7c93]';
 
-/* ── Driver colors for charts ── */
-const DRIVER_COLORS = ['#E53E3E', '#ECC94B', '#38A169', '#3182CE', '#805AD5'];
+/* ── Driver colors for charts — darker blue palette ── */
+const DRIVER_COLORS = ['#1e3a5f', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
 
 /* ═══════════════════════════════════════════
    Data hooks
