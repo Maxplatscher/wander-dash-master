@@ -13,13 +13,13 @@ import { useProblems } from '@/pages/dispatch/Probleme';
 /* ═══════════════════════════════════════════
    Styles — Management Dashboard
    ═══════════════════════════════════════════ */
-const CARD = 'bg-white border border-[#F0EEE9] rounded-xl p-4 flex flex-col';
-const CARD_TITLE = 'text-[11px] uppercase tracking-wider text-[#aaa] font-semibold mb-3';
-const PRIMARY_TEXT = 'text-[#1a1a1a]';
-const SECONDARY_TEXT = 'text-[#aaa]';
+const CARD = 'bg-white border border-[#e2e8f0] rounded-xl p-4 flex flex-col shadow-sm';
+const CARD_TITLE = 'text-[11px] uppercase tracking-wider text-[#1e3a5f] font-semibold mb-3';
+const PRIMARY_TEXT = 'text-[#1a2340]';
+const SECONDARY_TEXT = 'text-[#6b7c93]';
 
-/* ── Driver colors for charts ── */
-const DRIVER_COLORS = ['#E53E3E', '#ECC94B', '#38A169', '#3182CE', '#805AD5'];
+/* ── Driver colors for charts — darker blue palette ── */
+const DRIVER_COLORS = ['#1e3a5f', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
 
 /* ═══════════════════════════════════════════
    Data hooks
@@ -136,7 +136,7 @@ function MiniCalendar() {
               key={day}
               className={cn(
                 'text-[10px] w-5 h-5 flex items-center justify-center rounded-full mx-auto',
-                isToday ? 'bg-teal-500 text-white font-bold' : 'text-[#666]'
+                isToday ? 'bg-blue-600 text-white font-bold' : 'text-[#666]'
               )}
             >
               {day}
@@ -376,7 +376,7 @@ export function OperativeLage() {
           onClick={() => navigateTo('tagesleitstelle')}
         >
           <p className={CARD_TITLE}>Tageszusammenfassung</p>
-          <ClipboardList className="w-10 h-10 text-teal-500 mb-2" />
+          <ClipboardList className="w-10 h-10 text-blue-600 mb-2" />
           <p className={cn('text-xs text-center', SECONDARY_TEXT)}>Klicken für Details</p>
         </div>
 
@@ -405,7 +405,7 @@ export function OperativeLage() {
           onClick={() => navigateTo('kontrollzentrale')}
         >
           <p className={CARD_TITLE}>Lieferscheine & mehr</p>
-          <FileText className="w-10 h-10 text-teal-500 mb-2" />
+          <FileText className="w-10 h-10 text-blue-600 mb-2" />
           <p className={cn('text-xs text-center', SECONDARY_TEXT)}>Klicken zum Öffnen</p>
         </div>
       </div>

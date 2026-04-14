@@ -49,29 +49,29 @@ function DashboardLayout() {
   return (
     <div className="min-h-screen flex flex-col w-full bg-dashboard">
       {/* Top header */}
-      <header className="h-14 flex items-center px-5 bg-white border-b border-[#F0EEE9] sticky top-0 z-20 gap-4 shadow-[0_1px_3px_0_rgb(0,0,0,0.04)]">
+      <header className="h-14 flex items-center px-5 bg-[#1a2340] border-b border-[#2a3a5a] sticky top-0 z-20 gap-4 shadow-lg">
         <button
           onClick={() => setDrawerOpen(true)}
-          className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
+          className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors"
         >
-          <Menu className="w-5 h-5 text-[#1a1a1a]" />
+          <Menu className="w-5 h-5 text-white" />
         </button>
 
-        <h2 className="font-semibold text-[#1a1a1a] text-sm">{getSectionLabel(currentSection)}</h2>
+        <h2 className="font-semibold text-white text-sm">{getSectionLabel(currentSection)}</h2>
 
         <div className="ml-auto flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-[#aaa]">
+          <div className="flex items-center gap-1.5 text-xs text-blue-200/70">
             <CalendarDays className="w-3.5 h-3.5" />
             <input
               type="date"
               value={selectedDate.toISOString().split('T')[0]}
               onChange={e => setSelectedDate(new Date(e.target.value))}
-              className="bg-white text-xs text-[#1a1a1a] border border-[#F0EEE9] rounded-lg px-2.5 py-1.5 transition-colors focus:border-teal-400 focus:ring-1 focus:ring-teal-200 outline-none"
+              className="bg-white/10 text-xs text-white border border-white/20 rounded-lg px-2.5 py-1.5 transition-colors focus:border-blue-400 focus:ring-1 focus:ring-blue-300/30 outline-none"
             />
           </div>
 
           <Select value={tenant} onValueChange={setTenant}>
-            <SelectTrigger className="h-8 w-[130px] text-xs rounded-lg border-[#F0EEE9] bg-white">
+            <SelectTrigger className="h-8 w-[130px] text-xs rounded-lg border-white/20 bg-white/10 text-white">
               <Building className="w-3 h-3 mr-1" />
               <SelectValue />
             </SelectTrigger>
@@ -82,10 +82,10 @@ function DashboardLayout() {
             </SelectContent>
           </Select>
 
-          <span className="text-xs text-[#aaa] truncate max-w-[150px]">
+          <span className="text-xs text-blue-200/60 truncate max-w-[150px]">
             {user?.email} ({role ?? '...'})
           </span>
-          <Button size="sm" variant="ghost" onClick={signOut} title="Abmelden" className="rounded-lg hover:bg-red-50 hover:text-red-500">
+          <Button size="sm" variant="ghost" onClick={signOut} title="Abmelden" className="rounded-lg text-white/70 hover:bg-red-500/20 hover:text-red-300">
             <LogOut className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -100,19 +100,19 @@ function DashboardLayout() {
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex">
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
 
           {/* Drawer */}
-          <div className="relative w-64 bg-white h-full shadow-2xl flex flex-col animate-fade-in">
-            <div className="p-4 flex items-center justify-between border-b border-[#F0EEE9]">
+          <div className="relative w-64 bg-[#0f1a2e] h-full shadow-2xl flex flex-col animate-fade-in border-r border-white/10">
+            <div className="p-4 flex items-center justify-between border-b border-white/10">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
                   <LayoutDashboard className="w-4 h-4 text-white" />
                 </div>
-                <span className="font-semibold text-sm text-[#1a1a1a]">DispoCenter</span>
+                <span className="font-semibold text-sm text-white">DispoCenter</span>
               </div>
-              <button onClick={() => setDrawerOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100">
-                <X className="w-4 h-4 text-[#666]" />
+              <button onClick={() => setDrawerOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10">
+                <X className="w-4 h-4 text-blue-200/60" />
               </button>
             </div>
 
@@ -127,19 +127,19 @@ function DashboardLayout() {
                     className={cn(
                       'w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-all',
                       active
-                        ? 'bg-teal-50 text-teal-700 font-medium'
-                        : 'text-[#666] hover:bg-gray-50 hover:text-[#1a1a1a]'
+                        ? 'bg-blue-600/20 text-blue-300 font-medium'
+                        : 'text-blue-200/60 hover:bg-white/5 hover:text-white'
                     )}
                   >
-                    <Icon className={cn('w-4 h-4', active ? 'text-teal-500' : 'text-[#aaa]')} />
+                    <Icon className={cn('w-4 h-4', active ? 'text-blue-400' : 'text-blue-300/40')} />
                     <span>{section.label}</span>
                   </button>
                 );
               })}
             </nav>
 
-            <div className="p-3 border-t border-[#F0EEE9]">
-              <p className="text-[10px] text-[#aaa] text-center">DispoCenter · {tenant}</p>
+            <div className="p-3 border-t border-white/10">
+              <p className="text-[10px] text-blue-200/40 text-center">DispoCenter · {tenant}</p>
             </div>
           </div>
         </div>
