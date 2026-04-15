@@ -537,14 +537,32 @@ export function OperativeLage() {
                 </div>
               </div>
             )) : (
-              [0, 1, 2].map(i => (
-                <div key={i} className={cn('rounded-2xl p-4 text-white bg-gradient-to-br', CARD_GRADIENTS[i])}>
-                  <div className="flex flex-col items-center justify-center h-24 text-center">
-                    <Truck className="w-8 h-8 opacity-40 mb-2" />
-                    <p className="text-xs text-white/60">Keine aktive Tour</p>
+              <div className="col-span-3">
+                <div className={CARD}>
+                  <p className={cn(SECTION_TITLE, 'mb-4')}>Fahrer Fortschritt</p>
+                  <div className="space-y-3">
+                    {['Fahrer 1', 'Fahrer 2', 'Fahrer 3'].map((name, i) => (
+                      <div key={i} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-400">{name}</span>
+                          <span className="text-gray-300 font-semibold">0%</span>
+                        </div>
+                        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: '0%',
+                              backgroundColor: DRIVER_COLORS[i],
+                              opacity: 0.3,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                  <p className="text-[10px] text-gray-300 text-center mt-4">Keine aktiven Touren vorhanden</p>
                 </div>
-              ))
+              </div>
             )}
           </div>
         </div>
