@@ -629,6 +629,39 @@ export function OperativeLage() {
           </div>
         </div>
       </div>
+
+      {/* Add Driver Dialog */}
+      <Dialog open={showAddDriver} onOpenChange={setShowAddDriver}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Neuen Fahrer hinzufügen</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
+              <Input
+                placeholder="z.B. Max Müller"
+                value={newDriver.name}
+                onChange={(e) => setNewDriver(p => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Telefon</label>
+              <Input
+                placeholder="+49 171 ..."
+                value={newDriver.phone}
+                onChange={(e) => setNewDriver(p => ({ ...p, phone: e.target.value }))}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowAddDriver(false)}>Abbrechen</Button>
+              <Button onClick={handleAddDriver} disabled={saving || !newDriver.name.trim()}>
+                {saving ? 'Speichern…' : 'Fahrer anlegen'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
