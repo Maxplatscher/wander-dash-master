@@ -406,11 +406,11 @@ export function OperativeLage() {
             </div>
           )}
           {completedStops === 0 && totalStops === 0 ? (
-            <div className="flex flex-col items-center justify-center" onClick={() => navigateTo('kalender')}>
-              <div className="w-20 h-20 rounded-full border-2 border-dashed border-emerald-300 flex items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-50 transition-all group">
-                <Plus className="w-8 h-8 text-emerald-400 group-hover:text-emerald-600 transition-colors" />
+            <div className="flex flex-col items-center justify-center" onClick={() => setShowAddDriver(true)}>
+              <div className="w-20 h-20 rounded-full border-2 border-dashed border-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
+                <Plus className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
               </div>
-              <p className="text-[11px] font-medium text-emerald-600 mt-2">Tour Hinzufügen</p>
+              <p className="text-[11px] font-medium text-indigo-600 mt-2">Fahrer Hinzufügen</p>
             </div>
           ) : (
             <div className={cn(CARD_SM, 'items-center text-center')}>
@@ -422,11 +422,11 @@ export function OperativeLage() {
             </div>
           )}
           {totalWeight === 0 ? (
-            <div className="flex flex-col items-center justify-center" onClick={() => navigateTo('kontrollzentrale')}>
-              <div className="w-20 h-20 rounded-full border-2 border-dashed border-amber-300 flex items-center justify-center cursor-pointer hover:border-amber-500 hover:bg-amber-50 transition-all group">
-                <Plus className="w-8 h-8 text-amber-400 group-hover:text-amber-600 transition-colors" />
+            <div className="flex flex-col items-center justify-center" onClick={() => setShowAddDriver(true)}>
+              <div className="w-20 h-20 rounded-full border-2 border-dashed border-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
+                <Plus className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
               </div>
-              <p className="text-[11px] font-medium text-amber-600 mt-2">Sendung Hinzufügen</p>
+              <p className="text-[11px] font-medium text-indigo-600 mt-2">Fahrer Hinzufügen</p>
             </div>
           ) : (
             <div className={cn(CARD_SM, 'items-center text-center')}>
@@ -438,11 +438,11 @@ export function OperativeLage() {
             </div>
           )}
           {activeProblems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center" onClick={() => navigateTo('probleme')}>
-              <div className="w-20 h-20 rounded-full border-2 border-dashed border-red-300 flex items-center justify-center cursor-pointer hover:border-red-500 hover:bg-red-50 transition-all group">
-                <Plus className="w-8 h-8 text-red-400 group-hover:text-red-600 transition-colors" />
+            <div className="flex flex-col items-center justify-center" onClick={() => setShowAddDriver(true)}>
+              <div className="w-20 h-20 rounded-full border-2 border-dashed border-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
+                <Plus className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
               </div>
-              <p className="text-[11px] font-medium text-red-600 mt-2">Problem Melden</p>
+              <p className="text-[11px] font-medium text-indigo-600 mt-2">Fahrer Hinzufügen</p>
             </div>
           ) : (
             <div className={cn(CARD_SM, 'items-center text-center')}>
