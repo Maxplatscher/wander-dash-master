@@ -1,24 +1,19 @@
 
 
-# Die 3 KPI-Kästchen rechts ebenfalls als "Hinzufügen"-Kreise gestalten
+# Fahrzeug-Bereich im Fahrer-Dialog nur bei vorhandenen Fahrzeugen anzeigen
 
 ## Was sich ändert
 
-Die drei KPI-Karten rechts neben dem Fahrer-Kreis (Stops erledigt, Gesamtgewicht, Offene Probleme) zeigen aktuell immer ihre Werte — auch wenn sie 0 sind. Sie sollen die gleiche Logik bekommen wie die Fahrer-Karte:
+Der gesamte "Fahrzeug zuweisen"-Block (Zeilen 721-787) im Fahrer-Hinzufügen-Dialog wird nur noch angezeigt, wenn bereits manuell Fahrzeuge angelegt wurden (`existingVehicles.length > 0`). Wenn keine Fahrzeuge existieren, wird der Block komplett ausgeblendet.
 
-- **Stops erledigt = 0/0** → Kreis mit `+` und Label "Tour Hinzufügen", klick öffnet den gleichen Flow oder navigiert zur Kalender/Touren-Seite
-- **Gesamtgewicht = 0 kg** → Kreis mit `+` und Label "Sendung Hinzufügen", klick navigiert zur Sendungs-Verwaltung oder öffnet einen Dialog
-- **Offene Probleme = 0** → Kreis mit `+` und Label "Problem Melden", klick öffnet einen Dialog zur Problem-Erfassung
+Die Fahrzeug-Tabelle ist bereits leer — es sind keine Daten zu löschen.
 
 ## Technische Umsetzung
 
 ### Datei: `src/pages/dispatch/OperativeLage.tsx`
 
-1. **Stops-Karte** (Zeile 408-414): Wenn `completedStops === 0 && totalStops === 0`, den gleichen Kreis-Style wie bei Fahrern rendern. Klick navigiert zu `/dispatch/kalender` (Tourenplanung).
-
-2. **Gewicht-Karte** (Zeile 415-421): Wenn `totalWeight === 0`, Kreis-Style mit "Sendung Hinzufügen". Klick navigiert zu `/dispatch/kontrollzentrale` (Sendungsverwaltung).
-
-3. **Probleme-Karte** (Zeile 422-428): Wenn `activeProblems.length === 0`, Kreis-Style mit "Problem Melden". Klick navigiert zu `/dispatch/probleme`.
-
-Jeder Kreis bekommt das identische Design: `w-20 h-20 rounded-full border-2 border-dashed` mit passender Farbe (emerald/amber/red), Plus-Icon, und Label darunter.
+1. Den gesamten Fahrzeug-Block (Zeilen 721-787) in eine Bedingung wrappen: `{existingVehicles && existingVehicles.length > 0 && (...)}`.
+2. Innerhalb nur die Select-Dropdown mit bestehenden Fahrzeugen + "Neues Fahrzeug anlegen" Option anzeigen (wie bisher).
+3. Den Fallback-Block für "Noch kein Fahrzeug vorhanden" (Zeilen 765-786) entfernen, da der gesamte Block bei 0 Fahrzeugen ausgeblendet wird.
+4. Die `handleAddDriver`-Logik für Fahrzeug-Erstellung bleibt erhalten, greift aber nur wenn ein Fahrzeug ausgewählt/angelegt wird.
 
