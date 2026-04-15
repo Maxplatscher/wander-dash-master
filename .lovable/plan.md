@@ -1,30 +1,24 @@
 
 
-# Animated Particles/Grid Hintergrund
+# Die 3 KPI-Kästchen rechts ebenfalls als "Hinzufügen"-Kreise gestalten
 
-## Konzept
-Ein animiertes Partikel-Netzwerk im Hintergrund des Dashboards: Langsam schwebende Punkte, die sich mit feinen Linien verbinden, wenn sie nah beieinander sind. Navy-Blau/Cyan-Farbtöne. Subtil, performant, lebendig.
+## Was sich ändert
 
-## Umsetzung
+Die drei KPI-Karten rechts neben dem Fahrer-Kreis (Stops erledigt, Gesamtgewicht, Offene Probleme) zeigen aktuell immer ihre Werte — auch wenn sie 0 sind. Sie sollen die gleiche Logik bekommen wie die Fahrer-Karte:
 
-### 1. Neue Komponente: `src/components/dispatch/ParticleBackground.tsx`
-- Canvas-basierte Partikel-Animation mit `requestAnimationFrame`
-- ~60 Partikel, die langsam schweben und bei Nähe Linien zueinander ziehen
-- Farben: halbdurchsichtige Cyan/Blau-Punkte auf dem dunklen Navy-Hintergrund
-- Fixiert hinter dem Content (`position: fixed`, `z-index: 0`)
-- Performant: reines Canvas 2D, kein Three.js nötig
+- **Stops erledigt = 0/0** → Kreis mit `+` und Label "Tour Hinzufügen", klick öffnet den gleichen Flow oder navigiert zur Kalender/Touren-Seite
+- **Gesamtgewicht = 0 kg** → Kreis mit `+` und Label "Sendung Hinzufügen", klick navigiert zur Sendungs-Verwaltung oder öffnet einen Dialog
+- **Offene Probleme = 0** → Kreis mit `+` und Label "Problem Melden", klick öffnet einen Dialog zur Problem-Erfassung
 
-### 2. Integration in `src/pages/DispatchDashboard.tsx`
-- `<ParticleBackground />` als erstes Kind im Layout rendern
-- Content bekommt `position: relative; z-index: 1`
+## Technische Umsetzung
 
-### 3. Subtile Glow-Akzente in `src/index.css`
-- 2-3 weiche radiale Gradient-Spots (Blau/Cyan, ~10% Opacity) über `.bg-dashboard` layern, damit der Hintergrund auch ohne Animation Tiefe hat
-- Karten bekommen einen leichten `backdrop-filter: blur()` für Glaseffekt
+### Datei: `src/pages/dispatch/OperativeLage.tsx`
 
-### Technische Details
-- Keine neuen Dependencies nötig (reines Canvas API)
-- `devicePixelRatio`-aware für scharfes Rendering
-- `resize`-Listener für responsive Canvas-Größe
-- Animation pausiert wenn Tab nicht sichtbar (`visibilitychange`)
+1. **Stops-Karte** (Zeile 408-414): Wenn `completedStops === 0 && totalStops === 0`, den gleichen Kreis-Style wie bei Fahrern rendern. Klick navigiert zu `/dispatch/kalender` (Tourenplanung).
+
+2. **Gewicht-Karte** (Zeile 415-421): Wenn `totalWeight === 0`, Kreis-Style mit "Sendung Hinzufügen". Klick navigiert zu `/dispatch/kontrollzentrale` (Sendungsverwaltung).
+
+3. **Probleme-Karte** (Zeile 422-428): Wenn `activeProblems.length === 0`, Kreis-Style mit "Problem Melden". Klick navigiert zu `/dispatch/probleme`.
+
+Jeder Kreis bekommt das identische Design: `w-20 h-20 rounded-full border-2 border-dashed` mit passender Farbe (emerald/amber/red), Plus-Icon, und Label darunter.
 
