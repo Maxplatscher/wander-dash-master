@@ -311,10 +311,39 @@ function DonutChart({ drivers }: { drivers: { name: string; percent: number }[] 
    MAIN PAGE
    ═══════════════════════════════════════════ */
 export function OperativeLage() {
-  const { selectedDate, navigateTo } = useDispatch();
+  const { selectedDate, navigateTo, companyId } = useDispatch();
   const dateStr = selectedDate.toISOString().split('T')[0];
   const { data: activeDrivers } = useActiveDriversOnTour(dateStr);
   const { data: problems } = useProblems(dateStr);
+  const queryClient = useQueryClient();
+
+  const [showAddDriver, setShowAddDriver] = useState(false);
+  const [newDriver, setNewDriver] = useState({ name: '', phone: '' });
+  const [saving, setSaving] = useState(false);
+
+  const handleAddDriver = async () => {
+    if (!newDriver.name.trim()) return;
+    setSaving(true);
+    try {
+      const cid = companyId;
+      if (!cid) { toast.error('Kein Unternehmen zugeordnet'); return; }
+      const { error } = await supabase.from('driver').insert({
+        name: newDriver.name.trim(),
+        phone: newDriver.phone.trim() || null,
+        company_id: cid,
+        status: 'verfügbar',
+      });
+      if (error) throw error;
+      toast.success('Fahrer hinzugefügt');
+      setNewDriver({ name: '', phone: '' });
+      setShowAddDriver(false);
+      queryClient.invalidateQueries({ queryKey: ['active-drivers-tour'] });
+    } catch (e: any) {
+      toast.error(e.message ?? 'Fehler beim Speichern');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const donutData = useMemo(() => {
     return (activeDrivers ?? []).map(d => ({
