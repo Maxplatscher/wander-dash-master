@@ -694,11 +694,12 @@ export function OperativeLage() {
 
       {/* Add Driver Dialog */}
       <Dialog open={showAddDriver} onOpenChange={setShowAddDriver}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Neuen Fahrer hinzufügen</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
+            {/* Name */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
               <Input
@@ -707,6 +708,7 @@ export function OperativeLage() {
                 onChange={(e) => setNewDriver(p => ({ ...p, name: e.target.value }))}
               />
             </div>
+            {/* Telefon */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Telefon</label>
               <Input
@@ -715,6 +717,66 @@ export function OperativeLage() {
                 onChange={(e) => setNewDriver(p => ({ ...p, phone: e.target.value }))}
               />
             </div>
+
+            {/* Fahrzeug */}
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Truck className="w-4 h-4 text-indigo-500" />
+                <label className="text-sm font-bold text-gray-800">Fahrzeug zuweisen</label>
+              </div>
+              <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Fahrzeug wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">+ Neues Fahrzeug anlegen</SelectItem>
+                  {existingVehicles?.map(v => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.name} {v.capacity ? `(${v.capacity} kg)` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedVehicleId === 'new' && (
+                <div className="mt-3 space-y-3 pl-2 border-l-2 border-indigo-100">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Fahrzeugname</label>
+                    <Input
+                      placeholder="z.B. Sprinter 1"
+                      value={newDriver.vehicleName}
+                      onChange={(e) => setNewDriver(p => ({ ...p, vehicleName: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Kapazität (kg)</label>
+                    <Input
+                      type="number"
+                      placeholder="z.B. 1500"
+                      value={newDriver.vehicleCapacity}
+                      onChange={(e) => setNewDriver(p => ({ ...p, vehicleCapacity: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Hinweise für KI */}
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-4 h-4 text-amber-500" />
+                <label className="text-sm font-bold text-gray-800">Hinweise für KI-Tourenplanung</label>
+              </div>
+              <Textarea
+                placeholder="z.B. Fahrer kennt Gebiet Nord gut, max. 8h Schicht, keine Autobahn..."
+                value={newDriver.hints}
+                onChange={(e) => setNewDriver(p => ({ ...p, hints: e.target.value }))}
+                rows={3}
+                className="text-sm"
+              />
+              <p className="text-xs text-gray-400 mt-1">Diese Hinweise werden bei der automatischen Tourenplanung berücksichtigt.</p>
+            </div>
+
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowAddDriver(false)}>Abbrechen</Button>
               <Button onClick={handleAddDriver} disabled={saving || !newDriver.name.trim()}>
