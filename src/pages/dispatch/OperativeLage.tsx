@@ -1,15 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   MapPin, ArrowRight, Clock, Settings, FileText, AlertTriangle,
   CheckCircle2, ClipboardList, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
-  TrendingUp, Truck, Package, MoreVertical, Plus
+  TrendingUp, Truck, Package, MoreVertical, Plus, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDispatch } from '@/lib/dispatch-context';
 import { supabase } from '@/integrations/supabase/client';
 import { LiveMap } from '@/components/dispatch/LiveMap';
 import { useProblems } from '@/pages/dispatch/Probleme';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 /* ═══════════════════════════════════════════
    Styles
@@ -311,6 +315,35 @@ export function OperativeLage() {
   const dateStr = selectedDate.toISOString().split('T')[0];
   const { data: activeDrivers } = useActiveDriversOnTour(dateStr);
   const { data: problems } = useProblems(dateStr);
+  const queryClient = useQueryClient();
+
+  const [showAddDriver, setShowAddDriver] = useState(false);
+  const [newDriver, setNewDriver] = useState({ name: '', phone: '' });
+  const [saving, setSaving] = useState(false);
+
+  const handleAddDriver = async () => {
+    if (!newDriver.name.trim()) return;
+    setSaving(true);
+    try {
+      const { data: cid } = await supabase.rpc('get_user_company_id');
+      if (!cid) { toast.error('Kein Unternehmen zugeordnet'); setSaving(false); return; }
+      const { error } = await supabase.from('driver').insert({
+        name: newDriver.name.trim(),
+        phone: newDriver.phone.trim() || null,
+        company_id: cid,
+        status: 'verfügbar',
+      });
+      if (error) throw error;
+      toast.success('Fahrer hinzugefügt');
+      setNewDriver({ name: '', phone: '' });
+      setShowAddDriver(false);
+      queryClient.invalidateQueries({ queryKey: ['active-drivers-tour'] });
+    } catch (e: any) {
+      toast.error(e.message ?? 'Fehler beim Speichern');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const donutData = useMemo(() => {
     return (activeDrivers ?? []).map(d => ({
@@ -357,11 +390,11 @@ export function OperativeLage() {
         {/* KPI Row */}
         <div className="grid grid-cols-4 gap-4">
           {(activeDrivers ?? []).length === 0 ? (
-            <div className={cn(CARD_SM, 'items-center text-center cursor-pointer hover:shadow-md transition-shadow')} onClick={() => window.location.href = '/dispatch/fahrer'}>
-              <div className="w-12 h-12 rounded-full border-2 border-dashed border-indigo-400 flex items-center justify-center mb-2">
-                <Plus className="w-6 h-6 text-indigo-500" />
+            <div className="flex flex-col items-center justify-center" onClick={() => setShowAddDriver(true)}>
+              <div className="w-20 h-20 rounded-full border-2 border-dashed border-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
+                <Plus className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
               </div>
-              <p className="text-[11px] font-medium text-indigo-600">Fahrer Hinzufügen</p>
+              <p className="text-[11px] font-medium text-indigo-600 mt-2">Fahrer Hinzufügen</p>
             </div>
           ) : (
             <div className={cn(CARD_SM, 'items-center text-center')}>
@@ -596,6 +629,39 @@ export function OperativeLage() {
           </div>
         </div>
       </div>
+
+      {/* Add Driver Dialog */}
+      <Dialog open={showAddDriver} onOpenChange={setShowAddDriver}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Neuen Fahrer hinzufügen</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
+              <Input
+                placeholder="z.B. Max Müller"
+                value={newDriver.name}
+                onChange={(e) => setNewDriver(p => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">Telefon</label>
+              <Input
+                placeholder="+49 171 ..."
+                value={newDriver.phone}
+                onChange={(e) => setNewDriver(p => ({ ...p, phone: e.target.value }))}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowAddDriver(false)}>Abbrechen</Button>
+              <Button onClick={handleAddDriver} disabled={saving || !newDriver.name.trim()}>
+                {saving ? 'Speichern…' : 'Fahrer anlegen'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
