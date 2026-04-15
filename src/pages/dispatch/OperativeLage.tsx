@@ -1,15 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   MapPin, ArrowRight, Clock, Settings, FileText, AlertTriangle,
   CheckCircle2, ClipboardList, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
-  TrendingUp, Truck, Package, MoreVertical, Plus
+  TrendingUp, Truck, Package, MoreVertical, Plus, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDispatch } from '@/lib/dispatch-context';
 import { supabase } from '@/integrations/supabase/client';
 import { LiveMap } from '@/components/dispatch/LiveMap';
 import { useProblems } from '@/pages/dispatch/Probleme';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 /* ═══════════════════════════════════════════
    Styles
