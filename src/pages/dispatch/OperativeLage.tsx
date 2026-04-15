@@ -311,7 +311,7 @@ function DonutChart({ drivers }: { drivers: { name: string; percent: number }[] 
    MAIN PAGE
    ═══════════════════════════════════════════ */
 export function OperativeLage() {
-  const { selectedDate, navigateTo, companyId } = useDispatch();
+  const { selectedDate, navigateTo } = useDispatch();
   const dateStr = selectedDate.toISOString().split('T')[0];
   const { data: activeDrivers } = useActiveDriversOnTour(dateStr);
   const { data: problems } = useProblems(dateStr);
@@ -325,8 +325,8 @@ export function OperativeLage() {
     if (!newDriver.name.trim()) return;
     setSaving(true);
     try {
-      const cid = companyId;
-      if (!cid) { toast.error('Kein Unternehmen zugeordnet'); return; }
+      const { data: cid } = await supabase.rpc('get_user_company_id');
+      if (!cid) { toast.error('Kein Unternehmen zugeordnet'); setSaving(false); return; }
       const { error } = await supabase.from('driver').insert({
         name: newDriver.name.trim(),
         phone: newDriver.phone.trim() || null,
