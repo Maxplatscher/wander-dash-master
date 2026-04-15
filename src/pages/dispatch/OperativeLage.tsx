@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   MapPin, ArrowRight, Clock, Settings, FileText, AlertTriangle,
-  CheckCircle2, ClipboardList, Calendar as CalendarIcon
+  CheckCircle2, ClipboardList, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
+  TrendingUp, Truck, Package, MoreVertical
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDispatch } from '@/lib/dispatch-context';
@@ -11,15 +12,22 @@ import { LiveMap } from '@/components/dispatch/LiveMap';
 import { useProblems } from '@/pages/dispatch/Probleme';
 
 /* ═══════════════════════════════════════════
-   Styles — Management Dashboard
+   Styles
    ═══════════════════════════════════════════ */
-const CARD = 'bg-white border border-[#e2e8f0] rounded-xl p-4 flex flex-col shadow-sm';
-const CARD_TITLE = 'text-[11px] uppercase tracking-wider text-[#1e3a5f] font-semibold mb-3';
-const PRIMARY_TEXT = 'text-[#1a2340]';
-const SECONDARY_TEXT = 'text-[#6b7c93]';
+const CARD = 'bg-white rounded-2xl p-5 flex flex-col shadow-sm border border-gray-100';
+const CARD_SM = 'bg-white rounded-2xl p-4 flex flex-col shadow-sm border border-gray-100';
+const SECTION_TITLE = 'text-sm font-bold text-gray-800';
+const PRIMARY_TEXT = 'text-gray-800';
+const SECONDARY_TEXT = 'text-gray-500';
 
-/* ── Driver colors for charts — darker blue palette ── */
-const DRIVER_COLORS = ['#1e3a5f', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
+const DRIVER_COLORS = ['#ef4444', '#6366f1', '#f59e0b', '#10b981', '#8b5cf6'];
+const CARD_GRADIENTS = [
+  'from-red-500 to-orange-500',
+  'from-indigo-500 to-blue-500',
+  'from-amber-400 to-yellow-500',
+  'from-emerald-500 to-teal-500',
+  'from-purple-500 to-pink-500',
+];
 
 /* ═══════════════════════════════════════════
    Data hooks
@@ -51,7 +59,6 @@ function useActiveDriversOnTour(date: string) {
         .from('shipment')
         .select('id, customer_name, delivery_address, weight_kg');
 
-      // Build driver-tour mapping
       const result: {
         name: string;
         currentLocation: string;
@@ -103,7 +110,7 @@ function useActiveDriversOnTour(date: string) {
 }
 
 /* ═══════════════════════════════════════════
-   Mini Calendar Component
+   Mini Calendar (right sidebar)
    ═══════════════════════════════════════════ */
 function MiniCalendar() {
   const now = new Date();
@@ -112,18 +119,28 @@ function MiniCalendar() {
   const today = now.getDate();
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const offset = firstDay === 0 ? 6 : firstDay - 1; // Monday start
+  const offset = firstDay === 0 ? 6 : firstDay - 1;
 
   const monthName = now.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
   const days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
   return (
-    <div>
-      <p className={cn(CARD_TITLE)}>Kalender</p>
-      <p className={cn('text-xs font-semibold mb-2', PRIMARY_TEXT)}>{monthName}</p>
-      <div className="grid grid-cols-7 gap-0.5 text-center">
+    <div className={CARD}>
+      <div className="flex items-center justify-between mb-3">
+        <p className={SECTION_TITLE}>Kalender</p>
+      </div>
+      <div className="flex items-center justify-between mb-3">
+        <button className="w-6 h-6 rounded-full hover:bg-gray-100 flex items-center justify-center">
+          <ChevronLeft className="w-3.5 h-3.5 text-gray-500" />
+        </button>
+        <p className="text-xs font-semibold text-gray-700">{monthName}</p>
+        <button className="w-6 h-6 rounded-full hover:bg-gray-100 flex items-center justify-center">
+          <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center">
         {days.map(d => (
-          <span key={d} className="text-[9px] font-medium text-[#aaa]">{d}</span>
+          <span key={d} className="text-[10px] font-semibold text-gray-400 pb-1">{d}</span>
         ))}
         {Array.from({ length: offset }).map((_, i) => (
           <span key={`e-${i}`} />
@@ -135,8 +152,10 @@ function MiniCalendar() {
             <span
               key={day}
               className={cn(
-                'text-[10px] w-5 h-5 flex items-center justify-center rounded-full mx-auto',
-                isToday ? 'bg-blue-600 text-white font-bold' : 'text-[#666]'
+                'text-[11px] w-7 h-7 flex items-center justify-center rounded-full mx-auto cursor-pointer transition-colors',
+                isToday
+                  ? 'bg-indigo-500 text-white font-bold shadow-md shadow-indigo-200'
+                  : 'text-gray-600 hover:bg-gray-100'
               )}
             >
               {day}
@@ -149,7 +168,7 @@ function MiniCalendar() {
 }
 
 /* ═══════════════════════════════════════════
-   Live Clock Component
+   Live Clock
    ═══════════════════════════════════════════ */
 function LiveClock() {
   const [time, setTime] = useState(new Date());
@@ -159,97 +178,19 @@ function LiveClock() {
     return () => clearInterval(interval);
   }, []);
 
-  const timeStr = time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  const timeStr = time.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const dateStr = time.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
 
   return (
-    <div className="flex flex-col items-center justify-center h-full">
-      <p className={CARD_TITLE}>Aktuelle Uhrzeit</p>
-      <p className={cn('text-4xl font-extrabold tracking-tight', PRIMARY_TEXT)}>{timeStr}</p>
-      <p className={cn('text-xs mt-1', SECONDARY_TEXT)}>{dateStr}</p>
+    <div className="text-center">
+      <p className="text-3xl font-extrabold tracking-tight text-gray-800">{timeStr}</p>
+      <p className="text-xs text-gray-500 mt-1">{dateStr}</p>
     </div>
   );
 }
 
 /* ═══════════════════════════════════════════
-   Donut Chart Component
-   ═══════════════════════════════════════════ */
-function DonutChart({ drivers }: { drivers: { name: string; percent: number }[] }) {
-  const size = 120;
-  const strokeWidth = 18;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-
-  const sorted = [...drivers].sort((a, b) => b.percent - a.percent);
-  let accumulatedOffset = 0;
-
-  return (
-    <div className="flex items-center gap-4">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f0f0f0" strokeWidth={strokeWidth} />
-        {sorted.map((d, i) => {
-          const segmentLength = (d.percent / 100) * circumference * 0.18; // scale segments
-          const dashOffset = circumference - accumulatedOffset;
-          const el = (
-            <circle
-              key={i}
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              stroke={DRIVER_COLORS[i]}
-              strokeWidth={strokeWidth}
-              strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
-              strokeDashoffset={dashOffset}
-              strokeLinecap="round"
-              className="transition-all duration-500"
-              style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
-            />
-          );
-          accumulatedOffset += segmentLength + 2;
-          return el;
-        })}
-      </svg>
-      <div className="space-y-1.5">
-        {sorted.map((d, i) => (
-          <div key={i} className="flex items-center gap-2 text-xs">
-            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: DRIVER_COLORS[i] }} />
-            <span className={PRIMARY_TEXT}>{d.name.split(' ')[0]}</span>
-            <span className={cn('font-semibold ml-auto', PRIMARY_TEXT)}>{d.percent}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   Bar Chart Component
-   ═══════════════════════════════════════════ */
-function WeightBarChart({ drivers }: { drivers: { name: string; weight: number }[] }) {
-  const maxWeight = Math.max(...drivers.map(d => d.weight), 1);
-
-  return (
-    <div className="flex items-end gap-2 h-28 mt-2">
-      {drivers.map((d, i) => (
-        <div key={i} className="flex flex-col items-center flex-1 gap-1">
-          <span className="text-[9px] font-semibold text-[#666]">{d.weight}kg</span>
-          <div
-            className="w-full rounded-t-md transition-all duration-500"
-            style={{
-              height: `${Math.max((d.weight / maxWeight) * 80, 4)}%`,
-              backgroundColor: DRIVER_COLORS[i],
-            }}
-          />
-          <span className="text-[9px] text-[#aaa] truncate max-w-full">{d.name.split(' ')[0]}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   Weather Widget (inline, Open-Meteo)
+   Weather Widget
    ═══════════════════════════════════════════ */
 function InlineWeather() {
   const { data, isLoading } = useQuery({
@@ -272,15 +213,92 @@ function InlineWeather() {
   else if (code > 67 && code <= 77) { label = 'Schnee'; emoji = '❄️'; }
   else if (code > 77) { label = 'Gewitter'; emoji = '⛈️'; }
 
-  if (isLoading) return <p className="text-xs text-[#aaa]">Lade Wetter…</p>;
+  if (isLoading) return <p className="text-xs text-gray-400">Lade Wetter…</p>;
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center">
-      <p className={CARD_TITLE}>Aktuelles Wetter</p>
-      <span className="text-4xl mb-1">{emoji}</span>
-      <p className={cn('text-2xl font-bold', PRIMARY_TEXT)}>{Math.round(weather?.temperature ?? 0)}°C</p>
-      <p className={cn('text-xs', SECONDARY_TEXT)}>{label}</p>
-      <p className={cn('text-[10px] mt-1', SECONDARY_TEXT)}>Wind: {weather?.windspeed ?? 0} km/h</p>
+    <div className="flex items-center gap-3">
+      <span className="text-3xl">{emoji}</span>
+      <div>
+        <p className="text-lg font-bold text-gray-800">{Math.round(weather?.temperature ?? 0)}°C</p>
+        <p className="text-xs text-gray-500">{label} · Wind {weather?.windspeed ?? 0} km/h</p>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Weight Bar Chart
+   ═══════════════════════════════════════════ */
+function WeightBarChart({ drivers }: { drivers: { name: string; weight: number }[] }) {
+  const maxWeight = Math.max(...drivers.map(d => d.weight), 1);
+
+  return (
+    <div className="flex items-end gap-3 h-32 mt-2">
+      {drivers.map((d, i) => (
+        <div key={i} className="flex flex-col items-center flex-1 gap-1">
+          <span className="text-[10px] font-semibold text-gray-500">{d.weight}kg</span>
+          <div
+            className="w-full rounded-t-lg transition-all duration-500"
+            style={{
+              height: `${Math.max((d.weight / maxWeight) * 85, 6)}%`,
+              backgroundColor: DRIVER_COLORS[i % DRIVER_COLORS.length],
+            }}
+          />
+          <span className="text-[10px] text-gray-400 truncate max-w-full">{d.name.split(' ')[0]}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Donut Chart
+   ═══════════════════════════════════════════ */
+function DonutChart({ drivers }: { drivers: { name: string; percent: number }[] }) {
+  const size = 110;
+  const strokeWidth = 16;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  const sorted = [...drivers].sort((a, b) => b.percent - a.percent);
+  let accumulatedOffset = 0;
+
+  return (
+    <div className="flex items-center gap-4">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f3f4f6" strokeWidth={strokeWidth} />
+        {sorted.map((d, i) => {
+          const segmentLength = (d.percent / 100) * circumference * 0.18;
+          const dashOffset = circumference - accumulatedOffset;
+          const el = (
+            <circle
+              key={i}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={DRIVER_COLORS[i % DRIVER_COLORS.length]}
+              strokeWidth={strokeWidth}
+              strokeDasharray={`${segmentLength} ${circumference - segmentLength}`}
+              strokeDashoffset={dashOffset}
+              strokeLinecap="round"
+              className="transition-all duration-500"
+              style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+            />
+          );
+          accumulatedOffset += segmentLength + 2;
+          return el;
+        })}
+      </svg>
+      <div className="space-y-1.5">
+        {sorted.map((d, i) => (
+          <div key={i} className="flex items-center gap-2 text-xs">
+            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: DRIVER_COLORS[i % DRIVER_COLORS.length] }} />
+            <span className="text-gray-700">{d.name.split(' ')[0]}</span>
+            <span className="font-bold ml-auto text-gray-800">{d.percent}%</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -293,14 +311,6 @@ export function OperativeLage() {
   const dateStr = selectedDate.toISOString().split('T')[0];
   const { data: activeDrivers } = useActiveDriversOnTour(dateStr);
   const { data: problems } = useProblems(dateStr);
-
-  const driverCards = useMemo(() => {
-    const cards = (activeDrivers ?? []).slice(0, 5);
-    while (cards.length < 5) {
-      cards.push(null as any);
-    }
-    return cards;
-  }, [activeDrivers]);
 
   const donutData = useMemo(() => {
     return (activeDrivers ?? []).map(d => ({
@@ -316,157 +326,265 @@ export function OperativeLage() {
     }));
   }, [activeDrivers]);
 
-  const activeProblems = (problems ?? []).slice(0, 4);
+  const activeProblems = (problems ?? []).slice(0, 5);
+  const driverCards = (activeDrivers ?? []).slice(0, 3);
+
+  const totalStops = (activeDrivers ?? []).reduce((s, d) => s + d.totalStops, 0);
+  const completedStops = (activeDrivers ?? []).reduce((s, d) => s + d.completedStops, 0);
+  const totalWeight = (activeDrivers ?? []).reduce((s, d) => s + d.totalWeight, 0);
 
   return (
-    <div className="space-y-3 max-w-[1400px] mx-auto relative">
+    <div className="flex gap-6 max-w-[1600px] mx-auto relative">
+      {/* ═══ CENTER COLUMN ═══ */}
+      <div className="flex-1 min-w-0 space-y-5">
 
-      {/* ═══ ROW 1 — 7 cards ═══ */}
-      <div className="grid grid-cols-7 gap-3">
-        {/* Cards 1-5: Active drivers */}
-        {driverCards.map((driver, i) => (
-          <div key={i} className={cn(CARD, 'min-h-[120px] justify-center')}>
-            {driver ? (
-              <>
-                <p className={CARD_TITLE}>Fahrer {i + 1}</p>
-                <p className={cn('text-sm font-bold truncate', PRIMARY_TEXT)}>{driver.name}</p>
-                <div className={cn('flex items-center gap-1 mt-1.5 text-[10px]', SECONDARY_TEXT)}>
+        {/* Welcome Banner */}
+        <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 rounded-2xl p-6 border border-indigo-100 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gray-800 mb-1">Aktuelle Lage</h1>
+            <p className="text-sm text-gray-500 max-w-md">
+              Übersicht über alle aktiven Touren, Fahrer und Lieferungen für den {selectedDate.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}.
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <LiveClock />
+            </div>
+          </div>
+          <div className="hidden md:flex items-center gap-2 text-5xl opacity-80">
+            🚛
+          </div>
+        </div>
+
+        {/* KPI Row */}
+        <div className="grid grid-cols-4 gap-4">
+          <div className={cn(CARD_SM, 'items-center text-center')}>
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mb-2">
+              <Truck className="w-5 h-5 text-indigo-500" />
+            </div>
+            <p className="text-xl font-bold text-gray-800">{(activeDrivers ?? []).length}</p>
+            <p className="text-[11px] text-gray-500">Aktive Fahrer</p>
+          </div>
+          <div className={cn(CARD_SM, 'items-center text-center')}>
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+            </div>
+            <p className="text-xl font-bold text-gray-800">{completedStops}/{totalStops}</p>
+            <p className="text-[11px] text-gray-500">Stops erledigt</p>
+          </div>
+          <div className={cn(CARD_SM, 'items-center text-center')}>
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
+              <Package className="w-5 h-5 text-amber-500" />
+            </div>
+            <p className="text-xl font-bold text-gray-800">{totalWeight} kg</p>
+            <p className="text-[11px] text-gray-500">Gesamtgewicht</p>
+          </div>
+          <div className={cn(CARD_SM, 'items-center text-center')}>
+            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-2">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+            </div>
+            <p className="text-xl font-bold text-gray-800">{activeProblems.length}</p>
+            <p className="text-[11px] text-gray-500">Offene Probleme</p>
+          </div>
+        </div>
+
+        {/* Colored Driver Cards — like "Folders" in the image */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className={SECTION_TITLE}>Aktive Touren</p>
+            <button
+              onClick={() => navigateTo('fahrer')}
+              className="text-xs text-indigo-500 font-medium hover:text-indigo-700 transition-colors"
+            >
+              Alle anzeigen →
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {driverCards.length > 0 ? driverCards.map((driver, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'rounded-2xl p-4 text-white bg-gradient-to-br shadow-lg',
+                  CARD_GRADIENTS[i % CARD_GRADIENTS.length]
+                )}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                    <Truck className="w-4 h-4" />
+                  </div>
+                  <button className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-white/20">
+                    <MoreVertical className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="font-bold text-sm truncate">{driver.tourDescription}</p>
+                <p className="text-white/80 text-xs mt-1 truncate">{driver.name}</p>
+                <div className="flex items-center gap-2 mt-3 text-[11px] text-white/70">
                   <MapPin className="w-3 h-3 shrink-0" />
                   <span className="truncate">{driver.currentLocation}</span>
                 </div>
-                <div className={cn('flex items-center gap-1 mt-1 text-[10px]', SECONDARY_TEXT)}>
-                  <ArrowRight className="w-3 h-3 shrink-0" />
-                  <span className="truncate">{driver.nextStop}</span>
+                <div className="mt-2 flex items-center justify-between text-[11px]">
+                  <span className="text-white/80">{driver.completedStops}/{driver.totalStops} Stops</span>
+                  <span className="font-semibold">{driver.totalWeight} kg</span>
                 </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center text-center">
-                <p className={cn('text-xs', SECONDARY_TEXT)}>Kein aktiver Fahrer</p>
+                {/* Progress bar */}
+                <div className="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-white/60 rounded-full transition-all duration-500"
+                    style={{ width: `${driver.totalStops > 0 ? (driver.completedStops / driver.totalStops) * 100 : 0}%` }}
+                  />
+                </div>
               </div>
-            )}
-          </div>
-        ))}
-
-        {/* Card 6: Mini Calendar */}
-        <div className={cn(CARD, 'min-h-[120px]')}>
-          <MiniCalendar />
-        </div>
-
-        {/* Card 7: Live Clock */}
-        <div className={cn(CARD, 'min-h-[120px]')}>
-          <LiveClock />
-        </div>
-      </div>
-
-      {/* ═══ ROW 2 — 5 cards ═══ */}
-      <div className="grid grid-cols-5 gap-3">
-        {/* Donut: Tour Progress */}
-        <div className={cn(CARD, 'min-h-[180px]')}>
-          <p className={CARD_TITLE}>Tourfortschritt</p>
-          {donutData.length > 0 ? (
-            <DonutChart drivers={donutData} />
-          ) : (
-            <p className={cn('text-xs text-center mt-4', SECONDARY_TEXT)}>Keine aktiven Touren</p>
-          )}
-        </div>
-
-        {/* Tageszusammenfassung */}
-        <div
-          className={cn(CARD, 'min-h-[180px] items-center justify-center cursor-pointer hover:shadow-md transition-shadow')}
-          onClick={() => navigateTo('tagesleitstelle')}
-        >
-          <p className={CARD_TITLE}>Tageszusammenfassung</p>
-          <ClipboardList className="w-10 h-10 text-blue-600 mb-2" />
-          <p className={cn('text-xs text-center', SECONDARY_TEXT)}>Klicken für Details</p>
-        </div>
-
-        {/* Weight Bar Chart */}
-        <div className={cn(CARD, 'min-h-[180px]')}>
-          <p className={CARD_TITLE}>Gewicht der Touren</p>
-          {weightData.length > 0 ? (
-            <WeightBarChart drivers={weightData} />
-          ) : (
-            <p className={cn('text-xs text-center mt-4', SECONDARY_TEXT)}>Keine Daten</p>
-          )}
-        </div>
-
-        {/* Einstellungen */}
-        <div
-          className={cn(CARD, 'min-h-[180px] items-center justify-center cursor-pointer hover:shadow-md transition-shadow')}
-          onClick={() => navigateTo('einstellungen')}
-        >
-          <p className={CARD_TITLE}>Einstellungen</p>
-          <Settings className="w-12 h-12 text-[#aaa] mb-2" />
-        </div>
-
-        {/* Lieferscheine */}
-        <div
-          className={cn(CARD, 'min-h-[180px] items-center justify-center cursor-pointer hover:shadow-md transition-shadow')}
-          onClick={() => navigateTo('kontrollzentrale')}
-        >
-          <p className={CARD_TITLE}>Lieferscheine & mehr</p>
-          <FileText className="w-10 h-10 text-blue-600 mb-2" />
-          <p className={cn('text-xs text-center', SECONDARY_TEXT)}>Klicken zum Öffnen</p>
-        </div>
-      </div>
-
-      {/* ═══ ROW 3 — 4 cards ═══ */}
-      <div className="grid grid-cols-4 gap-3">
-        {/* Tageskilometer Ranking */}
-        <div className={cn(CARD, 'min-h-[200px]')}>
-          <p className={CARD_TITLE}>Tageskilometer-Ranking</p>
-          <div className="space-y-2 mt-1">
-            {(activeDrivers ?? []).length > 0 ? (
-              (activeDrivers ?? []).slice(0, 6).map((d, i) => {
-                const estimatedKm = Math.round((d.completedStops / Math.max(d.totalStops, 1)) * 180 + Math.random() * 20);
-                return (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span className={cn('font-medium', PRIMARY_TEXT)}>{d.name}</span>
-                    <div className="flex-1 mx-2 border-b border-dotted border-[#ddd]" />
-                    <span className={cn('font-bold', PRIMARY_TEXT)}>{estimatedKm} km</span>
+            )) : (
+              [0, 1, 2].map(i => (
+                <div key={i} className={cn('rounded-2xl p-4 text-white bg-gradient-to-br', CARD_GRADIENTS[i])}>
+                  <div className="flex flex-col items-center justify-center h-24 text-center">
+                    <Truck className="w-8 h-8 opacity-40 mb-2" />
+                    <p className="text-xs text-white/60">Keine aktive Tour</p>
                   </div>
-                );
-              })
-            ) : (
-              <p className={cn('text-xs', SECONDARY_TEXT)}>Keine Fahrer aktiv</p>
+                </div>
+              ))
             )}
           </div>
         </div>
 
-        {/* Wetter */}
-        <div className={cn(CARD, 'min-h-[200px]')}>
-          <InlineWeather />
-        </div>
+        {/* Charts Row */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Donut */}
+          <div className={CARD}>
+            <p className={cn(SECTION_TITLE, 'mb-3')}>Tourfortschritt</p>
+            {donutData.length > 0 ? (
+              <DonutChart drivers={donutData} />
+            ) : (
+              <p className="text-xs text-gray-400 text-center mt-4">Keine aktiven Touren</p>
+            )}
+          </div>
 
-        {/* Live-Karte */}
-        <div className={cn(CARD, 'min-h-[200px] p-0 overflow-hidden')}>
-          <p className={cn(CARD_TITLE, 'p-4 pb-0')}>Live-Karte</p>
-          <div className="flex-1 min-h-0">
-            <LiveMap />
+          {/* Weight */}
+          <div className={CARD}>
+            <p className={cn(SECTION_TITLE, 'mb-3')}>Gewicht der Touren</p>
+            {weightData.length > 0 ? (
+              <WeightBarChart drivers={weightData} />
+            ) : (
+              <p className="text-xs text-gray-400 text-center mt-4">Keine Daten</p>
+            )}
           </div>
         </div>
 
-        {/* Probleme & Hinweise */}
-        <div className={cn(CARD, 'min-h-[200px]')}>
-          <p className={CARD_TITLE}>Probleme & Hinweise</p>
+        {/* Recent Tours — like "Recent Files" in the image */}
+        <div className={CARD}>
+          <div className="flex items-center justify-between mb-3">
+            <p className={SECTION_TITLE}>Alle Fahrer heute</p>
+            <button
+              onClick={() => navigateTo('fahrer')}
+              className="text-xs text-indigo-500 font-medium hover:text-indigo-700 transition-colors"
+            >
+              Alle anzeigen →
+            </button>
+          </div>
+          <div className="space-y-0">
+            {(activeDrivers ?? []).length > 0 ? (activeDrivers ?? []).map((d, i) => {
+              const pct = d.totalStops > 0 ? Math.round((d.completedStops / d.totalStops) * 100) : 0;
+              return (
+                <div key={i} className={cn(
+                  'flex items-center gap-3 py-3 px-3 -mx-1 rounded-xl transition-colors',
+                  i % 2 === 1 && 'bg-gray-50/70'
+                )}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ backgroundColor: DRIVER_COLORS[i % DRIVER_COLORS.length] }}>
+                    {d.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{d.name}</p>
+                    <p className="text-[11px] text-gray-400 truncate">{d.tourDescription}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-semibold text-gray-700">{d.completedStops}/{d.totalStops} Stops</p>
+                  </div>
+                  <div className="w-16 shrink-0">
+                    <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: DRIVER_COLORS[i % DRIVER_COLORS.length] }} />
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-gray-700 w-10 text-right shrink-0">{pct}%</span>
+                </div>
+              );
+            }) : (
+              <p className="text-xs text-gray-400 py-4 text-center">Keine aktiven Fahrer heute</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ RIGHT SIDEBAR ═══ */}
+      <div className="w-72 shrink-0 space-y-4 hidden xl:block">
+        {/* Calendar */}
+        <MiniCalendar />
+
+        {/* Probleme */}
+        <div className={CARD}>
+          <div className="flex items-center justify-between mb-3">
+            <p className={SECTION_TITLE}>Probleme</p>
+            <button
+              onClick={() => navigateTo('probleme')}
+              className="text-xs text-indigo-500 font-medium hover:text-indigo-700 transition-colors"
+            >
+              Alle →
+            </button>
+          </div>
           {activeProblems.length > 0 ? (
-            <div className="space-y-2 mt-1">
+            <div className="space-y-3">
               {activeProblems.map((p, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs">
+                <div key={i} className="flex items-start gap-2.5">
                   <span className={cn(
-                    'w-2 h-2 rounded-full mt-1 shrink-0',
-                    p.severity === 'kritisch' ? 'bg-red-500' : 'bg-amber-500'
+                    'w-2 h-2 rounded-full mt-1.5 shrink-0',
+                    p.severity === 'kritisch' ? 'bg-red-500' : 'bg-amber-400'
                   )} />
-                  <span className={PRIMARY_TEXT}>{p.title}</span>
+                  <div>
+                    <p className="text-xs font-medium text-gray-700">{p.title}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{p.severity}</p>
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center flex-1 text-center">
+            <div className="flex flex-col items-center py-4 text-center">
               <CheckCircle2 className="w-8 h-8 text-emerald-500 mb-2" />
-              <p className={cn('text-xs font-medium', PRIMARY_TEXT)}>Alles in Ordnung</p>
+              <p className="text-xs font-medium text-gray-700">Alles in Ordnung</p>
             </div>
           )}
+        </div>
+
+        {/* Weather */}
+        <div className={CARD}>
+          <p className={cn(SECTION_TITLE, 'mb-3')}>Wetter</p>
+          <InlineWeather />
+        </div>
+
+        {/* Quick Links */}
+        <div className={CARD}>
+          <p className={cn(SECTION_TITLE, 'mb-3')}>Schnellzugriff</p>
+          <div className="space-y-2">
+            {[
+              { label: 'Tagesleitstelle', icon: ClipboardList, section: 'tagesleitstelle' as const },
+              { label: 'Kontrollzentrale', icon: FileText, section: 'kontrollzentrale' as const },
+              { label: 'Einstellungen', icon: Settings, section: 'einstellungen' as const },
+            ].map((item, i) => (
+              <button
+                key={i}
+                onClick={() => navigateTo(item.section)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition-all"
+              >
+                <item.icon className="w-4 h-4 text-gray-400" />
+                <span>{item.label}</span>
+                <ArrowRight className="w-3 h-3 ml-auto text-gray-300" />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Live Map */}
+        <div className={cn(CARD, 'p-0 overflow-hidden')}>
+          <p className={cn(SECTION_TITLE, 'p-5 pb-0')}>Live-Karte</p>
+          <div className="h-48">
+            <LiveMap />
+          </div>
         </div>
       </div>
     </div>
