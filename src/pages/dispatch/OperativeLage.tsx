@@ -320,8 +320,18 @@ export function OperativeLage() {
   const queryClient = useQueryClient();
 
   const [showAddDriver, setShowAddDriver] = useState(false);
-  const [newDriver, setNewDriver] = useState({ name: '', phone: '' });
+  const [newDriver, setNewDriver] = useState({ name: '', phone: '', vehicleName: '', vehicleCapacity: '', hints: '' });
   const [saving, setSaving] = useState(false);
+
+  // Fetch existing vehicles for selection
+  const { data: existingVehicles } = useQuery({
+    queryKey: ['vehicles-for-driver'],
+    queryFn: async () => {
+      const { data } = await supabase.from('vehicle').select('id, name, capacity');
+      return data ?? [];
+    },
+  });
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('new');
 
   const handleAddDriver = async () => {
     if (!newDriver.name.trim()) return;
