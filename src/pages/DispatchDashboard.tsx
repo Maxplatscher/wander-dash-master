@@ -15,6 +15,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ParticleBackground } from '@/components/dispatch/ParticleBackground';
 
 const sectionIcons: Record<SectionId, React.ElementType> = {
   'operative-lage': LayoutDashboard,
@@ -47,9 +48,10 @@ function DashboardLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col w-full bg-dashboard">
+    <div className="min-h-screen flex flex-col w-full bg-dashboard relative">
+      <ParticleBackground />
       {/* Top header */}
-      <header className="h-14 flex items-center px-5 bg-[#1a2340] border-b border-[#2a3a5a] sticky top-0 z-20 gap-4 shadow-lg">
+      <header className="h-14 flex items-center px-5 bg-[#1a2340]/80 backdrop-blur-xl border-b border-[#2a3a5a] sticky top-0 z-20 gap-4 shadow-lg relative">
         <button
           onClick={() => setDrawerOpen(true)}
           className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors"
