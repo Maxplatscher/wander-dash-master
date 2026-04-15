@@ -790,7 +790,7 @@ export function OperativeLage() {
             <div className="border-t pt-4">
               <div className="flex items-center gap-2 mb-2">
                 <FileText className="w-4 h-4 text-amber-500" />
-                <label className="text-sm font-bold text-gray-800">Hinweise für KI-Tourenplanung</label>
+                <label className="text-sm font-bold text-gray-800">Hinweise</label>
               </div>
               <Textarea
                 placeholder="z.B. Fahrer kennt Gebiet Nord gut, max. 8h Schicht, keine Autobahn..."
