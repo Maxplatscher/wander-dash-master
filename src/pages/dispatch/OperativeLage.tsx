@@ -339,17 +339,40 @@ export function OperativeLage() {
     try {
       const { data: cid } = await supabase.rpc('get_user_company_id');
       if (!cid) { toast.error('Kein Unternehmen zugeordnet'); setSaving(false); return; }
-      const { error } = await supabase.from('driver').insert({
+
+      // Create or select vehicle
+      let vehicleId: string | null = null;
+      if (selectedVehicleId === 'new' && newDriver.vehicleName.trim()) {
+        const { data: veh, error: vErr } = await supabase.from('vehicle').insert({
+          name: newDriver.vehicleName.trim(),
+          capacity: newDriver.vehicleCapacity ? parseInt(newDriver.vehicleCapacity) : null,
+          company_id: cid,
+        }).select('id').single();
+        if (vErr) throw vErr;
+        vehicleId = veh.id;
+      } else if (selectedVehicleId !== 'new') {
+        vehicleId = selectedVehicleId;
+      }
+
+      const { data: driver, error } = await supabase.from('driver').insert({
         name: newDriver.name.trim(),
         phone: newDriver.phone.trim() || null,
         company_id: cid,
         status: 'verfügbar',
-      });
+      }).select('id').single();
       if (error) throw error;
-      toast.success('Fahrer hinzugefügt');
-      setNewDriver({ name: '', phone: '' });
+
+      // Store hints as a note (we can use this later for AI tour planning)
+      if (newDriver.hints.trim()) {
+        console.log('Driver hints for AI:', newDriver.hints.trim(), 'driver:', driver.id, 'vehicle:', vehicleId);
+      }
+
+      toast.success('Fahrer & Fahrzeug hinzugefügt');
+      setNewDriver({ name: '', phone: '', vehicleName: '', vehicleCapacity: '', hints: '' });
+      setSelectedVehicleId('new');
       setShowAddDriver(false);
       queryClient.invalidateQueries({ queryKey: ['active-drivers-tour'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles-for-driver'] });
     } catch (e: any) {
       toast.error(e.message ?? 'Fehler beim Speichern');
     } finally {
