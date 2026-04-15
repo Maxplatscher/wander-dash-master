@@ -724,24 +724,49 @@ export function OperativeLage() {
                 <Truck className="w-4 h-4 text-indigo-500" />
                 <label className="text-sm font-bold text-gray-800">Fahrzeug zuweisen</label>
               </div>
-              <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Fahrzeug wählen" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">+ Neues Fahrzeug anlegen</SelectItem>
-                  {existingVehicles?.map(v => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.name} {v.capacity ? `(${v.capacity} kg)` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
 
-              {selectedVehicleId === 'new' && (
-                <div className="mt-3 space-y-3 pl-2 border-l-2 border-indigo-100">
+              {existingVehicles && existingVehicles.length > 0 ? (
+                <>
+                  <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Fahrzeug wählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">+ Neues Fahrzeug anlegen</SelectItem>
+                      {existingVehicles.map(v => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name} {v.capacity ? `(${v.capacity} kg)` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedVehicleId === 'new' && (
+                    <div className="mt-3 space-y-3 pl-2 border-l-2 border-indigo-100">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-1 block">Fahrzeugname *</label>
+                        <Input
+                          placeholder="z.B. Sprinter 1"
+                          value={newDriver.vehicleName}
+                          onChange={(e) => setNewDriver(p => ({ ...p, vehicleName: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-1 block">Kapazität (kg)</label>
+                        <Input
+                          type="number"
+                          placeholder="z.B. 1500"
+                          value={newDriver.vehicleCapacity}
+                          onChange={(e) => setNewDriver(p => ({ ...p, vehicleCapacity: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-400">Noch kein Fahrzeug vorhanden – lege eines an:</p>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Fahrzeugname</label>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Fahrzeugname *</label>
                     <Input
                       placeholder="z.B. Sprinter 1"
                       value={newDriver.vehicleName}
