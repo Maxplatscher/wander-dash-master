@@ -12,7 +12,9 @@ import { LiveMap } from '@/components/dispatch/LiveMap';
 import { useProblems } from '@/pages/dispatch/Probleme';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 
 /* ═══════════════════════════════════════════
@@ -318,8 +320,18 @@ export function OperativeLage() {
   const queryClient = useQueryClient();
 
   const [showAddDriver, setShowAddDriver] = useState(false);
-  const [newDriver, setNewDriver] = useState({ name: '', phone: '' });
+  const [newDriver, setNewDriver] = useState({ name: '', phone: '', vehicleName: '', vehicleCapacity: '', hints: '' });
   const [saving, setSaving] = useState(false);
+
+  // Fetch existing vehicles for selection
+  const { data: existingVehicles } = useQuery({
+    queryKey: ['vehicles-for-driver'],
+    queryFn: async () => {
+      const { data } = await supabase.from('vehicle').select('id, name, capacity');
+      return data ?? [];
+    },
+  });
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('new');
 
   const handleAddDriver = async () => {
     if (!newDriver.name.trim()) return;
@@ -327,17 +339,40 @@ export function OperativeLage() {
     try {
       const { data: cid } = await supabase.rpc('get_user_company_id');
       if (!cid) { toast.error('Kein Unternehmen zugeordnet'); setSaving(false); return; }
-      const { error } = await supabase.from('driver').insert({
+
+      // Create or select vehicle
+      let vehicleId: string | null = null;
+      if (selectedVehicleId === 'new' && newDriver.vehicleName.trim()) {
+        const { data: veh, error: vErr } = await supabase.from('vehicle').insert({
+          name: newDriver.vehicleName.trim(),
+          capacity: newDriver.vehicleCapacity ? parseInt(newDriver.vehicleCapacity) : null,
+          company_id: cid,
+        }).select('id').single();
+        if (vErr) throw vErr;
+        vehicleId = veh.id;
+      } else if (selectedVehicleId !== 'new') {
+        vehicleId = selectedVehicleId;
+      }
+
+      const { data: driver, error } = await supabase.from('driver').insert({
         name: newDriver.name.trim(),
         phone: newDriver.phone.trim() || null,
         company_id: cid,
         status: 'verfügbar',
-      });
+      }).select('id').single();
       if (error) throw error;
-      toast.success('Fahrer hinzugefügt');
-      setNewDriver({ name: '', phone: '' });
+
+      // Store hints as a note (we can use this later for AI tour planning)
+      if (newDriver.hints.trim()) {
+        console.log('Driver hints for AI:', newDriver.hints.trim(), 'driver:', driver.id, 'vehicle:', vehicleId);
+      }
+
+      toast.success('Fahrer & Fahrzeug hinzugefügt');
+      setNewDriver({ name: '', phone: '', vehicleName: '', vehicleCapacity: '', hints: '' });
+      setSelectedVehicleId('new');
       setShowAddDriver(false);
       queryClient.invalidateQueries({ queryKey: ['active-drivers-tour'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles-for-driver'] });
     } catch (e: any) {
       toast.error(e.message ?? 'Fehler beim Speichern');
     } finally {
@@ -659,11 +694,12 @@ export function OperativeLage() {
 
       {/* Add Driver Dialog */}
       <Dialog open={showAddDriver} onOpenChange={setShowAddDriver}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Neuen Fahrer hinzufügen</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
+            {/* Name */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
               <Input
@@ -672,6 +708,7 @@ export function OperativeLage() {
                 onChange={(e) => setNewDriver(p => ({ ...p, name: e.target.value }))}
               />
             </div>
+            {/* Telefon */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1 block">Telefon</label>
               <Input
@@ -680,6 +717,66 @@ export function OperativeLage() {
                 onChange={(e) => setNewDriver(p => ({ ...p, phone: e.target.value }))}
               />
             </div>
+
+            {/* Fahrzeug */}
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Truck className="w-4 h-4 text-indigo-500" />
+                <label className="text-sm font-bold text-gray-800">Fahrzeug zuweisen</label>
+              </div>
+              <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Fahrzeug wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">+ Neues Fahrzeug anlegen</SelectItem>
+                  {existingVehicles?.map(v => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.name} {v.capacity ? `(${v.capacity} kg)` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedVehicleId === 'new' && (
+                <div className="mt-3 space-y-3 pl-2 border-l-2 border-indigo-100">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Fahrzeugname</label>
+                    <Input
+                      placeholder="z.B. Sprinter 1"
+                      value={newDriver.vehicleName}
+                      onChange={(e) => setNewDriver(p => ({ ...p, vehicleName: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">Kapazität (kg)</label>
+                    <Input
+                      type="number"
+                      placeholder="z.B. 1500"
+                      value={newDriver.vehicleCapacity}
+                      onChange={(e) => setNewDriver(p => ({ ...p, vehicleCapacity: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Hinweise für KI */}
+            <div className="border-t pt-4">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-4 h-4 text-amber-500" />
+                <label className="text-sm font-bold text-gray-800">Hinweise für KI-Tourenplanung</label>
+              </div>
+              <Textarea
+                placeholder="z.B. Fahrer kennt Gebiet Nord gut, max. 8h Schicht, keine Autobahn..."
+                value={newDriver.hints}
+                onChange={(e) => setNewDriver(p => ({ ...p, hints: e.target.value }))}
+                rows={3}
+                className="text-sm"
+              />
+              <p className="text-xs text-gray-400 mt-1">Diese Hinweise werden bei der automatischen Tourenplanung berücksichtigt.</p>
+            </div>
+
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowAddDriver(false)}>Abbrechen</Button>
               <Button onClick={handleAddDriver} disabled={saving || !newDriver.name.trim()}>
