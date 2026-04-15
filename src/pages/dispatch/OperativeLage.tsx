@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   MapPin, ArrowRight, Clock, Settings, FileText, AlertTriangle,
   CheckCircle2, ClipboardList, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
-  TrendingUp, Truck, Package, MoreVertical
+  TrendingUp, Truck, Package, MoreVertical, Plus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDispatch } from '@/lib/dispatch-context';
