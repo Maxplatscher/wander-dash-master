@@ -390,11 +390,11 @@ export function OperativeLage() {
         {/* KPI Row */}
         <div className="grid grid-cols-4 gap-4">
           {(activeDrivers ?? []).length === 0 ? (
-            <div className={cn(CARD_SM, 'items-center text-center cursor-pointer hover:shadow-md transition-shadow')} onClick={() => window.location.href = '/dispatch/fahrer'}>
-              <div className="w-12 h-12 rounded-full border-2 border-dashed border-indigo-400 flex items-center justify-center mb-2">
-                <Plus className="w-6 h-6 text-indigo-500" />
+            <div className="flex flex-col items-center justify-center" onClick={() => setShowAddDriver(true)}>
+              <div className="w-20 h-20 rounded-full border-2 border-dashed border-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
+                <Plus className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
               </div>
-              <p className="text-[11px] font-medium text-indigo-600">Fahrer Hinzufügen</p>
+              <p className="text-[11px] font-medium text-indigo-600 mt-2">Fahrer Hinzufügen</p>
             </div>
           ) : (
             <div className={cn(CARD_SM, 'items-center text-center')}>
