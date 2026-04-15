@@ -405,27 +405,54 @@ export function OperativeLage() {
               <p className="text-[11px] text-gray-500">Aktive Fahrer</p>
             </div>
           )}
-          <div className={cn(CARD_SM, 'items-center text-center')}>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+          {completedStops === 0 && totalStops === 0 ? (
+            <div className="flex flex-col items-center justify-center" onClick={() => navigateTo('kalender')}>
+              <div className="w-20 h-20 rounded-full border-2 border-dashed border-emerald-300 flex items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-50 transition-all group">
+                <Plus className="w-8 h-8 text-emerald-400 group-hover:text-emerald-600 transition-colors" />
+              </div>
+              <p className="text-[11px] font-medium text-emerald-600 mt-2">Tour Hinzufügen</p>
             </div>
-            <p className="text-xl font-bold text-gray-800">{completedStops}/{totalStops}</p>
-            <p className="text-[11px] text-gray-500">Stops erledigt</p>
-          </div>
-          <div className={cn(CARD_SM, 'items-center text-center')}>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
-              <Package className="w-5 h-5 text-amber-500" />
+          ) : (
+            <div className={cn(CARD_SM, 'items-center text-center')}>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              </div>
+              <p className="text-xl font-bold text-gray-800">{completedStops}/{totalStops}</p>
+              <p className="text-[11px] text-gray-500">Stops erledigt</p>
             </div>
-            <p className="text-xl font-bold text-gray-800">{totalWeight} kg</p>
-            <p className="text-[11px] text-gray-500">Gesamtgewicht</p>
-          </div>
-          <div className={cn(CARD_SM, 'items-center text-center')}>
-            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-2">
-              <AlertTriangle className="w-5 h-5 text-red-500" />
+          )}
+          {totalWeight === 0 ? (
+            <div className="flex flex-col items-center justify-center" onClick={() => navigateTo('kontrollzentrale')}>
+              <div className="w-20 h-20 rounded-full border-2 border-dashed border-amber-300 flex items-center justify-center cursor-pointer hover:border-amber-500 hover:bg-amber-50 transition-all group">
+                <Plus className="w-8 h-8 text-amber-400 group-hover:text-amber-600 transition-colors" />
+              </div>
+              <p className="text-[11px] font-medium text-amber-600 mt-2">Sendung Hinzufügen</p>
             </div>
-            <p className="text-xl font-bold text-gray-800">{activeProblems.length}</p>
-            <p className="text-[11px] text-gray-500">Offene Probleme</p>
-          </div>
+          ) : (
+            <div className={cn(CARD_SM, 'items-center text-center')}>
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
+                <Package className="w-5 h-5 text-amber-500" />
+              </div>
+              <p className="text-xl font-bold text-gray-800">{totalWeight} kg</p>
+              <p className="text-[11px] text-gray-500">Gesamtgewicht</p>
+            </div>
+          )}
+          {activeProblems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center" onClick={() => navigateTo('probleme')}>
+              <div className="w-20 h-20 rounded-full border-2 border-dashed border-red-300 flex items-center justify-center cursor-pointer hover:border-red-500 hover:bg-red-50 transition-all group">
+                <Plus className="w-8 h-8 text-red-400 group-hover:text-red-600 transition-colors" />
+              </div>
+              <p className="text-[11px] font-medium text-red-600 mt-2">Problem Melden</p>
+            </div>
+          ) : (
+            <div className={cn(CARD_SM, 'items-center text-center')}>
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-2">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+              </div>
+              <p className="text-xl font-bold text-gray-800">{activeProblems.length}</p>
+              <p className="text-[11px] text-gray-500">Offene Probleme</p>
+            </div>
+          )}
         </div>
 
         {/* Colored Driver Cards — like "Folders" in the image */}
