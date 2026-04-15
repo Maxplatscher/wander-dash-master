@@ -51,29 +51,29 @@ function DashboardLayout() {
     <div className="min-h-screen flex flex-col w-full bg-dashboard relative">
       <ParticleBackground />
       {/* Top header */}
-      <header className="h-14 flex items-center px-5 bg-[#1a2340]/80 backdrop-blur-xl border-b border-[#2a3a5a] sticky top-0 z-20 gap-4 shadow-lg relative">
+      <header className="h-14 flex items-center px-5 bg-white/80 backdrop-blur-xl border-b border-gray-200 sticky top-0 z-20 gap-4 shadow-sm relative">
         <button
           onClick={() => setDrawerOpen(true)}
-          className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors"
+          className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors"
         >
-          <Menu className="w-5 h-5 text-white" />
+          <Menu className="w-5 h-5 text-gray-700" />
         </button>
 
-        <h2 className="font-semibold text-white text-sm">{getSectionLabel(currentSection)}</h2>
+        <h2 className="font-semibold text-gray-800 text-sm">{getSectionLabel(currentSection)}</h2>
 
         <div className="ml-auto flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-blue-200/70">
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
             <CalendarDays className="w-3.5 h-3.5" />
             <input
               type="date"
               value={selectedDate.toISOString().split('T')[0]}
               onChange={e => setSelectedDate(new Date(e.target.value))}
-              className="bg-white/10 text-xs text-white border border-white/20 rounded-lg px-2.5 py-1.5 transition-colors focus:border-blue-400 focus:ring-1 focus:ring-blue-300/30 outline-none"
+              className="bg-gray-50 text-xs text-gray-700 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-colors focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300/30 outline-none"
             />
           </div>
 
           <Select value={tenant} onValueChange={setTenant}>
-            <SelectTrigger className="h-8 w-[130px] text-xs rounded-lg border-white/20 bg-white/10 text-white">
+            <SelectTrigger className="h-8 w-[130px] text-xs rounded-lg border-gray-200 bg-gray-50 text-gray-700">
               <Building className="w-3 h-3 mr-1" />
               <SelectValue />
             </SelectTrigger>
@@ -84,10 +84,10 @@ function DashboardLayout() {
             </SelectContent>
           </Select>
 
-          <span className="text-xs text-blue-200/60 truncate max-w-[150px]">
+          <span className="text-xs text-gray-500 truncate max-w-[150px]">
             {user?.email} ({role ?? '...'})
           </span>
-          <Button size="sm" variant="ghost" onClick={signOut} title="Abmelden" className="rounded-lg text-white/70 hover:bg-red-500/20 hover:text-red-300">
+          <Button size="sm" variant="ghost" onClick={signOut} title="Abmelden" className="rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-500">
             <LogOut className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -105,16 +105,16 @@ function DashboardLayout() {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
 
           {/* Drawer */}
-          <div className="relative w-64 bg-[#0f1a2e] h-full shadow-2xl flex flex-col animate-fade-in border-r border-white/10">
-            <div className="p-4 flex items-center justify-between border-b border-white/10">
+          <div className="relative w-64 bg-white h-full shadow-2xl flex flex-col animate-fade-in border-r border-gray-200">
+            <div className="p-4 flex items-center justify-between border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
                   <LayoutDashboard className="w-4 h-4 text-white" />
                 </div>
-                <span className="font-semibold text-sm text-white">DispoCenter</span>
+                <span className="font-semibold text-sm text-gray-800">DispoCenter</span>
               </div>
-              <button onClick={() => setDrawerOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10">
-                <X className="w-4 h-4 text-blue-200/60" />
+              <button onClick={() => setDrawerOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100">
+                <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>
 
@@ -129,19 +129,19 @@ function DashboardLayout() {
                     className={cn(
                       'w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-all',
                       active
-                        ? 'bg-blue-600/20 text-blue-300 font-medium'
-                        : 'text-blue-200/60 hover:bg-white/5 hover:text-white'
+                        ? 'bg-indigo-50 text-indigo-700 font-medium'
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
                     )}
                   >
-                    <Icon className={cn('w-4 h-4', active ? 'text-blue-400' : 'text-blue-300/40')} />
+                    <Icon className={cn('w-4 h-4', active ? 'text-indigo-500' : 'text-gray-400')} />
                     <span>{section.label}</span>
                   </button>
                 );
               })}
             </nav>
 
-            <div className="p-3 border-t border-white/10">
-              <p className="text-[10px] text-blue-200/40 text-center">DispoCenter · {tenant}</p>
+            <div className="p-3 border-t border-gray-100">
+              <p className="text-[10px] text-gray-400 text-center">DispoCenter · {tenant}</p>
             </div>
           </div>
         </div>
