@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   MapPin, ArrowRight, Clock, Settings, FileText, AlertTriangle,
   CheckCircle2, ClipboardList, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
-  TrendingUp, Truck, Package, MoreVertical
+  TrendingUp, Truck, Package, MoreVertical, Plus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDispatch } from '@/lib/dispatch-context';
@@ -356,13 +356,22 @@ export function OperativeLage() {
 
         {/* KPI Row */}
         <div className="grid grid-cols-4 gap-4">
-          <div className={cn(CARD_SM, 'items-center text-center')}>
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mb-2">
-              <Truck className="w-5 h-5 text-indigo-500" />
+          {(activeDrivers ?? []).length === 0 ? (
+            <div className={cn(CARD_SM, 'items-center text-center cursor-pointer hover:shadow-md transition-shadow')} onClick={() => window.location.href = '/dispatch/fahrer'}>
+              <div className="w-12 h-12 rounded-full border-2 border-dashed border-indigo-400 flex items-center justify-center mb-2">
+                <Plus className="w-6 h-6 text-indigo-500" />
+              </div>
+              <p className="text-[11px] font-medium text-indigo-600">Fahrer Hinzufügen</p>
             </div>
-            <p className="text-xl font-bold text-gray-800">{(activeDrivers ?? []).length}</p>
-            <p className="text-[11px] text-gray-500">Aktive Fahrer</p>
-          </div>
+          ) : (
+            <div className={cn(CARD_SM, 'items-center text-center')}>
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mb-2">
+                <Truck className="w-5 h-5 text-indigo-500" />
+              </div>
+              <p className="text-xl font-bold text-gray-800">{(activeDrivers ?? []).length}</p>
+              <p className="text-[11px] text-gray-500">Aktive Fahrer</p>
+            </div>
+          )}
           <div className={cn(CARD_SM, 'items-center text-center')}>
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-2">
               <CheckCircle2 className="w-5 h-5 text-emerald-500" />
