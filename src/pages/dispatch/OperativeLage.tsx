@@ -537,7 +537,7 @@ export function OperativeLage() {
                 </div>
               </div>
             )) : (
-              <div className="col-span-3">
+              <div className="col-span-3 max-w-[50%]">
                 <div className={CARD}>
                   <p className={cn(SECTION_TITLE, 'mb-4')}>Fahrer Fortschritt</p>
                   <div className="space-y-3">
