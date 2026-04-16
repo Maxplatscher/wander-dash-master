@@ -434,9 +434,13 @@ export function OperativeLage() {
                 <div
                   key={i}
                   className={cn(
-                    'rounded-2xl p-4 text-white bg-gradient-to-br shadow-lg',
+                    'rounded-2xl p-4 text-white bg-gradient-to-br shadow-lg cursor-pointer hover:scale-[1.02] transition-transform',
                     CARD_GRADIENTS[i % CARD_GRADIENTS.length]
                   )}
+                  onClick={() => {
+                    setSelectedDriver(driver);
+                    setSelectedDriverGradient(CARD_GRADIENTS[i % CARD_GRADIENTS.length]);
+                  }}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
