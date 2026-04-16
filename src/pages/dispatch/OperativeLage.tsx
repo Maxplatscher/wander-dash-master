@@ -638,6 +638,13 @@ export function OperativeLage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DriverDetailDialog
+        open={!!selectedDriver}
+        onOpenChange={(open) => { if (!open) setSelectedDriver(null); }}
+        driver={selectedDriver}
+        gradientClass={selectedDriverGradient}
+      />
     </div>
   );
 }
