@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useDispatch } from '@/lib/dispatch-context';
 import { supabase } from '@/integrations/supabase/client';
 import { LiveMap } from '@/components/dispatch/LiveMap';
+import { DriverDetailDialog } from '@/components/dispatch/DriverDetailDialog';
 import { useProblems } from '@/pages/dispatch/Probleme';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -320,6 +321,8 @@ export function OperativeLage() {
   const queryClient = useQueryClient();
 
   const [showAddDriver, setShowAddDriver] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<typeof driverCards[0] | null>(null);
+  const [selectedDriverGradient, setSelectedDriverGradient] = useState('');
   const [newDriver, setNewDriver] = useState({ name: '', phone: '', vehicleName: '', vehicleCapacity: '', hints: '' });
   const [saving, setSaving] = useState(false);
 
@@ -431,9 +434,13 @@ export function OperativeLage() {
                 <div
                   key={i}
                   className={cn(
-                    'rounded-2xl p-4 text-white bg-gradient-to-br shadow-lg',
+                    'rounded-2xl p-4 text-white bg-gradient-to-br shadow-lg cursor-pointer hover:scale-[1.02] transition-transform',
                     CARD_GRADIENTS[i % CARD_GRADIENTS.length]
                   )}
+                  onClick={() => {
+                    setSelectedDriver(driver);
+                    setSelectedDriverGradient(CARD_GRADIENTS[i % CARD_GRADIENTS.length]);
+                  }}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
@@ -631,6 +638,13 @@ export function OperativeLage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DriverDetailDialog
+        open={!!selectedDriver}
+        onOpenChange={(open) => { if (!open) setSelectedDriver(null); }}
+        driver={selectedDriver}
+        gradientClass={selectedDriverGradient}
+      />
     </div>
   );
 }
