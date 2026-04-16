@@ -321,6 +321,8 @@ export function OperativeLage() {
   const queryClient = useQueryClient();
 
   const [showAddDriver, setShowAddDriver] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<typeof driverCards[0] | null>(null);
+  const [selectedDriverGradient, setSelectedDriverGradient] = useState('');
   const [newDriver, setNewDriver] = useState({ name: '', phone: '', vehicleName: '', vehicleCapacity: '', hints: '' });
   const [saving, setSaving] = useState(false);
 
