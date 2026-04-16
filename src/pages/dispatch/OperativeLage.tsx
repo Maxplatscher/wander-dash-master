@@ -395,7 +395,7 @@ export function OperativeLage() {
   }, [activeDrivers]);
 
   const activeProblems = (problems ?? []).slice(0, 5);
-  const driverCards = (activeDrivers ?? []).slice(0, 3);
+  const driverCards = (activeDrivers ?? []).slice(0, 4);
 
   const totalStops = (activeDrivers ?? []).reduce((s, d) => s + d.totalStops, 0);
   const completedStops = (activeDrivers ?? []).reduce((s, d) => s + d.completedStops, 0);
@@ -422,88 +422,12 @@ export function OperativeLage() {
           </div>
         </div>
 
-        {/* KPI Row */}
+        {/* KPI Row — Driver cards fill slots, remaining show "Fahrer Hinzufügen" */}
         <div className="grid grid-cols-4 gap-4">
-          {(activeDrivers ?? []).length === 0 ? (
-            <div className="flex flex-col items-center justify-center" onClick={() => setShowAddDriver(true)}>
-              <div className="w-20 h-20 rounded-full border-2 border-dashed border-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
-                <Plus className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
-              </div>
-              <p className="text-[11px] font-medium text-indigo-600 mt-2">Fahrer Hinzufügen</p>
-            </div>
-          ) : (
-            <div className={cn(CARD_SM, 'items-center text-center')}>
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mb-2">
-                <Truck className="w-5 h-5 text-indigo-500" />
-              </div>
-              <p className="text-xl font-bold text-gray-800">{(activeDrivers ?? []).length}</p>
-              <p className="text-[11px] text-gray-500">Aktive Fahrer</p>
-            </div>
-          )}
-          {completedStops === 0 && totalStops === 0 ? (
-            <div className="flex flex-col items-center justify-center" onClick={() => setShowAddDriver(true)}>
-              <div className="w-20 h-20 rounded-full border-2 border-dashed border-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
-                <Plus className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
-              </div>
-              <p className="text-[11px] font-medium text-indigo-600 mt-2">Fahrer Hinzufügen</p>
-            </div>
-          ) : (
-            <div className={cn(CARD_SM, 'items-center text-center')}>
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-              </div>
-              <p className="text-xl font-bold text-gray-800">{completedStops}/{totalStops}</p>
-              <p className="text-[11px] text-gray-500">Stops erledigt</p>
-            </div>
-          )}
-          {totalWeight === 0 ? (
-            <div className="flex flex-col items-center justify-center" onClick={() => setShowAddDriver(true)}>
-              <div className="w-20 h-20 rounded-full border-2 border-dashed border-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
-                <Plus className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
-              </div>
-              <p className="text-[11px] font-medium text-indigo-600 mt-2">Fahrer Hinzufügen</p>
-            </div>
-          ) : (
-            <div className={cn(CARD_SM, 'items-center text-center')}>
-              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
-                <Package className="w-5 h-5 text-amber-500" />
-              </div>
-              <p className="text-xl font-bold text-gray-800">{totalWeight} kg</p>
-              <p className="text-[11px] text-gray-500">Gesamtgewicht</p>
-            </div>
-          )}
-          {activeProblems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center" onClick={() => setShowAddDriver(true)}>
-              <div className="w-20 h-20 rounded-full border-2 border-dashed border-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
-                <Plus className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
-              </div>
-              <p className="text-[11px] font-medium text-indigo-600 mt-2">Fahrer Hinzufügen</p>
-            </div>
-          ) : (
-            <div className={cn(CARD_SM, 'items-center text-center')}>
-              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-2">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
-              </div>
-              <p className="text-xl font-bold text-gray-800">{activeProblems.length}</p>
-              <p className="text-[11px] text-gray-500">Offene Probleme</p>
-            </div>
-          )}
-        </div>
-
-        {/* Colored Driver Cards — like "Folders" in the image */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className={SECTION_TITLE}>Aktive Touren</p>
-            <button
-              onClick={() => navigateTo('fahrer')}
-              className="text-xs text-indigo-500 font-medium hover:text-indigo-700 transition-colors"
-            >
-              Alle anzeigen →
-            </button>
-          </div>
-          {driverCards.length > 0 && (
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              {driverCards.map((driver, i) => (
+          {Array.from({ length: 4 }).map((_, i) => {
+            const driver = driverCards[i];
+            if (driver) {
+              return (
                 <div
                   key={i}
                   className={cn(
@@ -536,44 +460,53 @@ export function OperativeLage() {
                     />
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className={CARD}>
-              <p className={cn(SECTION_TITLE, 'mb-4')}>Fahrer Fortschritt</p>
-              <div className="space-y-3">
-                {(driverCards.length > 0 ? driverCards : [{name: 'Fahrer 1', completedStops: 0, totalStops: 0}, {name: 'Fahrer 2', completedStops: 0, totalStops: 0}, {name: 'Fahrer 3', completedStops: 0, totalStops: 0}]).map((driver, i) => {
-                  const pct = driver.totalStops > 0 ? Math.round((driver.completedStops / driver.totalStops) * 100) : 0;
-                  return (
-                    <div key={i} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-400">{driver.name}</span>
-                        <span className="text-gray-300 font-semibold">{pct}%</span>
-                      </div>
-                      <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{
-                            width: `${pct}%`,
-                            backgroundColor: DRIVER_COLORS[i % DRIVER_COLORS.length],
-                            opacity: pct > 0 ? 0.8 : 0.3,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+              );
+            }
+            return (
+              <div key={i} className="flex flex-col items-center justify-center" onClick={() => setShowAddDriver(true)}>
+                <div className="w-20 h-20 rounded-full border-2 border-dashed border-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
+                  <Plus className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
+                </div>
+                <p className="text-[11px] font-medium text-indigo-600 mt-2">Fahrer Hinzufügen</p>
               </div>
-              {driverCards.length === 0 && (
-                <p className="text-[10px] text-gray-300 text-center mt-4">Keine aktiven Touren vorhanden</p>
-              )}
+            );
+          })}
+        </div>
+
+        {/* Fahrer Fortschritt + Live Karte */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className={CARD}>
+            <p className={cn(SECTION_TITLE, 'mb-4')}>Fahrer Fortschritt</p>
+            <div className="space-y-3">
+              {(driverCards.length > 0 ? driverCards : [{name: 'Fahrer 1', completedStops: 0, totalStops: 0}, {name: 'Fahrer 2', completedStops: 0, totalStops: 0}, {name: 'Fahrer 3', completedStops: 0, totalStops: 0}]).map((driver, i) => {
+                const pct = driver.totalStops > 0 ? Math.round((driver.completedStops / driver.totalStops) * 100) : 0;
+                return (
+                  <div key={i} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400">{driver.name}</span>
+                      <span className="text-gray-300 font-semibold">{pct}%</span>
+                    </div>
+                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${pct}%`,
+                          backgroundColor: DRIVER_COLORS[i % DRIVER_COLORS.length],
+                          opacity: pct > 0 ? 0.8 : 0.3,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className={CARD}>
-              <p className={cn(SECTION_TITLE, 'mb-4')}>Live Karte</p>
-              <LiveMap />
-            </div>
+            {driverCards.length === 0 && (
+              <p className="text-[10px] text-gray-300 text-center mt-4">Keine aktiven Touren vorhanden</p>
+            )}
+          </div>
+          <div className={CARD}>
+            <p className={cn(SECTION_TITLE, 'mb-4')}>Live Karte</p>
+            <LiveMap />
           </div>
         </div>
 
