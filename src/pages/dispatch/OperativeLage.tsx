@@ -395,7 +395,7 @@ export function OperativeLage() {
   }, [activeDrivers]);
 
   const activeProblems = (problems ?? []).slice(0, 5);
-  const driverCards = (activeDrivers ?? []).slice(0, 3);
+  const driverCards = (activeDrivers ?? []).slice(0, 4);
 
   const totalStops = (activeDrivers ?? []).reduce((s, d) => s + d.totalStops, 0);
   const completedStops = (activeDrivers ?? []).reduce((s, d) => s + d.completedStops, 0);
