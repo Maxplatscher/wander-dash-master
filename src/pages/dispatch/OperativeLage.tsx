@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useDispatch } from '@/lib/dispatch-context';
 import { supabase } from '@/integrations/supabase/client';
 import { LiveMap } from '@/components/dispatch/LiveMap';
+import { DriverDetailDialog } from '@/components/dispatch/DriverDetailDialog';
 import { useProblems } from '@/pages/dispatch/Probleme';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
