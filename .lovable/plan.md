@@ -1,21 +1,69 @@
 
 
-# Fahrer-Karten in die KPI-Platzhalter-Felder einfügen
+# Projekt-Export für Claude erstellen
 
-## Übersicht
+## Ziel
 
-Die bunten Fahrer-Karten (Gradient-Karten mit Tour-Details) sollen direkt in die 4 KPI-Kästchen oben eingebaut werden — dort wo aktuell die "Fahrer Hinzufügen" Plus-Kreise angezeigt werden. Wenn Demo-Daten vorhanden sind, ersetzen die Fahrer-Karten die Platzhalter. Der separate "Aktive Touren"-Bereich darunter entfällt.
+Alle relevanten Code-Dateien und Konfigurationen des Projekts in einem strukturierten Format sammeln und als herunterladbare Datei bereitstellen, die bei Claude eingefügt werden kann.
 
-## Technische Umsetzung
+## Technischer Ansatz
 
-### `src/pages/dispatch/OperativeLage.tsx`
+### 1. Datei-Sammlung
 
-1. **KPI-Row umbauen (Zeile 426-491)**: Die 4 Slots im `grid grid-cols-4` werden so geändert:
-   - Wenn `driverCards` vorhanden sind, werden die ersten 4 Fahrer-Karten (die bunten Gradient-Karten mit Truck-Icon, Tour-Name, Fahrer-Name, Stops, Gewicht, Fortschrittsbalken) direkt in diese Slots gerendert
-   - Leere Slots bleiben als "Fahrer Hinzufügen" Plus-Kreise
-   - Die Grid-Cols werden dynamisch angepasst (z.B. bei 3 Fahrern → 3 Fahrer-Karten + 1 Plus-Kreis)
+**Zu exportierende Dateien:**
+- Alle `.tsx`, `.ts`, `.jsx`, `.js` Dateien aus `src/`
+- Komponenten aus `src/components/`
+- Seiten aus `src/pages/`
+- Hooks aus `src/hooks/`
+- Utilities aus `src/lib/`
+- Supabase-Konfiguration: `supabase/config.toml`, `supabase/functions/*/index.ts`
+- Projekt-Konfiguration: `package.json`, `tsconfig.json`, `vite.config.ts`, `tailwind.config.ts`
+- Memory-Dateien aus `.lovable/`
 
-2. **"Aktive Touren"-Sektion entfernen (Zeile 493-541)**: Der separate Block mit Überschrift "Aktive Touren", "Alle anzeigen →" und den Fahrer-Karten im `grid grid-cols-3` wird komplett entfernt, da die Karten jetzt oben in der KPI-Row leben.
+**Ausgeschlossen:**
+- `node_modules/`, `dist/`, `.git/`
+- Lock-Dateien (`bun.lock`, `package-lock.json`)
+- Build-Artefakte
 
-3. **Fahrer Fortschritt + Live Karte bleiben** wie sie sind im `grid grid-cols-2` darunter.
+### 2. Export-Format
+
+Zwei Optionen werden erstellt:
+
+**Option A: Strukturierte Markdown-Datei**
+- Jede Datei als Code-Block mit Pfad-Header
+- Übersichtliche Struktur mit Inhaltsverzeichnis
+- Direkt kopierbar für Claude
+- Datei: `/mnt/documents/projekt-export.md`
+
+**Option B: ZIP-Archiv**
+- Vollständige Ordnerstruktur beibehalten
+- Alle Dateien einzeln enthalten
+- Datei: `/mnt/documents/projekt-export.zip`
+
+### 3. Umsetzung
+
+```bash
+# Markdown-Export erstellen
+python3 /tmp/export_projekt.py > /mnt/documents/projekt-export.md
+
+# ZIP-Archiv erstellen
+cd /dev-server
+zip -r /mnt/documents/projekt-export.zip \
+  src/ \
+  supabase/ \
+  .lovable/ \
+  package.json \
+  tsconfig.json \
+  vite.config.ts \
+  tailwind.config.ts \
+  -x "*.lock" "node_modules/*" "dist/*"
+```
+
+Das Python-Script durchläuft alle relevanten Verzeichnisse, sammelt Code-Dateien und formatiert sie als Markdown mit klarer Struktur.
+
+## Ergebnis
+
+Zwei downloadbare Dateien in `/mnt/documents/`:
+1. `projekt-export.md` — Sofort kopierbar für Claude (empfohlen)
+2. `projekt-export.zip` — Vollständiges Projekt-Archiv
 
