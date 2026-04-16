@@ -577,13 +577,6 @@ export function OperativeLage() {
           </div>
         </div>
 
-        {/* Live Map */}
-        <div className={cn(CARD, 'p-0 overflow-hidden')}>
-          <p className={cn(SECTION_TITLE, 'p-5 pb-0')}>Live-Karte</p>
-          <div className="h-48">
-            <LiveMap />
-          </div>
-        </div>
       </div>
 
       {/* Add Driver Dialog */}
