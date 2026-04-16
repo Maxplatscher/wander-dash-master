@@ -537,7 +537,7 @@ export function OperativeLage() {
                 </div>
               </div>
             )) : (
-              <div className="col-span-3 max-w-[50%]">
+              <div className="col-span-3 grid grid-cols-2 gap-4">
                 <div className={CARD}>
                   <p className={cn(SECTION_TITLE, 'mb-4')}>Fahrer Fortschritt</p>
                   <div className="space-y-3">
@@ -561,6 +561,10 @@ export function OperativeLage() {
                     ))}
                   </div>
                   <p className="text-[10px] text-gray-300 text-center mt-4">Keine aktiven Touren vorhanden</p>
+                </div>
+                <div className={CARD}>
+                  <p className={cn(SECTION_TITLE, 'mb-4')}>Live Karte</p>
+                  <LiveMap />
                 </div>
               </div>
             )}
