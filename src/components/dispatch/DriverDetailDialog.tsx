@@ -63,7 +63,7 @@ function useTourStops(tourId: string | undefined) {
 
 export function DriverDetailDialog({ open, onOpenChange, driver, gradientClass }: Props) {
   const { data: stops, isLoading } = useTourStops(driver?.tourId);
-  const { isLoaded } = useJsApiLoader({ id: 'google-map-driver-detail', googleMapsApiKey: GOOGLE_MAPS_API_KEY });
+  const { isLoaded } = useJsApiLoader({ id: 'google-map', googleMapsApiKey: GOOGLE_MAPS_API_KEY });
 
   const completedStops = stops?.filter(s => s.driver_completed) ?? [];
   const nextStop = stops?.find(s => !s.driver_completed);
