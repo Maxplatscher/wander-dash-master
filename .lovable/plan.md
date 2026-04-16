@@ -1,19 +1,21 @@
 
 
-# Fahrzeug-Bereich im Fahrer-Dialog nur bei vorhandenen Fahrzeugen anzeigen
+# Google Maps neben Fahrer Fortschritt einbauen
 
-## Was sich ändert
+## Übersicht
 
-Der gesamte "Fahrzeug zuweisen"-Block (Zeilen 721-787) im Fahrer-Hinzufügen-Dialog wird nur noch angezeigt, wenn bereits manuell Fahrzeuge angelegt wurden (`existingVehicles.length > 0`). Wenn keine Fahrzeuge existieren, wird der Block komplett ausgeblendet.
-
-Die Fahrzeug-Tabelle ist bereits leer — es sind keine Daten zu löschen.
+Rechts neben dem "Fahrer Fortschritt"-Kästchen wird eine Google Maps Live-Karte eingeblendet. Der JavaScript-API-Key (`AIzaSyD45ivdJQ9LwYJBctnXPoi8NHGWK2IMhLg`) ist bereits in `LiveMap.tsx` hinterlegt — er ist der richtige für die Karteneinbettung.
 
 ## Technische Umsetzung
 
-### Datei: `src/pages/dispatch/OperativeLage.tsx`
+### `src/pages/dispatch/OperativeLage.tsx`
 
-1. Den gesamten Fahrzeug-Block (Zeilen 721-787) in eine Bedingung wrappen: `{existingVehicles && existingVehicles.length > 0 && (...)}`.
-2. Innerhalb nur die Select-Dropdown mit bestehenden Fahrzeugen + "Neues Fahrzeug anlegen" Option anzeigen (wie bisher).
-3. Den Fallback-Block für "Noch kein Fahrzeug vorhanden" (Zeilen 765-786) entfernen, da der gesamte Block bei 0 Fahrzeugen ausgeblendet wird.
-4. Die `handleAddDriver`-Logik für Fahrzeug-Erstellung bleibt erhalten, greift aber nur wenn ein Fahrzeug ausgewählt/angelegt wird.
+1. **Import**: `LiveMap` aus `@/components/dispatch/LiveMap` importieren.
+2. **Layout** (Zeile 540): Das `col-span-3 max-w-[50%]` Div wird zu `col-span-3` geändert und enthält ein inneres `grid grid-cols-2 gap-4`:
+   - **Links**: Bestehendes "Fahrer Fortschritt"-Kästchen (bleibt unverändert)
+   - **Rechts**: Neues Kästchen im gleichen `CARD`-Style mit Titel "Live Karte" und `<LiveMap />` Komponente
+
+### `src/components/dispatch/LiveMap.tsx`
+
+Keine Änderungen nötig — der JS-Key ist bereits korrekt eingebaut.
 
