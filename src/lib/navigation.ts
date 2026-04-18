@@ -8,7 +8,8 @@ export type SectionId =
   | 'probleme';
 
 export const SECTIONS: { id: SectionId; label: string }[] = [
-  { id: 'operative-lage', label: 'Startseite' },
+  { id: 'tagesleitstelle', label: 'Tagesleitstelle' },
+  { id: 'operative-lage', label: 'Operative Lage' },
   { id: 'kalender', label: 'Kalender' },
   { id: 'kontrollzentrale', label: 'Lieferscheine & mehr' },
   { id: 'fahrer', label: 'Fahrer & Fahrzeuge' },
@@ -19,7 +20,7 @@ export const SECTIONS: { id: SectionId; label: string }[] = [
 export function getInitialSection(): SectionId {
   const hash = window.location.hash.replace('#', '') as SectionId;
   if (SECTIONS.some(s => s.id === hash)) return hash;
-  return 'operative-lage';
+  return 'tagesleitstelle';
 }
 
 export function getSectionLabel(id: SectionId): string {

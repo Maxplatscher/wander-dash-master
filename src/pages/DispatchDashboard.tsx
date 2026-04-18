@@ -3,6 +3,7 @@ import { DispatchProvider, useDispatch } from '@/lib/dispatch-context';
 import { useAuth } from '@/hooks/useAuth';
 import { getSectionLabel, SECTIONS, SectionId } from '@/lib/navigation';
 import { OperativeLage } from './dispatch/OperativeLage';
+import { Tagesleitstelle } from './dispatch/Tagesleitstelle';
 import { Kalender } from './dispatch/Kalender';
 import { Kontrollzentrale } from './dispatch/Kontrollzentrale';
 import { Fahrer } from './dispatch/Fahrer';
@@ -31,7 +32,7 @@ function PageContent() {
   const { currentSection } = useDispatch();
 
   switch (currentSection) {
-    case 'tagesleitstelle': return <OperativeLage />;
+    case 'tagesleitstelle': return <Tagesleitstelle />;
     case 'operative-lage': return <OperativeLage />;
     case 'kalender': return <Kalender />;
     case 'kontrollzentrale': return <Kontrollzentrale />;

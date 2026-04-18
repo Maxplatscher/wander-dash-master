@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,33 +7,14 @@ import { Truck, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navigate } from 'react-router-dom';
 
-const ADMIN_EMAIL = 'Maxkitooltest@gmail.com';
-const ADMIN_PASSWORD = 'Wipshausen1';
-
 export default function Auth() {
   const { user, loading, signIn, signUp } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const autoLoginAttempted = useRef(false);
 
-  // Auto-login with admin credentials
-  useEffect(() => {
-    if (!loading && !user && !autoLoginAttempted.current) {
-      autoLoginAttempted.current = true;
-      signIn(ADMIN_EMAIL, ADMIN_PASSWORD).then(({ error }) => {
-        if (error) {
-          // If login fails, try to register first then login
-          signUp(ADMIN_EMAIL, ADMIN_PASSWORD).then(() => {
-            signIn(ADMIN_EMAIL, ADMIN_PASSWORD);
-          });
-        }
-      });
-    }
-  }, [loading, user, signIn, signUp]);
-
-  if (loading || (!user && !autoLoginAttempted.current)) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
