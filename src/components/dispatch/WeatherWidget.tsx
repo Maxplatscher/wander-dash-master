@@ -125,7 +125,7 @@ export function WeatherWidget() {
               </div>
             </PopoverContent>
           </Popover>
-          <span className="text-xs opacity-70">Auto-Update alle 10 Min</span>
+          <span className="text-xs text-muted-foreground">Auto-Update alle 10 Min</span>
         </div>
 
         {isLoading ? (
