@@ -198,7 +198,7 @@ export function DriverTourView() {
                     >
                       <div className="text-sm p-1">
                         <p className="font-semibold">{selectedStop.customer}</p>
-                        <p className="text-xs text-gray-600">{selectedStop.address}</p>
+                        <p className="text-xs text-muted-foreground">{selectedStop.address}</p>
                         <p className="text-xs mt-1">{selectedStop.timeWindow} · {selectedStop.packages} Pakete</p>
                         <p className="text-xs mt-1">{selectedStop.done ? '✅ Erledigt' : '⏳ Offen'}</p>
                       </div>

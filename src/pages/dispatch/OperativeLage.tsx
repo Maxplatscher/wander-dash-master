@@ -528,7 +528,7 @@ export function OperativeLage() {
           <div className="space-y-4 pt-2">
             {/* Name */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Name *</label>
               <Input
                 placeholder="z.B. Max Müller"
                 value={newDriver.name}
@@ -537,7 +537,7 @@ export function OperativeLage() {
             </div>
             {/* Telefon */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Telefon</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Telefon</label>
               <Input
                 placeholder="+49 171 ..."
                 value={newDriver.phone}
@@ -548,8 +548,8 @@ export function OperativeLage() {
             {/* Fahrzeug */}
             <div className="border-t pt-4">
               <div className="flex items-center gap-2 mb-3">
-                <Truck className="w-4 h-4 text-indigo-500" />
-                <label className="text-sm font-bold text-gray-800">Fahrzeug zuweisen</label>
+                <Truck className="w-4 h-4 text-primary" />
+                <label className="text-sm font-bold text-foreground">Fahrzeug zuweisen</label>
               </div>
 
               {existingVehicles && existingVehicles.length > 0 ? (
@@ -568,9 +568,9 @@ export function OperativeLage() {
                     </SelectContent>
                   </Select>
                   {selectedVehicleId === 'new' && (
-                    <div className="mt-3 space-y-3 pl-2 border-l-2 border-indigo-100">
+                    <div className="mt-3 space-y-3 pl-2 border-l-2 border-primary/30">
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-1 block">Fahrzeugname *</label>
+                        <label className="text-sm font-medium text-foreground mb-1 block">Fahrzeugname *</label>
                         <Input
                           placeholder="z.B. Sprinter 1"
                           value={newDriver.vehicleName}
@@ -578,7 +578,7 @@ export function OperativeLage() {
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-1 block">Kapazität (kg)</label>
+                        <label className="text-sm font-medium text-foreground mb-1 block">Kapazität (kg)</label>
                         <Input
                           type="number"
                           placeholder="z.B. 1500"
@@ -591,9 +591,9 @@ export function OperativeLage() {
                 </>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-xs text-gray-400">Noch kein Fahrzeug vorhanden – lege eines an:</p>
+                  <p className="text-xs text-muted-foreground">Noch kein Fahrzeug vorhanden – lege eines an:</p>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Fahrzeugname *</label>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Fahrzeugname *</label>
                     <Input
                       placeholder="z.B. Sprinter 1"
                       value={newDriver.vehicleName}
@@ -601,7 +601,7 @@ export function OperativeLage() {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Kapazität (kg)</label>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Kapazität (kg)</label>
                     <Input
                       type="number"
                       placeholder="z.B. 1500"
@@ -616,8 +616,8 @@ export function OperativeLage() {
             {/* Hinweise für KI */}
             <div className="border-t pt-4">
               <div className="flex items-center gap-2 mb-2">
-                <FileText className="w-4 h-4 text-amber-500" />
-                <label className="text-sm font-bold text-gray-800">Hinweise</label>
+                <FileText className="w-4 h-4 text-amber-400" />
+                <label className="text-sm font-bold text-foreground">Hinweise</label>
               </div>
               <Textarea
                 placeholder="z.B. Fahrer kennt Gebiet Nord gut, max. 8h Schicht, keine Autobahn..."
@@ -626,7 +626,7 @@ export function OperativeLage() {
                 rows={3}
                 className="text-sm"
               />
-              <p className="text-xs text-gray-400 mt-1">Diese Hinweise werden bei der automatischen Tourenplanung berücksichtigt.</p>
+              <p className="text-xs text-muted-foreground mt-1">Diese Hinweise werden bei der automatischen Tourenplanung berücksichtigt.</p>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

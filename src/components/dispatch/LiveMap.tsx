@@ -78,7 +78,7 @@ export function LiveMap({ fill = false }: LiveMapProps = {}) {
           >
             <div className="text-sm p-1">
               <p className="font-semibold">{selected.name}</p>
-              <p className="text-xs text-gray-600">Tour {selected.tourId}</p>
+              <p className="text-xs text-muted-foreground">Tour {selected.tourId}</p>
               <p className="text-xs mt-1">{statusLabels[selected.status]}</p>
             </div>
           </InfoWindow>
