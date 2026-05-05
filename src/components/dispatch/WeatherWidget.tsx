@@ -89,7 +89,7 @@ export function WeatherWidget() {
         <div className="flex items-center justify-between mb-4">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <button className="flex items-center gap-1.5 text-sm font-medium hover:opacity-80 transition-opacity bg-white/20 rounded-lg px-3 py-1.5 backdrop-blur-sm">
+              <button className="flex items-center gap-1.5 text-sm font-medium hover:bg-white/10 transition bg-white/5 border border-white/10 rounded-full px-3 py-1.5 backdrop-blur-md text-foreground">
                 <MapPin className="w-3.5 h-3.5" />
                 {location.name}
               </button>
