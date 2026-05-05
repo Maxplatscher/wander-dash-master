@@ -52,17 +52,25 @@ function DashboardLayout() {
     <div className="min-h-screen flex w-full bg-dashboard relative">
       <ParticleBackground />
 
-      {/* ═══ LEFT SIDEBAR — permanent ═══ */}
-      <aside className={cn(
-        'h-screen sticky top-0 bg-white border-r border-gray-200 flex flex-col z-10 transition-all duration-300 shrink-0',
-        sidebarCollapsed ? 'w-16' : 'w-56'
-      )}>
+      {/* ═══ LEFT SIDEBAR — permanent (dark glass) ═══ */}
+      <aside
+        className={cn(
+          'h-[calc(100vh-2rem)] sticky top-4 ml-4 my-4 flex flex-col z-10 transition-all duration-300 shrink-0 rounded-[24px] border border-white/10 overflow-hidden',
+          sidebarCollapsed ? 'w-16' : 'w-56'
+        )}
+        style={{
+          background: 'hsl(var(--bg-elevated) / 0.92)',
+          backdropFilter: 'blur(20px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(140%)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)',
+        }}
+      >
         {/* Logo */}
-        <div className="h-14 flex items-center px-4 border-b border-gray-100 gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0">
-            <LayoutDashboard className="w-4 h-4 text-white" />
+        <div className="h-14 flex items-center px-4 gap-2 border-b border-white/10">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shrink-0 shadow-glow">
+            <LayoutDashboard className="w-4 h-4 text-primary-foreground" />
           </div>
-          {!sidebarCollapsed && <span className="font-bold text-sm text-gray-800">DispoCenter</span>}
+          {!sidebarCollapsed && <span className="font-bold text-sm text-foreground">DispoCenter</span>}
         </div>
 
         {/* Nav */}
@@ -76,14 +84,14 @@ function DashboardLayout() {
                 onClick={() => navigateTo(section.id)}
                 title={section.label}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl transition-all',
+                  'w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl transition-all border border-transparent',
                   sidebarCollapsed && 'justify-center px-0',
                   active
-                    ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+                    ? 'bg-primary/15 text-foreground font-semibold border-primary/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+                    : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
                 )}
               >
-                <Icon className={cn('w-[18px] h-[18px] shrink-0', active ? 'text-indigo-500' : 'text-gray-400')} />
+                <Icon className={cn('w-[18px] h-[18px] shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
                 {!sidebarCollapsed && <span>{section.label}</span>}
               </button>
             );
@@ -91,16 +99,16 @@ function DashboardLayout() {
         </nav>
 
         {/* Bottom */}
-        <div className="p-3 border-t border-gray-100 space-y-2">
+        <div className="p-3 border-t border-white/10 space-y-2">
           <button
             onClick={() => setSidebarCollapsed(c => !c)}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground rounded-lg hover:bg-white/5 transition-colors"
           >
             <Menu className="w-4 h-4" />
             {!sidebarCollapsed && <span>Einklappen</span>}
           </button>
           {!sidebarCollapsed && (
-            <p className="text-[10px] text-gray-400 text-center">DispoCenter · {tenant}</p>
+            <p className="text-[10px] text-muted-foreground text-center">DispoCenter · {tenant}</p>
           )}
         </div>
       </aside>
