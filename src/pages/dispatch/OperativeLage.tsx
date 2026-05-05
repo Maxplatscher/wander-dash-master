@@ -190,8 +190,8 @@ function LiveClock() {
 
   return (
     <div className="text-center">
-      <p className="text-3xl font-extrabold tracking-tight text-gray-800">{timeStr}</p>
-      <p className="text-xs text-gray-500 mt-1">{dateStr}</p>
+      <p className="text-3xl font-extrabold tracking-tight text-foreground">{timeStr}</p>
+      <p className="text-xs text-muted-foreground mt-1">{dateStr}</p>
     </div>
   );
 }
