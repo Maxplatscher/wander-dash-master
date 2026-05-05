@@ -108,7 +108,7 @@ function DashboardLayout() {
       {/* ═══ MAIN AREA ═══ */}
       <div className="flex-1 flex flex-col min-w-0 p-4 gap-4">
         {/* Top bar */}
-        <header className="glass-card h-14 flex items-center px-6 sticky top-4 z-10 gap-4">
+        <header className="glass-card hover-lift p-5 flex items-center sticky top-4 z-10 gap-4">
           {/* Search */}
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
