@@ -137,17 +137,17 @@ function MiniCalendar() {
         <p className={SECTION_TITLE}>Kalender</p>
       </div>
       <div className="flex items-center justify-between mb-3">
-        <button className="w-6 h-6 rounded-full hover:bg-gray-100 flex items-center justify-center">
-          <ChevronLeft className="w-3.5 h-3.5 text-gray-500" />
+        <button className="w-6 h-6 rounded-full hover:bg-white/5 flex items-center justify-center">
+          <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
-        <p className="text-xs font-semibold text-gray-700">{monthName}</p>
-        <button className="w-6 h-6 rounded-full hover:bg-gray-100 flex items-center justify-center">
-          <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+        <p className="text-xs font-semibold text-foreground">{monthName}</p>
+        <button className="w-6 h-6 rounded-full hover:bg-white/5 flex items-center justify-center">
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center">
         {days.map(d => (
-          <span key={d} className="text-[10px] font-semibold text-gray-400 pb-1">{d}</span>
+          <span key={d} className="text-[10px] font-semibold text-muted-foreground pb-1">{d}</span>
         ))}
         {Array.from({ length: offset }).map((_, i) => (
           <span key={`e-${i}`} />
@@ -161,8 +161,8 @@ function MiniCalendar() {
               className={cn(
                 'text-[11px] w-7 h-7 flex items-center justify-center rounded-full mx-auto cursor-pointer transition-colors',
                 isToday
-                  ? 'bg-indigo-500 text-white font-bold shadow-md shadow-indigo-200'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'bg-primary text-primary-foreground font-bold shadow-glow'
+                  : 'text-muted-foreground hover:bg-white/5'
               )}
             >
               {day}
