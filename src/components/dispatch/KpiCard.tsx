@@ -75,8 +75,7 @@ export function KpiCard({ icon: Icon, label, value, subtitle, variant = 'default
       onClick={onClick}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter') onClick(); } : undefined}
       className={cn(
-        'rounded-2xl border border-border/60 bg-gradient-to-br p-5 flex flex-col gap-3 border-l-4 transition-all duration-300 hover:-translate-y-1 shadow-card',
-        styles.card,
+        'glass-card p-5 flex flex-col gap-3 border-l-4 transition-all duration-300 hover:-translate-y-1',
         styles.border,
         styles.shadow,
         onClick && 'cursor-pointer',
