@@ -243,7 +243,7 @@ function WeightBarChart({ drivers }: { drivers: { name: string; weight: number }
     <div className="flex items-end gap-3 h-32 mt-2">
       {drivers.map((d, i) => (
         <div key={i} className="flex flex-col items-center flex-1 gap-1">
-          <span className="text-[10px] font-semibold text-gray-500">{d.weight}kg</span>
+          <span className="text-[10px] font-semibold text-muted-foreground">{d.weight}kg</span>
           <div
             className="w-full rounded-t-lg transition-all duration-500"
             style={{
@@ -251,7 +251,7 @@ function WeightBarChart({ drivers }: { drivers: { name: string; weight: number }
               backgroundColor: DRIVER_COLORS[i % DRIVER_COLORS.length],
             }}
           />
-          <span className="text-[10px] text-gray-400 truncate max-w-full">{d.name.split(' ')[0]}</span>
+          <span className="text-[10px] text-muted-foreground truncate max-w-full">{d.name.split(' ')[0]}</span>
         </div>
       ))}
     </div>
