@@ -78,7 +78,7 @@ export function WeatherWidget() {
   const WeatherIcon = info.icon;
 
   return (
-    <div className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${info.bg} p-6 text-white shadow-lg`}>
+    <div className={`relative overflow-hidden h-full w-full rounded-xl bg-gradient-to-br ${info.bg} p-6 text-white shadow-lg flex flex-col`}>
       {/* Animated background elements */}
       <div className="absolute inset-0 opacity-20">
         <div className="absolute -top-4 -right-4 w-32 h-32 rounded-full bg-white/30 animate-pulse" />
