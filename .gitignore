@@ -39,3 +39,14 @@ legacy/**/.env
 legacy/**/.env.local
 # Optional: das alte Riesen-Backup-Zip nie committen
 **/Reißverschluss.zip
+
+# Sensitive / local-only files
+.env
+.env.*
+!.env.example
+
+# Supabase local temp artifacts
+supabase/.temp/
+
+# Accidentally merged legacy project should not be tracked here
+legacy/disponenten-ki/
