@@ -220,14 +220,14 @@ function InlineWeather() {
   else if (code > 67 && code <= 77) { label = 'Schnee'; emoji = '❄️'; }
   else if (code > 77) { label = 'Gewitter'; emoji = '⛈️'; }
 
-  if (isLoading) return <p className="text-xs text-gray-400">Lade Wetter…</p>;
+  if (isLoading) return <p className="text-xs text-muted-foreground">Lade Wetter…</p>;
 
   return (
     <div className="flex items-center gap-3">
       <span className="text-3xl">{emoji}</span>
       <div>
-        <p className="text-lg font-bold text-gray-800">{Math.round(weather?.temperature ?? 0)}°C</p>
-        <p className="text-xs text-gray-500">{label} · Wind {weather?.windspeed ?? 0} km/h</p>
+        <p className="text-lg font-bold text-foreground">{Math.round(weather?.temperature ?? 0)}°C</p>
+        <p className="text-xs text-muted-foreground">{label} · Wind {weather?.windspeed ?? 0} km/h</p>
       </div>
     </div>
   );
