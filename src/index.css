@@ -32,7 +32,7 @@
     --destructive: 0 100% 71%;         /* #ff6b6b */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 100%;               /* used with /8 alpha via Tailwind */
+    --border: 224 25% 22%;             /* subtle dark border */
     --input: 224 30% 18%;
     --ring: 212 100% 65%;
 
