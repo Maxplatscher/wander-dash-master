@@ -20,7 +20,11 @@ const statusLabels: Record<string, string> = {
 
 const containerStyle = { width: '100%', height: '100%' };
 
-export function LiveMap() {
+interface LiveMapProps {
+  fill?: boolean;
+}
+
+export function LiveMap({ fill = false }: LiveMapProps = {}) {
   const { isLoaded } = useJsApiLoader({ id: 'google-map', googleMapsApiKey: GOOGLE_MAPS_API_KEY });
   const [selected, setSelected] = useState<typeof driverMarkers[0] | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -28,16 +32,18 @@ export function LiveMap() {
   const onLoad = useCallback((m: google.maps.Map) => setMap(m), []);
   const onUnmount = useCallback(() => setMap(null), []);
 
+  const wrapperClass = fill ? 'w-full h-full' : 'aspect-[4/3]';
+
   if (!isLoaded) {
     return (
-      <div className="aspect-[4/3] bg-muted flex items-center justify-center">
+      <div className={`${wrapperClass} bg-muted flex items-center justify-center rounded-xl`}>
         <p className="text-sm text-muted-foreground">Karte wird geladen…</p>
       </div>
     );
   }
 
   return (
-    <div className="aspect-[4/3]">
+    <div className={wrapperClass}>
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={center}

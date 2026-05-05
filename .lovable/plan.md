@@ -1,69 +1,77 @@
-
-
-# Projekt-Export für Claude erstellen
-
 ## Ziel
 
-Alle relevanten Code-Dateien und Konfigurationen des Projekts in einem strukturierten Format sammeln und als herunterladbare Datei bereitstellen, die bei Claude eingefügt werden kann.
+Die Seite **Tagesleitstelle** komplett neu aufbauen im Dashboard-Layout des hochgeladenen Pinterest-Screenshots (dunkles Glassmorphism, 2x2-Grid-Struktur). Bestehende Datenlogik bleibt erhalten, nur Layout & Optik werden ersetzt.
 
-## Technischer Ansatz
+## Neues Layout (Grid 2x2, wie Vorlage)
 
-### 1. Datei-Sammlung
-
-**Zu exportierende Dateien:**
-- Alle `.tsx`, `.ts`, `.jsx`, `.js` Dateien aus `src/`
-- Komponenten aus `src/components/`
-- Seiten aus `src/pages/`
-- Hooks aus `src/hooks/`
-- Utilities aus `src/lib/`
-- Supabase-Konfiguration: `supabase/config.toml`, `supabase/functions/*/index.ts`
-- Projekt-Konfiguration: `package.json`, `tsconfig.json`, `vite.config.ts`, `tailwind.config.ts`
-- Memory-Dateien aus `.lovable/`
-
-**Ausgeschlossen:**
-- `node_modules/`, `dist/`, `.git/`
-- Lock-Dateien (`bun.lock`, `package-lock.json`)
-- Build-Artefakte
-
-### 2. Export-Format
-
-Zwei Optionen werden erstellt:
-
-**Option A: Strukturierte Markdown-Datei**
-- Jede Datei als Code-Block mit Pfad-Header
-- Übersichtliche Struktur mit Inhaltsverzeichnis
-- Direkt kopierbar für Claude
-- Datei: `/mnt/documents/projekt-export.md`
-
-**Option B: ZIP-Archiv**
-- Vollständige Ordnerstruktur beibehalten
-- Alle Dateien einzeln enthalten
-- Datei: `/mnt/documents/projekt-export.zip`
-
-### 3. Umsetzung
-
-```bash
-# Markdown-Export erstellen
-python3 /tmp/export_projekt.py > /mnt/documents/projekt-export.md
-
-# ZIP-Archiv erstellen
-cd /dev-server
-zip -r /mnt/documents/projekt-export.zip \
-  src/ \
-  supabase/ \
-  .lovable/ \
-  package.json \
-  tsconfig.json \
-  vite.config.ts \
-  tailwind.config.ts \
-  -x "*.lock" "node_modules/*" "dist/*"
+```text
+┌─────────────────────┬───────────────────────────────────────────┐
+│                     │  Today's Highlight                        │
+│  WETTER             │  ┌─────────┬─────────┬─────────┐          │
+│  (groß, links)      │  │ Aktive  │ Fahrz.  │ Fahrer  │          │
+│                     │  │ Touren  │ Einsatz │ Einsatz │          │
+│  - Temp + Icon      │  ├─────────┼─────────┼─────────┤          │
+│  - Stadt            │  │ Unzu-   │ Probl.  │ Abwes.  │          │
+│  - Datum/Zeit       │  │ gewies. │         │ Fahrer  │          │
+│                     │  └─────────┴─────────┴─────────┘          │
+├─────────────────────┼───────────────────────────────────────────┤
+│  KALENDER           │  GOOGLE MAPS LIVE                         │
+│  Auftrags-Übersicht │  Fahrer-Standorte                         │
+│  Tabs: 1 Tag |      │                                           │
+│  7 Tage | Monat |   │                                           │
+│  Jahr               │                                           │
+└─────────────────────┴───────────────────────────────────────────┘
 ```
 
-Das Python-Script durchläuft alle relevanten Verzeichnisse, sammelt Code-Dateien und formatiert sie als Markdown mit klarer Struktur.
+## Konkrete Änderungen
 
-## Ergebnis
+### 1. `src/pages/dispatch/Tagesleitstelle.tsx` — komplett neu strukturieren
+- Gesamtes 2x2 Grid (`grid grid-cols-2 grid-rows-2 gap-6`) im Glassmorphism-Stil
+- Bestehende Hooks `useKpis` & `useDriverSummary` weiterverwenden
+- Welcome-Header, Verkehrshinweise, Tageszusammenfassung, alter KPI-Strip → entfernt (neuer Look)
 
-Zwei downloadbare Dateien in `/mnt/documents/`:
-1. `projekt-export.md` — Sofort kopierbar für Claude (empfohlen)
-2. `projekt-export.zip` — Vollständiges Projekt-Archiv
+### 2. Oben links — **Wetter-Kachel** (`WeatherWidget`)
+- Bleibt funktional gleich (Open-Meteo API, Stadt-Suche)
+- Styling angepasst: dunkles Glass-Panel statt heller Gradient
+- Größe füllt Quadrant aus
 
+### 3. Oben rechts — **Today's Highlight** (KPI-Block)
+- Überschrift "Today's Highlight"
+- 3 große KPI-Kacheln in einer Reihe: Aktive Touren, Fahrzeuge im Einsatz, Fahrer im Einsatz
+- 3 kleinere KPI-Kacheln darunter: Unzugewiesen, Probleme, Fahrer in Abwesenheit
+- KpiCard-Komponente wiederverwenden, klickbar (öffnet KpiDetailDialog)
+- Neue KPI-Werte:
+  - Probleme = `unassigned + conflicts`
+  - Abwesende Fahrer = `kpis.absentDrivers`
+
+### 4. Unten links — **Auftrags-Kalender** (neue Komponente `OrdersCalendar`)
+- Datei: `src/components/dispatch/OrdersCalendar.tsx`
+- Tabs/Toggle: **1 Tag · 7 Tage · Monat · Jahr**
+- Lädt `shipment` für gewählten Zeitraum (gruppiert nach `service_date`)
+- Tag-View: Liste der Aufträge des Tages
+- 7-Tage-View: Horizontale Kalender-Streifen mit Anzahl pro Tag
+- Monat: Kompakter Monatskalender mit Auftrags-Counts pro Tag (Heatmap-Punkte)
+- Jahr: 12 Mini-Monate mit Auftrags-Summe
+- Klick auf Tag → setzt `selectedDate` im DispatchContext
+
+### 5. Unten rechts — **Live Google Maps**
+- `LiveMap`-Komponente wiederverwenden (existiert bereits)
+- In Glass-Container einbetten, abgerundete Ecken
+- Höhe an Quadrant angepasst (statt aspect-[4/3])
+
+### 6. Glassmorphism-Stil
+- Alle 4 Quadranten verwenden bestehende `.glass-card` Klasse aus `index.css`
+- Hover-Effekt subtil (kein lift in dieser View — Quadranten sind statisch positioniert)
+
+## Technische Details
+
+- **Responsive:** Auf `< lg` Breakpoint vertikal stapeln (1 Spalte)
+- **Datenlogik:** Bestehende React-Query-Hooks; neuer Hook `useShipmentsRange(from, to)` für Kalender
+- **Keine neuen Migrations** — alle Daten existieren bereits in `shipment`, `tour`, `driver`, `vehicle`
+- **Kein Mock:** Kalender zeigt echte Aufträge aus DB (Memory: keine fake Daten)
+
+## Geänderte/neue Dateien
+- `src/pages/dispatch/Tagesleitstelle.tsx` (rewrite)
+- `src/components/dispatch/OrdersCalendar.tsx` (neu)
+- `src/components/dispatch/WeatherWidget.tsx` (Style-Anpassung dark glass)
+- `src/components/dispatch/LiveMap.tsx` (kleine Höhen-Prop)
