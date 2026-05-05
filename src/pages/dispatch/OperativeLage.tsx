@@ -21,11 +21,11 @@ import { toast } from 'sonner';
 /* ═══════════════════════════════════════════
    Styles
    ═══════════════════════════════════════════ */
-const CARD = 'bg-white rounded-2xl p-5 flex flex-col shadow-sm border border-gray-100';
-const CARD_SM = 'bg-white rounded-2xl p-4 flex flex-col shadow-sm border border-gray-100';
-const SECTION_TITLE = 'text-sm font-bold text-gray-800';
-const PRIMARY_TEXT = 'text-gray-800';
-const SECONDARY_TEXT = 'text-gray-500';
+const CARD = 'glass-card p-5 flex flex-col';
+const CARD_SM = 'glass-card p-4 flex flex-col';
+const SECTION_TITLE = 'text-sm font-bold text-foreground';
+const PRIMARY_TEXT = 'text-foreground';
+const SECONDARY_TEXT = 'text-muted-foreground';
 
 const DRIVER_COLORS = ['#ef4444', '#6366f1', '#f59e0b', '#10b981', '#8b5cf6'];
 const CARD_GRADIENTS = [
