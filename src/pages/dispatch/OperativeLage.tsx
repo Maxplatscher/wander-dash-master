@@ -21,11 +21,11 @@ import { toast } from 'sonner';
 /* ═══════════════════════════════════════════
    Styles
    ═══════════════════════════════════════════ */
-const CARD = 'bg-white rounded-2xl p-5 flex flex-col shadow-sm border border-gray-100';
-const CARD_SM = 'bg-white rounded-2xl p-4 flex flex-col shadow-sm border border-gray-100';
-const SECTION_TITLE = 'text-sm font-bold text-gray-800';
-const PRIMARY_TEXT = 'text-gray-800';
-const SECONDARY_TEXT = 'text-gray-500';
+const CARD = 'glass-card p-5 flex flex-col';
+const CARD_SM = 'glass-card p-4 flex flex-col';
+const SECTION_TITLE = 'text-sm font-bold text-foreground';
+const PRIMARY_TEXT = 'text-foreground';
+const SECONDARY_TEXT = 'text-muted-foreground';
 
 const DRIVER_COLORS = ['#ef4444', '#6366f1', '#f59e0b', '#10b981', '#8b5cf6'];
 const CARD_GRADIENTS = [
@@ -137,17 +137,17 @@ function MiniCalendar() {
         <p className={SECTION_TITLE}>Kalender</p>
       </div>
       <div className="flex items-center justify-between mb-3">
-        <button className="w-6 h-6 rounded-full hover:bg-gray-100 flex items-center justify-center">
-          <ChevronLeft className="w-3.5 h-3.5 text-gray-500" />
+        <button className="w-6 h-6 rounded-full hover:bg-white/5 flex items-center justify-center">
+          <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
-        <p className="text-xs font-semibold text-gray-700">{monthName}</p>
-        <button className="w-6 h-6 rounded-full hover:bg-gray-100 flex items-center justify-center">
-          <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+        <p className="text-xs font-semibold text-foreground">{monthName}</p>
+        <button className="w-6 h-6 rounded-full hover:bg-white/5 flex items-center justify-center">
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center">
         {days.map(d => (
-          <span key={d} className="text-[10px] font-semibold text-gray-400 pb-1">{d}</span>
+          <span key={d} className="text-[10px] font-semibold text-muted-foreground pb-1">{d}</span>
         ))}
         {Array.from({ length: offset }).map((_, i) => (
           <span key={`e-${i}`} />
@@ -161,8 +161,8 @@ function MiniCalendar() {
               className={cn(
                 'text-[11px] w-7 h-7 flex items-center justify-center rounded-full mx-auto cursor-pointer transition-colors',
                 isToday
-                  ? 'bg-indigo-500 text-white font-bold shadow-md shadow-indigo-200'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'bg-primary text-primary-foreground font-bold shadow-glow'
+                  : 'text-muted-foreground hover:bg-white/5'
               )}
             >
               {day}
@@ -190,8 +190,8 @@ function LiveClock() {
 
   return (
     <div className="text-center">
-      <p className="text-3xl font-extrabold tracking-tight text-gray-800">{timeStr}</p>
-      <p className="text-xs text-gray-500 mt-1">{dateStr}</p>
+      <p className="text-3xl font-extrabold tracking-tight text-foreground">{timeStr}</p>
+      <p className="text-xs text-muted-foreground mt-1">{dateStr}</p>
     </div>
   );
 }
@@ -220,14 +220,14 @@ function InlineWeather() {
   else if (code > 67 && code <= 77) { label = 'Schnee'; emoji = '❄️'; }
   else if (code > 77) { label = 'Gewitter'; emoji = '⛈️'; }
 
-  if (isLoading) return <p className="text-xs text-gray-400">Lade Wetter…</p>;
+  if (isLoading) return <p className="text-xs text-muted-foreground">Lade Wetter…</p>;
 
   return (
     <div className="flex items-center gap-3">
       <span className="text-3xl">{emoji}</span>
       <div>
-        <p className="text-lg font-bold text-gray-800">{Math.round(weather?.temperature ?? 0)}°C</p>
-        <p className="text-xs text-gray-500">{label} · Wind {weather?.windspeed ?? 0} km/h</p>
+        <p className="text-lg font-bold text-foreground">{Math.round(weather?.temperature ?? 0)}°C</p>
+        <p className="text-xs text-muted-foreground">{label} · Wind {weather?.windspeed ?? 0} km/h</p>
       </div>
     </div>
   );
@@ -243,7 +243,7 @@ function WeightBarChart({ drivers }: { drivers: { name: string; weight: number }
     <div className="flex items-end gap-3 h-32 mt-2">
       {drivers.map((d, i) => (
         <div key={i} className="flex flex-col items-center flex-1 gap-1">
-          <span className="text-[10px] font-semibold text-gray-500">{d.weight}kg</span>
+          <span className="text-[10px] font-semibold text-muted-foreground">{d.weight}kg</span>
           <div
             className="w-full rounded-t-lg transition-all duration-500"
             style={{
@@ -251,7 +251,7 @@ function WeightBarChart({ drivers }: { drivers: { name: string; weight: number }
               backgroundColor: DRIVER_COLORS[i % DRIVER_COLORS.length],
             }}
           />
-          <span className="text-[10px] text-gray-400 truncate max-w-full">{d.name.split(' ')[0]}</span>
+          <span className="text-[10px] text-muted-foreground truncate max-w-full">{d.name.split(' ')[0]}</span>
         </div>
       ))}
     </div>
@@ -273,7 +273,7 @@ function DonutChart({ drivers }: { drivers: { name: string; percent: number }[] 
   return (
     <div className="flex items-center gap-4">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f3f4f6" strokeWidth={strokeWidth} />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--border))" strokeWidth={strokeWidth} />
         {sorted.map((d, i) => {
           const segmentLength = (d.percent / 100) * circumference * 0.18;
           const dashOffset = circumference - accumulatedOffset;
@@ -301,8 +301,8 @@ function DonutChart({ drivers }: { drivers: { name: string; percent: number }[] 
         {sorted.map((d, i) => (
           <div key={i} className="flex items-center gap-2 text-xs">
             <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: DRIVER_COLORS[i % DRIVER_COLORS.length] }} />
-            <span className="text-gray-700">{d.name.split(' ')[0]}</span>
-            <span className="font-bold ml-auto text-gray-800">{d.percent}%</span>
+            <span className="text-muted-foreground">{d.name.split(' ')[0]}</span>
+            <span className="font-bold ml-auto text-foreground">{d.percent}%</span>
           </div>
         ))}
       </div>
@@ -471,10 +471,10 @@ export function OperativeLage() {
             }
             return (
               <div key={i} className="flex flex-col items-center justify-center" onClick={() => setShowAddDriver(true)}>
-                <div className="w-20 h-20 rounded-full border-2 border-dashed border-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
-                  <Plus className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
+                <div className="w-20 h-20 rounded-full border-2 border-dashed border-primary/40 flex items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/10 transition-all group">
+                  <Plus className="w-8 h-8 text-primary/70 group-hover:text-primary transition-colors" />
                 </div>
-                <p className="text-[11px] font-medium text-indigo-600 mt-2">Fahrer Hinzufügen</p>
+                <p className="text-[11px] font-medium text-primary mt-2">Fahrer Hinzufügen</p>
               </div>
             );
           })}
@@ -528,7 +528,7 @@ export function OperativeLage() {
           <div className="space-y-4 pt-2">
             {/* Name */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Name *</label>
               <Input
                 placeholder="z.B. Max Müller"
                 value={newDriver.name}
@@ -537,7 +537,7 @@ export function OperativeLage() {
             </div>
             {/* Telefon */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Telefon</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Telefon</label>
               <Input
                 placeholder="+49 171 ..."
                 value={newDriver.phone}
@@ -548,8 +548,8 @@ export function OperativeLage() {
             {/* Fahrzeug */}
             <div className="border-t pt-4">
               <div className="flex items-center gap-2 mb-3">
-                <Truck className="w-4 h-4 text-indigo-500" />
-                <label className="text-sm font-bold text-gray-800">Fahrzeug zuweisen</label>
+                <Truck className="w-4 h-4 text-primary" />
+                <label className="text-sm font-bold text-foreground">Fahrzeug zuweisen</label>
               </div>
 
               {existingVehicles && existingVehicles.length > 0 ? (
@@ -568,9 +568,9 @@ export function OperativeLage() {
                     </SelectContent>
                   </Select>
                   {selectedVehicleId === 'new' && (
-                    <div className="mt-3 space-y-3 pl-2 border-l-2 border-indigo-100">
+                    <div className="mt-3 space-y-3 pl-2 border-l-2 border-primary/30">
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-1 block">Fahrzeugname *</label>
+                        <label className="text-sm font-medium text-foreground mb-1 block">Fahrzeugname *</label>
                         <Input
                           placeholder="z.B. Sprinter 1"
                           value={newDriver.vehicleName}
@@ -578,7 +578,7 @@ export function OperativeLage() {
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-1 block">Kapazität (kg)</label>
+                        <label className="text-sm font-medium text-foreground mb-1 block">Kapazität (kg)</label>
                         <Input
                           type="number"
                           placeholder="z.B. 1500"
@@ -591,9 +591,9 @@ export function OperativeLage() {
                 </>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-xs text-gray-400">Noch kein Fahrzeug vorhanden – lege eines an:</p>
+                  <p className="text-xs text-muted-foreground">Noch kein Fahrzeug vorhanden – lege eines an:</p>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Fahrzeugname *</label>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Fahrzeugname *</label>
                     <Input
                       placeholder="z.B. Sprinter 1"
                       value={newDriver.vehicleName}
@@ -601,7 +601,7 @@ export function OperativeLage() {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Kapazität (kg)</label>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Kapazität (kg)</label>
                     <Input
                       type="number"
                       placeholder="z.B. 1500"
@@ -616,8 +616,8 @@ export function OperativeLage() {
             {/* Hinweise für KI */}
             <div className="border-t pt-4">
               <div className="flex items-center gap-2 mb-2">
-                <FileText className="w-4 h-4 text-amber-500" />
-                <label className="text-sm font-bold text-gray-800">Hinweise</label>
+                <FileText className="w-4 h-4 text-amber-400" />
+                <label className="text-sm font-bold text-foreground">Hinweise</label>
               </div>
               <Textarea
                 placeholder="z.B. Fahrer kennt Gebiet Nord gut, max. 8h Schicht, keine Autobahn..."
@@ -626,7 +626,7 @@ export function OperativeLage() {
                 rows={3}
                 className="text-sm"
               />
-              <p className="text-xs text-gray-400 mt-1">Diese Hinweise werden bei der automatischen Tourenplanung berücksichtigt.</p>
+              <p className="text-xs text-muted-foreground mt-1">Diese Hinweise werden bei der automatischen Tourenplanung berücksichtigt.</p>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

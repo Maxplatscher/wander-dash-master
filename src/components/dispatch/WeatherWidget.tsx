@@ -12,13 +12,13 @@ interface Location {
 }
 
 function getWeatherInfo(code: number) {
-  if (code <= 1) return { icon: Sun, label: 'Sonnig', bg: 'from-amber-400 via-orange-300 to-yellow-200' };
-  if (code <= 3) return { icon: Cloud, label: 'Bewölkt', bg: 'from-slate-400 via-gray-300 to-slate-200' };
-  if (code <= 48) return { icon: CloudFog, label: 'Nebelig', bg: 'from-gray-400 via-gray-300 to-gray-200' };
-  if (code <= 67) return { icon: CloudRain, label: 'Regen', bg: 'from-blue-500 via-blue-400 to-slate-300' };
-  if (code <= 77) return { icon: CloudSnow, label: 'Schnee', bg: 'from-blue-100 via-white to-blue-200' };
-  if (code <= 82) return { icon: CloudRain, label: 'Schauer', bg: 'from-blue-600 via-blue-400 to-gray-300' };
-  return { icon: CloudLightning, label: 'Gewitter', bg: 'from-gray-700 via-purple-600 to-gray-500' };
+  if (code <= 1) return { icon: Sun, label: 'Sonnig', bg: 'from-amber-500/20 via-orange-500/10 to-transparent' };
+  if (code <= 3) return { icon: Cloud, label: 'Bewölkt', bg: 'from-slate-500/20 via-slate-400/10 to-transparent' };
+  if (code <= 48) return { icon: CloudFog, label: 'Nebelig', bg: 'from-slate-500/20 via-slate-400/10 to-transparent' };
+  if (code <= 67) return { icon: CloudRain, label: 'Regen', bg: 'from-blue-500/25 via-blue-400/10 to-transparent' };
+  if (code <= 77) return { icon: CloudSnow, label: 'Schnee', bg: 'from-cyan-400/20 via-blue-300/10 to-transparent' };
+  if (code <= 82) return { icon: CloudRain, label: 'Schauer', bg: 'from-blue-600/25 via-blue-500/10 to-transparent' };
+  return { icon: CloudLightning, label: 'Gewitter', bg: 'from-purple-600/25 via-slate-700/10 to-transparent' };
 }
 
 async function fetchWeather(lat: number, lon: number) {
@@ -78,19 +78,18 @@ export function WeatherWidget() {
   const WeatherIcon = info.icon;
 
   return (
-    <div className={`relative overflow-hidden h-full w-full rounded-xl bg-gradient-to-br ${info.bg} p-6 text-white shadow-lg flex flex-col`}>
+    <div className={`relative overflow-hidden h-full w-full rounded-[24px] bg-gradient-to-br ${info.bg} p-6 text-foreground flex flex-col`}>
       {/* Animated background elements */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute -top-4 -right-4 w-32 h-32 rounded-full bg-white/30 animate-pulse" />
-        <div className="absolute bottom-2 left-8 w-20 h-20 rounded-full bg-white/20 animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-8 left-1/3 w-12 h-12 rounded-full bg-white/25 animate-pulse" style={{ animationDelay: '0.5s' }} />
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
+        <div className="absolute -top-4 -right-4 w-32 h-32 rounded-full bg-primary/20 blur-2xl animate-pulse" />
+        <div className="absolute bottom-2 left-8 w-20 h-20 rounded-full bg-accent-cyan/20 blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
       </div>
 
       <div className="relative z-10 flex flex-col h-full">
         <div className="flex items-center justify-between mb-4">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <button className="flex items-center gap-1.5 text-sm font-medium hover:opacity-80 transition-opacity bg-white/20 rounded-lg px-3 py-1.5 backdrop-blur-sm">
+              <button className="flex items-center gap-1.5 text-sm font-medium hover:bg-white/10 transition bg-white/5 border border-white/10 rounded-full px-3 py-1.5 backdrop-blur-md text-foreground">
                 <MapPin className="w-3.5 h-3.5" />
                 {location.name}
               </button>
@@ -126,7 +125,7 @@ export function WeatherWidget() {
               </div>
             </PopoverContent>
           </Popover>
-          <span className="text-xs opacity-70">Auto-Update alle 10 Min</span>
+          <span className="text-xs text-muted-foreground">Auto-Update alle 10 Min</span>
         </div>
 
         {isLoading ? (
