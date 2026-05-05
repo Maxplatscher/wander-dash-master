@@ -78,7 +78,7 @@ export function WeatherWidget() {
   const WeatherIcon = info.icon;
 
   return (
-    <div className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${info.bg} p-6 text-white shadow-lg`}>
+    <div className={`relative overflow-hidden h-full w-full rounded-xl bg-gradient-to-br ${info.bg} p-6 text-white shadow-lg flex flex-col`}>
       {/* Animated background elements */}
       <div className="absolute inset-0 opacity-20">
         <div className="absolute -top-4 -right-4 w-32 h-32 rounded-full bg-white/30 animate-pulse" />
@@ -86,7 +86,7 @@ export function WeatherWidget() {
         <div className="absolute top-8 left-1/3 w-12 h-12 rounded-full bg-white/25 animate-pulse" style={{ animationDelay: '0.5s' }} />
       </div>
 
-      <div className="relative z-10">
+      <div className="relative z-10 flex flex-col h-full">
         <div className="flex items-center justify-between mb-4">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
@@ -135,22 +135,24 @@ export function WeatherWidget() {
             <span className="text-sm">Lade Wetterdaten...</span>
           </div>
         ) : weather ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <WeatherIcon className="w-14 h-14 drop-shadow-lg" />
-              <div>
-                <p className="text-3xl font-bold">{Math.round(weather.temperature)}°C</p>
-                <p className="text-sm font-medium opacity-90">{info.label}</p>
+          <div className="flex-1 flex flex-col justify-center">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-5">
+                <WeatherIcon className="w-24 h-24 drop-shadow-lg" />
+                <div>
+                  <p className="text-6xl font-bold leading-none">{Math.round(weather.temperature)}°C</p>
+                  <p className="text-base font-medium opacity-90 mt-2">{info.label}</p>
+                </div>
               </div>
-            </div>
-            <div className="text-right space-y-1">
-              <div className="flex items-center gap-1.5 justify-end">
-                <Wind className="w-4 h-4 opacity-70" />
-                <span className="text-sm">{weather.windspeed} km/h</span>
+              <div className="text-right space-y-2">
+                <div className="flex items-center gap-1.5 justify-end">
+                  <Wind className="w-5 h-5 opacity-80" />
+                  <span className="text-base">{weather.windspeed} km/h</span>
+                </div>
+                <p className="text-sm opacity-70">
+                  {new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                </p>
               </div>
-              <p className="text-xs opacity-70">
-                {new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
-              </p>
             </div>
           </div>
         ) : (
