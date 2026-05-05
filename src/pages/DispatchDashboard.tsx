@@ -166,7 +166,7 @@ function DashboardLayout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6 overflow-y-auto relative">
+        <main className="flex-1 overflow-y-auto relative">
           <PageContent />
         </main>
       </div>
