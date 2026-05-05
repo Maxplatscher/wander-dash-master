@@ -301,8 +301,8 @@ function DonutChart({ drivers }: { drivers: { name: string; percent: number }[] 
         {sorted.map((d, i) => (
           <div key={i} className="flex items-center gap-2 text-xs">
             <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: DRIVER_COLORS[i % DRIVER_COLORS.length] }} />
-            <span className="text-gray-700">{d.name.split(' ')[0]}</span>
-            <span className="font-bold ml-auto text-gray-800">{d.percent}%</span>
+            <span className="text-muted-foreground">{d.name.split(' ')[0]}</span>
+            <span className="font-bold ml-auto text-foreground">{d.percent}%</span>
           </div>
         ))}
       </div>
