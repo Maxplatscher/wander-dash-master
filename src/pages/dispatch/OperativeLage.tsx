@@ -490,16 +490,16 @@ export function OperativeLage() {
                 return (
                   <div key={i} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-400">{driver.name}</span>
-                      <span className="text-gray-300 font-semibold">{pct}%</span>
+                      <span className="text-muted-foreground">{driver.name}</span>
+                      <span className="text-foreground font-semibold">{pct}%</span>
                     </div>
-                    <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-3 bg-white/5 border border-white/10 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{
                           width: `${pct}%`,
                           backgroundColor: DRIVER_COLORS[i % DRIVER_COLORS.length],
-                          opacity: pct > 0 ? 0.8 : 0.3,
+                          opacity: pct > 0 ? 0.85 : 0.3,
                         }}
                       />
                     </div>
@@ -508,7 +508,7 @@ export function OperativeLage() {
               })}
             </div>
             {driverCards.length === 0 && (
-              <p className="text-[10px] text-gray-300 text-center mt-4">Keine aktiven Touren vorhanden</p>
+              <p className="text-[10px] text-muted-foreground text-center mt-4">Keine aktiven Touren vorhanden</p>
             )}
           </div>
           <div className={CARD}>
