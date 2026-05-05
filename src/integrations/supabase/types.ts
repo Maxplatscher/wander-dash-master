@@ -29,6 +29,54 @@ export type Database = {
         }
         Relationships: []
       }
+      depot: {
+        Row: {
+          address: string | null
+          city: string | null
+          code: string | null
+          company_id: string
+          country: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          metadata: Json
+          name: string
+          postal_code: string | null
+          timezone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          code?: string | null
+          company_id: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name: string
+          postal_code?: string | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          code?: string | null
+          company_id?: string
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          metadata?: Json
+          name?: string
+          postal_code?: string | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       driver: {
         Row: {
           company_id: string
@@ -231,6 +279,65 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      system_integrations: {
+        Row: {
+          company_id: string
+          config: Json | null
+          created_at: string
+          depot_id: string | null
+          id: string
+          is_active: boolean
+          last_test_at: string | null
+          last_test_latency_ms: number | null
+          last_test_message: string | null
+          last_test_result: boolean | null
+          name: string
+          system_type: string
+          updated_at: string
+          vault_secret_id: string | null
+        }
+        Insert: {
+          company_id: string
+          config?: Json | null
+          created_at?: string
+          depot_id?: string | null
+          id?: string
+          is_active?: boolean
+          last_test_at?: string | null
+          last_test_latency_ms?: number | null
+          last_test_message?: string | null
+          last_test_result?: boolean | null
+          name: string
+          system_type: string
+          updated_at?: string
+          vault_secret_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          config?: Json | null
+          created_at?: string
+          depot_id?: string | null
+          id?: string
+          is_active?: boolean
+          last_test_at?: string | null
+          last_test_latency_ms?: number | null
+          last_test_message?: string | null
+          last_test_result?: boolean | null
+          name?: string
+          system_type?: string
+          updated_at?: string
+          vault_secret_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_integrations_depot_id_fkey"
+            columns: ["depot_id"]
+            isOneToOne: false
+            referencedRelation: "depot"
             referencedColumns: ["id"]
           },
         ]
@@ -516,6 +623,25 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      delete_integration_with_secret: {
+        Args: {
+          p_id: string
+        }
+        Returns: undefined
+      }
+      upsert_integration: {
+        Args: {
+          p_company_id: string
+          p_config: Json
+          p_credentials: string
+          p_depot_id: string | null
+          p_id: string
+          p_is_active: boolean
+          p_name: string
+          p_system_type: string
+        }
+        Returns: string
       }
     }
     Enums: {

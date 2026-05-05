@@ -1,0 +1,109 @@
+# =============================================================
+# Easy Planning – .gitignore
+# =============================================================
+
+# --- Python -----------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtuelle Umgebungen
+.venv/
+venv/
+env/
+ENV/
+**/.venv/
+**/venv/
+
+# Build / Distribution
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+*.whl
+
+# Test- und Coverage-Caches
+.pytest_cache/
+**/.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# --- Node / Frontend (falls spaeter eingefuehrt) ---------------
+node_modules/
+.next/
+.nuxt/
+.parcel-cache/
+.npm/
+.yarn/
+.pnp.*
+
+# --- IDE / Editor -----------------------------------------------
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Logs / Temp ------------------------------------------------
+*.log
+*.tmp
+*.bak
+*.orig
+logs/
+tmp/
+
+# --- Geheimnisse / lokale Konfig --------------------------------
+.env
+.env.local
+.env.*.local
+*.local.env
+secrets/
+credentials/
+*.pem
+*.key
+*.pfx
+
+# .env.example und .env.pilot bleiben absichtlich getrackt!
+!.env.example
+!.env.pilot
+
+# --- Datenbanken / Dumps ----------------------------------------
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+
+# --- Grosse Binaries / Archive ----------------------------------
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.iso
+
+# Kleine, absichtlich getrackte Archive ggf. mit ! ausnehmen.
+
+# --- Projekt-spezifisch -----------------------------------------
+agent-transcripts/
+.claude-cache/
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/
+
+# Alte Demo-/Pilot-Artefakte, die nicht ins Repo gehoeren
+Reißverschluss.zip

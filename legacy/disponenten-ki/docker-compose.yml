@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:16
+    container_name: easyplanning_db
+    environment:
+      POSTGRES_USER: easy
+      POSTGRES_PASSWORD: easy
+      POSTGRES_DB: easyplanning
+    ports:
+      - "5432:5432"
+    volumes:
+      - easyplanning_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U easy -d easyplanning"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: easyplanning_backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://easy:easy@db:5432/easyplanning}
+      # Sicherheits-Standard: Auth ist aktiv (1). Für lokale Dev-Sessions: EASYPLAN_DEV=1 setzen.
+      EASYPLAN_REQUIRE_AUTH: ${EASYPLAN_REQUIRE_AUTH:-1}
+      EASYPLAN_DEV: ${EASYPLAN_DEV:-0}
+      # WICHTIG: JWT_SECRET in Produktion immer auf einen sicheren Wert setzen!
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET muss in .env gesetzt sein}
+      EASYPLAN_ETA_PROVIDER: ${EASYPLAN_ETA_PROVIDER:-auto}
+      EASYPLAN_OSRM_URL: ${EASYPLAN_OSRM_URL:-https://router.project-osrm.org}
+      EASYPLAN_OSRM_PROFILE: ${EASYPLAN_OSRM_PROFILE:-driving}
+      EASYPLAN_OSRM_TIMEOUT_S: ${EASYPLAN_OSRM_TIMEOUT_S:-4.0}
+      EASYPLAN_OSRM_MAX_LOCATIONS: ${EASYPLAN_OSRM_MAX_LOCATIONS:-80}
+      EASYPLAN_OSRM_CENTER_LAT: ${EASYPLAN_OSRM_CENTER_LAT:-50.11}
+      EASYPLAN_OSRM_CENTER_LON: ${EASYPLAN_OSRM_CENTER_LON:-8.68}
+      EASYPLAN_OSRM_GRID_SCALE: ${EASYPLAN_OSRM_GRID_SCALE:-0.005}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  easyplanning_pg:

@@ -1,0 +1,508 @@
+-- Vollstaendiges Basis-Schema fuer eine leere Supabase-Datenbank
+-- Direkt im Supabase SQL Editor ausfuehrbar
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- =========================================================
+-- CORE TABLES
+-- =========================================================
+
+CREATE TABLE public.company (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE
+);
+ALTER TABLE public.company ENABLE ROW LEVEL SECURITY;
+
+-- Optionaler Alias, falls "companies" verwendet wird.
+CREATE OR REPLACE VIEW public.companies AS
+SELECT id, name
+FROM public.company;
+
+CREATE TABLE public.plan_run (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES public.company(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  status TEXT,
+  input_snapshot JSONB,
+  result_snapshot JSONB
+);
+ALTER TABLE public.plan_run ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.vehicle (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES public.company(id) ON DELETE CASCADE,
+  name TEXT,
+  capacity INTEGER
+);
+ALTER TABLE public.vehicle ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.driver (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES public.company(id) ON DELETE CASCADE,
+  name TEXT,
+  phone TEXT,
+  status TEXT,
+  shift_start TIME,
+  shift_end TIME
+);
+ALTER TABLE public.driver ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.shipment (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES public.company(id) ON DELETE CASCADE,
+  name TEXT,
+  demand INTEGER,
+  location_x DOUBLE PRECISION,
+  location_y DOUBLE PRECISION,
+  window_start TIMESTAMPTZ,
+  window_end TIMESTAMPTZ,
+  service_date DATE,
+  intake_source VARCHAR(50),
+  intake_status VARCHAR(50),
+  customer_name VARCHAR(300),
+  delivery_address VARCHAR(2000),
+  email_notes VARCHAR(4000),
+  seller_email VARCHAR(255),
+  raw_email TEXT,
+  positionen JSONB,
+  weight_kg INTEGER,
+  email_received_at TIMESTAMPTZ,
+  email_processed_at TIMESTAMPTZ,
+  missing_fields JSONB,
+  released_at TIMESTAMPTZ,
+  released_by VARCHAR(255)
+);
+ALTER TABLE public.shipment ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.email_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id VARCHAR(900) UNIQUE,
+  subject VARCHAR(500),
+  from_addr VARCHAR(500),
+  status VARCHAR(80) NOT NULL,
+  error_detail TEXT,
+  shipment_id UUID REFERENCES public.shipment(id),
+  body_preview TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  processed_at TIMESTAMPTZ
+);
+ALTER TABLE public.email_log ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.touren_plan (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES public.company(id) ON DELETE CASCADE,
+  date DATE,
+  version INTEGER,
+  is_active BOOLEAN DEFAULT false,
+  plan_run_id UUID REFERENCES public.plan_run(id),
+  total_cost DOUBLE PRECISION,
+  description TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.touren_plan ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.tour (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES public.company(id) ON DELETE CASCADE,
+  plan_version_id UUID REFERENCES public.touren_plan(id),
+  date DATE,
+  version INTEGER,
+  is_active BOOLEAN DEFAULT false,
+  plan_run_id UUID REFERENCES public.plan_run(id),
+  total_cost DOUBLE PRECISION,
+  description TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.tour ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.tour_stop (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tour_id UUID NOT NULL REFERENCES public.tour(id) ON DELETE CASCADE,
+  vehicle_id UUID REFERENCES public.vehicle(id),
+  shipment_id UUID REFERENCES public.shipment(id),
+  stop_index INTEGER,
+  arrival_time TIMESTAMPTZ,
+  departure_time TIMESTAMPTZ,
+  segment_cost DOUBLE PRECISION,
+  driver_completed BOOLEAN DEFAULT false,
+  driver_completed_at TIMESTAMPTZ
+);
+ALTER TABLE public.tour_stop ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT,
+  company_id UUID REFERENCES public.company(id),
+  role TEXT DEFAULT 'user',
+  is_active BOOLEAN DEFAULT true,
+  driver_id UUID REFERENCES public.driver(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+
+-- =========================================================
+-- AUTH / ROLES
+-- =========================================================
+
+CREATE TYPE public.app_role AS ENUM ('admin', 'dispatcher', 'driver');
+
+CREATE TABLE public.user_roles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  role public.app_role NOT NULL,
+  UNIQUE (user_id, role)
+);
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role public.app_role)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.user_roles
+    WHERE user_id = _user_id
+      AND role = _role
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT role::text
+  FROM public.user_roles
+  WHERE user_id = auth.uid()
+  LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_user_company_id()
+RETURNS UUID
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT company_id
+  FROM public.users
+  WHERE email = (SELECT email FROM auth.users WHERE id = auth.uid())
+$$;
+
+CREATE OR REPLACE FUNCTION public.ensure_default_company()
+RETURNS UUID
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH existing AS (
+    SELECT id
+    FROM public.company
+    LIMIT 1
+  ),
+  inserted AS (
+    INSERT INTO public.company (name)
+    SELECT 'Standard'
+    WHERE NOT EXISTS (SELECT 1 FROM existing)
+    RETURNING id
+  )
+  SELECT id FROM existing
+  UNION ALL
+  SELECT id FROM inserted
+  LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.users (id, email, company_id, role, is_active)
+  VALUES (NEW.id, NEW.email, public.ensure_default_company(), 'dispatcher', true)
+  ON CONFLICT (email) DO NOTHING;
+
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (NEW.id, 'dispatcher')
+  ON CONFLICT (user_id, role) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
+
+-- =========================================================
+-- DEPOT + SYSTEM INTEGRATIONS
+-- (company_id bewusst OHNE FK, wie gewuenscht)
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION public.encrypt_integration_secret(plain_text text)
+RETURNS text
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT encode(
+    extensions.pgp_sym_encrypt(
+      plain_text,
+      (
+        SELECT decrypted_secret
+        FROM vault.decrypted_secrets
+        WHERE name = 'integration_encryption_key'
+        LIMIT 1
+      )
+    ),
+    'base64'
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.decrypt_integration_secret(cipher_text text)
+RETURNS text
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT CASE
+    WHEN cipher_text IS NULL OR length(cipher_text) = 0 THEN NULL
+    ELSE extensions.pgp_sym_decrypt(
+      decode(cipher_text, 'base64'),
+      (
+        SELECT decrypted_secret
+        FROM vault.decrypted_secrets
+        WHERE name = 'integration_encryption_key'
+        LIMIT 1
+      )
+    )
+  END;
+$$;
+
+CREATE TABLE public.depot (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL,
+  name TEXT NOT NULL,
+  code TEXT,
+  address TEXT,
+  city TEXT,
+  postal_code TEXT,
+  country TEXT DEFAULT 'DE',
+  timezone TEXT DEFAULT 'Europe/Berlin',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.depot ENABLE ROW LEVEL SECURITY;
+
+CREATE UNIQUE INDEX depot_company_id_name_key
+  ON public.depot (company_id, name);
+
+CREATE TABLE public.system_integrations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL,
+  depot_id UUID REFERENCES public.depot(id) ON DELETE CASCADE,
+  system_key TEXT NOT NULL,
+  display_name TEXT,
+  base_url TEXT,
+  username TEXT,
+  secret_ciphertext TEXT,
+  access_token_ciphertext TEXT,
+  refresh_token_ciphertext TEXT,
+  token_expires_at TIMESTAMPTZ,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  last_sync_at TIMESTAMPTZ,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT system_integrations_scope_key_unique UNIQUE (company_id, depot_id, system_key)
+);
+ALTER TABLE public.system_integrations ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_depot_updated_at ON public.depot;
+CREATE TRIGGER trg_depot_updated_at
+  BEFORE UPDATE ON public.depot
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_system_integrations_updated_at ON public.system_integrations;
+CREATE TRIGGER trg_system_integrations_updated_at
+  BEFORE UPDATE ON public.system_integrations
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_updated_at();
+
+-- =========================================================
+-- RLS POLICIES
+-- =========================================================
+
+CREATE POLICY "Users can view own company"
+ON public.company FOR SELECT TO authenticated
+USING (id = public.get_user_company_id());
+
+CREATE POLICY "Users can view own plan_runs"
+ON public.plan_run FOR SELECT TO authenticated
+USING (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can insert own plan_runs"
+ON public.plan_run FOR INSERT TO authenticated
+WITH CHECK (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can view own vehicles"
+ON public.vehicle FOR SELECT TO authenticated
+USING (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can manage own vehicles"
+ON public.vehicle FOR ALL TO authenticated
+USING (company_id = public.get_user_company_id())
+WITH CHECK (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can view own drivers"
+ON public.driver FOR SELECT TO authenticated
+USING (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can manage own drivers"
+ON public.driver FOR ALL TO authenticated
+USING (company_id = public.get_user_company_id())
+WITH CHECK (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can view own shipments"
+ON public.shipment FOR SELECT TO authenticated
+USING (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can manage own shipments"
+ON public.shipment FOR ALL TO authenticated
+USING (company_id = public.get_user_company_id())
+WITH CHECK (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can view own email_logs"
+ON public.email_log FOR SELECT TO authenticated
+USING (
+  shipment_id IS NULL
+  OR shipment_id IN (
+    SELECT id
+    FROM public.shipment
+    WHERE company_id = public.get_user_company_id()
+  )
+);
+
+CREATE POLICY "Users can view own touren_plans"
+ON public.touren_plan FOR SELECT TO authenticated
+USING (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can manage own touren_plans"
+ON public.touren_plan FOR ALL TO authenticated
+USING (company_id = public.get_user_company_id())
+WITH CHECK (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can view own tours"
+ON public.tour FOR SELECT TO authenticated
+USING (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can manage own tours"
+ON public.tour FOR ALL TO authenticated
+USING (company_id = public.get_user_company_id())
+WITH CHECK (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can view own tour_stops"
+ON public.tour_stop FOR SELECT TO authenticated
+USING (
+  tour_id IN (
+    SELECT id
+    FROM public.tour
+    WHERE company_id = public.get_user_company_id()
+  )
+);
+
+CREATE POLICY "Users can manage own tour_stops"
+ON public.tour_stop FOR ALL TO authenticated
+USING (
+  tour_id IN (
+    SELECT id
+    FROM public.tour
+    WHERE company_id = public.get_user_company_id()
+  )
+)
+WITH CHECK (
+  tour_id IN (
+    SELECT id
+    FROM public.tour
+    WHERE company_id = public.get_user_company_id()
+  )
+);
+
+CREATE POLICY "Users can view own profile"
+ON public.users FOR SELECT TO authenticated
+USING (email = (SELECT email FROM auth.users WHERE id = auth.uid()));
+
+CREATE POLICY "Users can update own profile"
+ON public.users FOR UPDATE TO authenticated
+USING (email = (SELECT email FROM auth.users WHERE id = auth.uid()));
+
+CREATE POLICY "Users can insert own record"
+ON public.users FOR INSERT TO authenticated
+WITH CHECK (id = auth.uid());
+
+CREATE POLICY "Users can view own roles"
+ON public.user_roles FOR SELECT TO authenticated
+USING (user_id = auth.uid());
+
+CREATE POLICY "Admins can manage all roles"
+ON public.user_roles FOR ALL TO authenticated
+USING (public.has_role(auth.uid(), 'admin'))
+WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+CREATE POLICY "Users can view own depots"
+ON public.depot FOR SELECT TO authenticated
+USING (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can manage own depots"
+ON public.depot FOR ALL TO authenticated
+USING (company_id = public.get_user_company_id())
+WITH CHECK (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can view own system integrations"
+ON public.system_integrations FOR SELECT TO authenticated
+USING (company_id = public.get_user_company_id());
+
+CREATE POLICY "Users can manage own system integrations"
+ON public.system_integrations FOR ALL TO authenticated
+USING (company_id = public.get_user_company_id())
+WITH CHECK (company_id = public.get_user_company_id());
+
+-- =========================================================
+-- PERFORMANCE INDEXES
+-- =========================================================
+
+CREATE INDEX idx_shipment_service_date ON public.shipment(service_date);
+CREATE INDEX idx_shipment_intake_status ON public.shipment(intake_status);
+CREATE INDEX idx_shipment_company_id ON public.shipment(company_id);
+CREATE INDEX idx_tour_date ON public.tour(date);
+CREATE INDEX idx_tour_company_id ON public.tour(company_id);
+CREATE INDEX idx_tour_stop_shipment_id ON public.tour_stop(shipment_id);
+CREATE INDEX idx_email_log_created_at ON public.email_log(created_at);
+CREATE INDEX idx_email_log_status ON public.email_log(status);
+CREATE INDEX idx_depot_company_id ON public.depot(company_id);
+CREATE INDEX idx_depot_active ON public.depot(company_id, is_active);
+CREATE INDEX idx_system_integrations_company_id ON public.system_integrations(company_id);
+CREATE INDEX idx_system_integrations_depot_id ON public.system_integrations(depot_id);
+CREATE INDEX idx_system_integrations_active ON public.system_integrations(company_id, is_active);

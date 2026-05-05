@@ -1,0 +1,22 @@
+Betreff: Lieferschein – [Kundenname]
+
+--- Inhalt (Text) ---
+
+Kunde: Müller GmbH
+Lieferadresse: Hauptstr. 5, 30159 Hannover
+Wunschtermin: 28.03.2026
+Uhrzeit: Vormittags (vor 12 Uhr)
+
+Artikel:
+- 3x Palette Zement (je 50 kg)
+- 2x Sack Kalk (25 kg)
+
+Gesamtgewicht: 200 kg
+Bemerkungen: Bitte klingeln, Tor ist geschlossen
+
+--- Hinweise für Verkäufer ---
+
+• Verwenden Sie die Zeilen mit „Kunde:“ / „Lieferadresse:“ / „Wunschtermin:“ genau so (Doppelpunkt am Ende der Bezeichnung).
+• Datum im Format TT.MM.JJJJ.
+• Nach „Artikel:“ folgen die Positionen als Aufzählung (mit „- “).
+• Diese Datei können Sie in Outlook/Thunderbird als Entwurf speichern oder den Text in eine neue E-Mail kopieren.

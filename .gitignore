@@ -22,3 +22,20 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Legacy Disponenten-KI (Python) – Cache- und venv-Müll nicht ins Git
+legacy/**/__pycache__/
+legacy/**/*.pyc
+legacy/**/*.pyo
+legacy/**/.venv/
+legacy/**/venv/
+legacy/**/.pytest_cache/
+legacy/**/.mypy_cache/
+legacy/**/.ruff_cache/
+legacy/**/*.egg-info/
+legacy/**/htmlcov/
+legacy/**/.coverage
+legacy/**/.env
+legacy/**/.env.local
+# Optional: das alte Riesen-Backup-Zip nie committen
+**/Reißverschluss.zip

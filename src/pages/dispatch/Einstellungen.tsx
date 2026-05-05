@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Settings, Monitor, Building, Wrench, Palette, Check, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Settings, Monitor, Building, Wrench, Palette, Check, ChevronRight, ChevronLeft, PlugZap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { IntegrationenSektion } from '@/components/settings/IntegrationenSektion';
 
 /* ── Theme presets ── */
 interface ThemePreset {
@@ -96,12 +98,13 @@ function saveTheme(name: string) {
 }
 
 /* ── Section IDs ── */
-type SettingsSection = 'ui' | 'betrieb' | 'system' | 'benutzer';
+type SettingsSection = 'ui' | 'betrieb' | 'system' | 'integrationen' | 'benutzer';
 
 const sectionMeta: { id: SettingsSection; icon: React.ElementType; label: string; desc: string }[] = [
   { id: 'ui', icon: Monitor, label: 'UI-Einstellungen', desc: 'Theme, Sprache, Layout' },
   { id: 'betrieb', icon: Building, label: 'Betriebskonfiguration', desc: 'Mandant, Zeitfenster, Regeln' },
   { id: 'system', icon: Wrench, label: 'System', desc: 'Cache, Logging' },
+  { id: 'integrationen', icon: PlugZap, label: 'System-Integrationen', desc: 'Fremd-Systeme und Verbindungen' },
   { id: 'benutzer', icon: Settings, label: 'Benutzer & Rollen', desc: 'Zugänge, Berechtigungen' },
 ];
 
@@ -249,6 +252,15 @@ function SystemSettings() {
   );
 }
 
+function IntegrationenSettings({ companyId }: { companyId: string | null }) {
+  return (
+    <section>
+      <h2 className="text-lg font-semibold mb-4">System-Integrationen</h2>
+      <IntegrationenSektion companyId={companyId} />
+    </section>
+  );
+}
+
 function BenutzerSettings() {
   return (
     <div className="space-y-4 text-sm text-muted-foreground">
@@ -268,6 +280,7 @@ function BenutzerSettings() {
 
 export function Einstellungen() {
   const [active, setActive] = useState<SettingsSection | null>(null);
+  const [currentCompanyId, setCurrentCompanyId] = useState<string | null>(null);
 
   // Apply saved theme on mount
   useEffect(() => {
@@ -276,12 +289,25 @@ export function Einstellungen() {
     if (t) applyTheme(t);
   }, []);
 
+  useEffect(() => {
+    const loadCompanyId = async () => {
+      const { data, error } = await supabase.rpc('get_user_company_id');
+      if (error) {
+        toast.error(`company_id konnte nicht geladen werden: ${error.message}`);
+        return;
+      }
+      setCurrentCompanyId(data ?? null);
+    };
+    loadCompanyId();
+  }, []);
+
   if (active) {
     const meta = sectionMeta.find(s => s.id === active)!;
     const Panel = {
       ui: UISettings,
       betrieb: BetriebSettings,
       system: SystemSettings,
+      integrationen: () => <IntegrationenSettings companyId={currentCompanyId} />,
       benutzer: BenutzerSettings,
     }[active];
 
