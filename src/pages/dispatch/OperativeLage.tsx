@@ -471,10 +471,10 @@ export function OperativeLage() {
             }
             return (
               <div key={i} className="flex flex-col items-center justify-center" onClick={() => setShowAddDriver(true)}>
-                <div className="w-20 h-20 rounded-full border-2 border-dashed border-indigo-300 flex items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all group">
-                  <Plus className="w-8 h-8 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
+                <div className="w-20 h-20 rounded-full border-2 border-dashed border-primary/40 flex items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/10 transition-all group">
+                  <Plus className="w-8 h-8 text-primary/70 group-hover:text-primary transition-colors" />
                 </div>
-                <p className="text-[11px] font-medium text-indigo-600 mt-2">Fahrer Hinzufügen</p>
+                <p className="text-[11px] font-medium text-primary mt-2">Fahrer Hinzufügen</p>
               </div>
             );
           })}
