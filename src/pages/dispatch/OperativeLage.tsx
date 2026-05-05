@@ -410,10 +410,10 @@ export function OperativeLage() {
       <div className="flex-1 min-w-0 space-y-5">
 
         {/* Welcome Banner */}
-        <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 rounded-2xl p-6 border border-indigo-100 flex items-center justify-between">
+        <div className="glass-card p-6 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-800 mb-1">Aktuelle Lage</h1>
-            <p className="text-sm text-gray-500 max-w-md">
+            <h1 className="text-xl font-bold text-foreground mb-1">Aktuelle Lage</h1>
+            <p className="text-sm text-muted-foreground max-w-md">
               Übersicht über alle aktiven Touren, Fahrer und Lieferungen für den {selectedDate.toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}.
             </p>
             <div className="mt-3 flex items-center gap-2">
