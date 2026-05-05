@@ -108,30 +108,30 @@ function DashboardLayout() {
       {/* ═══ MAIN AREA ═══ */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="h-14 flex items-center px-6 bg-white/70 backdrop-blur-xl border-b border-gray-200/60 sticky top-0 z-10 gap-4">
+        <header className="h-14 flex items-center px-6 bg-white/[0.03] backdrop-blur-xl border-b border-white/10 sticky top-0 z-10 gap-4">
           {/* Search */}
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
               placeholder="Suchen…"
-              className="w-full h-9 pl-9 pr-4 text-sm bg-gray-50 border border-gray-200 rounded-xl text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300/30 transition-colors"
+              className="w-full h-9 pl-9 pr-4 text-sm bg-white/5 border border-white/10 rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors"
             />
           </div>
 
           <div className="ml-auto flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <CalendarDays className="w-3.5 h-3.5" />
               <input
                 type="date"
                 value={selectedDate.toISOString().split('T')[0]}
                 onChange={e => setSelectedDate(new Date(e.target.value))}
-                className="bg-gray-50 text-xs text-gray-700 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-colors focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300/30 outline-none"
+                className="bg-white/5 text-xs text-foreground border border-white/10 rounded-lg px-2.5 py-1.5 transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/30 outline-none [color-scheme:dark]"
               />
             </div>
 
             <Select value={tenant} onValueChange={setTenant}>
-              <SelectTrigger className="h-8 w-[130px] text-xs rounded-lg border-gray-200 bg-gray-50 text-gray-700">
+              <SelectTrigger className="h-8 w-[130px] text-xs rounded-lg border-white/10 bg-white/5 text-foreground">
                 <Building className="w-3 h-3 mr-1" />
                 <SelectValue />
               </SelectTrigger>
@@ -142,23 +142,23 @@ function DashboardLayout() {
               </SelectContent>
             </Select>
 
-            <button className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
-              <Bell className="w-4 h-4 text-gray-500" />
+            <button className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors">
+              <Bell className="w-4 h-4 text-muted-foreground" />
             </button>
-            <button className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors" onClick={() => navigateTo('einstellungen')}>
-              <SettingsIcon className="w-4 h-4 text-gray-500" />
+            <button className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors" onClick={() => navigateTo('einstellungen')}>
+              <SettingsIcon className="w-4 h-4 text-muted-foreground" />
             </button>
 
             {/* Avatar */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-primary-foreground text-xs font-bold">
                 {user?.email?.charAt(0).toUpperCase() ?? 'U'}
               </div>
               <div className="hidden lg:block">
-                <p className="text-xs font-medium text-gray-700 truncate max-w-[120px]">{user?.email?.split('@')[0]}</p>
-                <p className="text-[10px] text-gray-400">{role ?? 'Dispatcher'}</p>
+                <p className="text-xs font-medium text-foreground truncate max-w-[120px]">{user?.email?.split('@')[0]}</p>
+                <p className="text-[10px] text-muted-foreground">{role ?? 'Dispatcher'}</p>
               </div>
-              <Button size="sm" variant="ghost" onClick={signOut} title="Abmelden" className="rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 h-8 w-8 p-0">
+              <Button size="sm" variant="ghost" onClick={signOut} title="Abmelden" className="rounded-lg text-muted-foreground hover:bg-destructive/15 hover:text-destructive h-8 w-8 p-0">
                 <LogOut className="w-3.5 h-3.5" />
               </Button>
             </div>
