@@ -12,13 +12,13 @@ interface Location {
 }
 
 function getWeatherInfo(code: number) {
-  if (code <= 1) return { icon: Sun, label: 'Sonnig', bg: 'from-amber-400 via-orange-300 to-yellow-200' };
-  if (code <= 3) return { icon: Cloud, label: 'Bewölkt', bg: 'from-slate-400 via-gray-300 to-slate-200' };
-  if (code <= 48) return { icon: CloudFog, label: 'Nebelig', bg: 'from-gray-400 via-gray-300 to-gray-200' };
-  if (code <= 67) return { icon: CloudRain, label: 'Regen', bg: 'from-blue-500 via-blue-400 to-slate-300' };
-  if (code <= 77) return { icon: CloudSnow, label: 'Schnee', bg: 'from-blue-100 via-white to-blue-200' };
-  if (code <= 82) return { icon: CloudRain, label: 'Schauer', bg: 'from-blue-600 via-blue-400 to-gray-300' };
-  return { icon: CloudLightning, label: 'Gewitter', bg: 'from-gray-700 via-purple-600 to-gray-500' };
+  if (code <= 1) return { icon: Sun, label: 'Sonnig', bg: 'from-amber-500/20 via-orange-500/10 to-transparent' };
+  if (code <= 3) return { icon: Cloud, label: 'Bewölkt', bg: 'from-slate-500/20 via-slate-400/10 to-transparent' };
+  if (code <= 48) return { icon: CloudFog, label: 'Nebelig', bg: 'from-slate-500/20 via-slate-400/10 to-transparent' };
+  if (code <= 67) return { icon: CloudRain, label: 'Regen', bg: 'from-blue-500/25 via-blue-400/10 to-transparent' };
+  if (code <= 77) return { icon: CloudSnow, label: 'Schnee', bg: 'from-cyan-400/20 via-blue-300/10 to-transparent' };
+  if (code <= 82) return { icon: CloudRain, label: 'Schauer', bg: 'from-blue-600/25 via-blue-500/10 to-transparent' };
+  return { icon: CloudLightning, label: 'Gewitter', bg: 'from-purple-600/25 via-slate-700/10 to-transparent' };
 }
 
 async function fetchWeather(lat: number, lon: number) {
