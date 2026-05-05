@@ -67,7 +67,7 @@ export function Tagesleitstelle() {
 
       {/* Top-Right: Today's Highlight */}
       <div className="lg:col-span-7 glass-card p-5 flex flex-col">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Today's Highlight</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">​</h2>
         <div className="grid grid-cols-3 gap-3 mb-3">
           <KpiCard
             icon={Route}
