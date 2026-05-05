@@ -78,12 +78,11 @@ export function WeatherWidget() {
   const WeatherIcon = info.icon;
 
   return (
-    <div className={`relative overflow-hidden h-full w-full rounded-xl bg-gradient-to-br ${info.bg} p-6 text-white shadow-lg flex flex-col`}>
+    <div className={`relative overflow-hidden h-full w-full rounded-[24px] bg-gradient-to-br ${info.bg} p-6 text-foreground flex flex-col`}>
       {/* Animated background elements */}
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute -top-4 -right-4 w-32 h-32 rounded-full bg-white/30 animate-pulse" />
-        <div className="absolute bottom-2 left-8 w-20 h-20 rounded-full bg-white/20 animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-8 left-1/3 w-12 h-12 rounded-full bg-white/25 animate-pulse" style={{ animationDelay: '0.5s' }} />
+      <div className="absolute inset-0 opacity-30 pointer-events-none">
+        <div className="absolute -top-4 -right-4 w-32 h-32 rounded-full bg-primary/20 blur-2xl animate-pulse" />
+        <div className="absolute bottom-2 left-8 w-20 h-20 rounded-full bg-accent-cyan/20 blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
       </div>
 
       <div className="relative z-10 flex flex-col h-full">
