@@ -273,7 +273,7 @@ function DonutChart({ drivers }: { drivers: { name: string; percent: number }[] 
   return (
     <div className="flex items-center gap-4">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f3f4f6" strokeWidth={strokeWidth} />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--border))" strokeWidth={strokeWidth} />
         {sorted.map((d, i) => {
           const segmentLength = (d.percent / 100) * circumference * 0.18;
           const dashOffset = circumference - accumulatedOffset;
