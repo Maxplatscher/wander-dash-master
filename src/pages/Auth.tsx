@@ -79,9 +79,16 @@ export default function Auth() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {isLogin ? 'Anmelden' : 'Registrieren'}
+            {submitting ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>{isLogin ? 'Anmelden' : 'Registrieren'}</span>
+              </span>
+            ) : (
+              <span>{isLogin ? 'Anmelden' : 'Registrieren'}</span>
+            )}
           </Button>
+
         </form>
 
         <p className="text-center text-sm text-muted-foreground">
