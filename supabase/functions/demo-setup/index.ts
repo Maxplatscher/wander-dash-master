@@ -93,6 +93,35 @@ Deno.serve(async (req) => {
 
     const { data: insertedShipments } = await supabase.from("shipment").insert(shipments).select("id, weight_kg, customer_name");
 
+    // 4b. Demo-Depots mit Koordinaten (München + Nebenstandort)
+    await supabase.from("depot").delete().eq("company_id", companyId);
+    const { data: depots } = await supabase.from("depot").insert([
+      {
+        company_id: companyId,
+        name: "Depot München Zentrum",
+        code: "MUC-Z",
+        address: "Arnulfstr. 1",
+        city: "München",
+        postal_code: "80335",
+        country: "DE",
+        lat: 48.142,
+        lng: 11.553,
+        is_active: true,
+      },
+      {
+        company_id: companyId,
+        name: "Depot München Nord",
+        code: "MUC-N",
+        address: "Leopoldstr. 200",
+        city: "München",
+        postal_code: "80804",
+        country: "DE",
+        lat: 48.168,
+        lng: 11.586,
+        is_active: true,
+      },
+    ]).select("id, name, lat, lng");
+
     // 5. Delete old tours & stops for today
     const { data: oldTours } = await supabase.from("tour").select("id").eq("company_id", companyId).eq("date", today);
     if (oldTours?.length) {
@@ -156,7 +185,13 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, company_id: companyId, scenario, tours: activeDrivers.length }),
+      JSON.stringify({
+        success: true,
+        company_id: companyId,
+        scenario,
+        tours: activeDrivers.length,
+        depots: (depots ?? []).map((d) => ({ id: d.id, name: d.name, lat: d.lat, lng: d.lng })),
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

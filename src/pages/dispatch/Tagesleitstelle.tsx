@@ -9,15 +9,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
-function useKpis(date: string) {
+function useKpis(date: string, depotId: string | null) {
   return useQuery({
-    queryKey: ['kpis', date],
+    queryKey: ['kpis', date, depotId],
     queryFn: async () => {
+      let shipmentsQuery = supabase.from('shipment').select('id').eq('service_date', date);
+      if (depotId) shipmentsQuery = shipmentsQuery.eq('depot_id', depotId);
+
       const [tours, vehicles, drivers, shipments] = await Promise.all([
         supabase.from('tour').select('id, is_active').eq('date', date),
         supabase.from('vehicle').select('id'),
         supabase.from('driver').select('id, status'),
-        supabase.from('shipment').select('id').eq('service_date', date),
+        shipmentsQuery,
       ]);
 
       const activeTours = tours.data?.filter(t => t.is_active) ?? [];
@@ -33,7 +36,9 @@ function useKpis(date: string) {
       }
 
       const totalShipments = shipments.data?.length ?? 0;
-      const unassigned = Math.max(0, totalShipments - assignedIds.length);
+      const shipmentIdSet = new Set((shipments.data ?? []).map(s => s.id));
+      const assignedInScope = assignedIds.filter(id => shipmentIdSet.has(id)).length;
+      const unassigned = Math.max(0, totalShipments - assignedInScope);
       const activeDrivers = drivers.data?.filter(d => d.status === 'active').length ?? 0;
       const absentDrivers = (drivers.data?.length ?? 0) - activeDrivers;
 
@@ -53,9 +58,9 @@ function useKpis(date: string) {
 }
 
 export function Tagesleitstelle() {
-  const { selectedDate } = useDispatch();
+  const { selectedDate, selectedDepotId } = useDispatch();
   const dateStr = selectedDate.toISOString().split('T')[0];
-  const { data: kpis } = useKpis(dateStr);
+  const { data: kpis } = useKpis(dateStr, selectedDepotId);
   const [detailType, setDetailType] = useState<'activeTours' | 'vehicles' | 'drivers' | 'unassigned' | 'conflicts' | null>(null);
 
   return (

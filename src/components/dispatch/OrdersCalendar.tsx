@@ -27,23 +27,25 @@ function endOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0);
 }
 
-function useShipmentsRange(from: Date, to: Date) {
+function useShipmentsRange(from: Date, to: Date, depotId: string | null) {
   return useQuery({
-    queryKey: ['shipments-range', fmt(from), fmt(to)],
+    queryKey: ['shipments-range', fmt(from), fmt(to), depotId],
     queryFn: async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('shipment')
         .select('id, name, customer_name, delivery_address, service_date')
         .gte('service_date', fmt(from))
         .lte('service_date', fmt(to))
         .order('service_date');
+      if (depotId) query = query.eq('depot_id', depotId);
+      const { data } = await query;
       return data ?? [];
     },
   });
 }
 
 export function OrdersCalendar() {
-  const { selectedDate, setSelectedDate } = useDispatch();
+  const { selectedDate, setSelectedDate, selectedDepotId } = useDispatch();
   const [view, setView] = useState<ViewMode>('7d');
   const [anchor, setAnchor] = useState(new Date());
 
@@ -59,7 +61,7 @@ export function OrdersCalendar() {
     return { from: new Date(anchor.getFullYear(), 0, 1), to: new Date(anchor.getFullYear(), 11, 31) };
   }, [view, anchor]);
 
-  const { data: shipments, isLoading } = useShipmentsRange(range.from, range.to);
+  const { data: shipments, isLoading } = useShipmentsRange(range.from, range.to, selectedDepotId);
 
   const grouped = useMemo(() => {
     const m = new Map<string, typeof shipments>();

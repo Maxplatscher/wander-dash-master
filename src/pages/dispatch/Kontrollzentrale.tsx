@@ -19,19 +19,21 @@ const statusBadge: Record<string, string> = {
 };
 
 export function Kontrollzentrale() {
-  const { selectedDate, refreshKey } = useDispatch();
+  const { selectedDate, refreshKey, selectedDepotId, selectedDepotLabel, refreshAll } = useDispatch();
   const queryClient = useQueryClient();
   const dateStr = selectedDate.toISOString().split('T')[0];
 
   // Shipments query
   const { data: shipments, isLoading: shipmentsLoading } = useQuery({
-    queryKey: ['shipments', dateStr, refreshKey],
+    queryKey: ['shipments', dateStr, selectedDepotId, refreshKey],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('shipment')
         .select('*')
         .eq('service_date', dateStr)
         .order('email_received_at', { ascending: false });
+      if (selectedDepotId) query = query.eq('depot_id', selectedDepotId);
+      const { data, error } = await query;
       if (error) throw error;
       return data ?? [];
     },
@@ -95,6 +97,7 @@ export function Kontrollzentrale() {
       const { error } = await supabase.functions.invoke('demo-setup');
       if (error) throw error;
       toast.success('Demo-Szenario geladen');
+      refreshAll();
       queryClient.invalidateQueries();
     } catch (e: any) {
       toast.error(e.message);
@@ -106,9 +109,24 @@ export function Kontrollzentrale() {
   const startPlanning = async () => {
     setPlanLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('plan-tour');
+      const assignRes = await supabase.functions.invoke('assign-depot', {
+        body: { date: dateStr, force: true },
+      });
+      if (assignRes.error) throw assignRes.error;
+      if (assignRes.data?.error) throw new Error(assignRes.data.error);
+
+      const { data, error } = await supabase.functions.invoke('plan-tour', {
+        body: {
+          date: dateStr,
+          ...(selectedDepotId ? { depot_id: selectedDepotId } : {}),
+        },
+      });
       if (error) throw error;
-      toast.success('Planung gestartet');
+      if (data?.error) throw new Error(data.error);
+      toast.success(
+        `Planung gestartet${data?.depot_source ? ` (Depot: ${data.depot_source})` : ''}`,
+      );
+      refreshAll();
       queryClient.invalidateQueries();
     } catch (e: any) {
       toast.error(e.message);
@@ -152,7 +170,10 @@ export function Kontrollzentrale() {
             </div>
             <Badge variant="secondary">{shipments?.length ?? 0} Einträge</Badge>
           </div>
-          <CardDescription>Alle empfangenen Sendungen für {selectedDate.toLocaleDateString('de-DE')}</CardDescription>
+          <CardDescription>
+            Sendungen für {selectedDate.toLocaleDateString('de-DE')}
+            {selectedDepotId ? ` · ${selectedDepotLabel}` : ' · alle Depots'}
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {shipmentsLoading ? (

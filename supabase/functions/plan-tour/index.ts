@@ -13,6 +13,7 @@ interface ShipmentRow {
   location_y: number | null;
   window_start: string | null;
   window_end: string | null;
+  depot_id: string | null;
 }
 
 interface Shipment {
@@ -22,12 +23,19 @@ interface Shipment {
   location_y: number;
   window_start: string | null;
   window_end: string | null;
+  depot_id: string | null;
 }
 
 interface Vehicle {
   id: string;
   capacity: number;
   name: string;
+}
+
+interface DepotPoint {
+  id: string;
+  location_x: number;
+  location_y: number;
 }
 
 function manhattan(a: { location_x: number; location_y: number }, b: { location_x: number; location_y: number }): number {
@@ -42,17 +50,56 @@ function normalizeShipments(rows: ShipmentRow[]): Shipment[] {
     location_y: row.location_y ?? 0,
     window_start: row.window_start,
     window_end: row.window_end,
+    depot_id: row.depot_id,
   }));
 }
 
-function greedyPlan(shipments: Shipment[], vehicles: Vehicle[]): { vehicleId: string; stops: { shipmentId: string; index: number }[]; cost: number }[] {
+function resolveDepotPoint(
+  shipments: Shipment[],
+  depotsById: Map<string, DepotPoint>,
+): { point: { location_x: number; location_y: number }; depot_id: string | null; source: "assigned_depot" | "first_depot" | "centroid" } {
+  const counts = new Map<string, number>();
+  for (const shipment of shipments) {
+    if (!shipment.depot_id || !depotsById.has(shipment.depot_id)) continue;
+    counts.set(shipment.depot_id, (counts.get(shipment.depot_id) ?? 0) + 1);
+  }
+
+  if (counts.size > 0) {
+    const topDepotId = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const depot = depotsById.get(topDepotId)!;
+    return {
+      point: { location_x: depot.location_x, location_y: depot.location_y },
+      depot_id: topDepotId,
+      source: "assigned_depot",
+    };
+  }
+
+  const firstDepot = [...depotsById.values()][0];
+  if (firstDepot) {
+    return {
+      point: { location_x: firstDepot.location_x, location_y: firstDepot.location_y },
+      depot_id: firstDepot.id,
+      source: "first_depot",
+    };
+  }
+
+  return {
+    point: {
+      location_x: shipments.reduce((sum, shipment) => sum + shipment.location_x, 0) / shipments.length,
+      location_y: shipments.reduce((sum, shipment) => sum + shipment.location_y, 0) / shipments.length,
+    },
+    depot_id: null,
+    source: "centroid",
+  };
+}
+
+function greedyPlan(
+  shipments: Shipment[],
+  vehicles: Vehicle[],
+  depot: { location_x: number; location_y: number },
+): { vehicleId: string; stops: { shipmentId: string; index: number }[]; cost: number }[] {
   const unassigned = [...shipments].sort((a, b) => b.load - a.load);
   const tours: { vehicleId: string; stops: { shipmentId: string; index: number }[]; cost: number }[] = [];
-
-  const depot = {
-    location_x: shipments.reduce((sum, shipment) => sum + shipment.location_x, 0) / shipments.length,
-    location_y: shipments.reduce((sum, shipment) => sum + shipment.location_y, 0) / shipments.length,
-  };
 
   for (const vehicle of [...vehicles].sort((a, b) => b.capacity - a.capacity)) {
     if (unassigned.length === 0) break;
@@ -116,6 +163,7 @@ Deno.serve(async (req) => {
     const auto_activate = body.auto_activate !== false;
     const force_replan = body.force_replan === true;
     const exclude_shipment_ids = (body.exclude_shipment_ids as string[]) ?? [];
+    const filter_depot_id = (body.depot_id as string | undefined) || undefined;
 
     if (!company_id) {
       const authHeader = req.headers.get("authorization");
@@ -135,11 +183,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    let { data: shipmentRows, error: shipmentError } = await supabase
+    let shipmentQuery = supabase
       .from("shipment")
-      .select("id, weight_kg, demand, location_x, location_y, window_start, window_end")
+      .select("id, weight_kg, demand, location_x, location_y, window_start, window_end, depot_id")
       .eq("company_id", company_id)
       .eq("service_date", date);
+
+    if (filter_depot_id) {
+      shipmentQuery = shipmentQuery.eq("depot_id", filter_depot_id);
+    }
+
+    let { data: shipmentRows, error: shipmentError } = await shipmentQuery;
 
     if (shipmentError) throw shipmentError;
 
@@ -155,6 +209,29 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { data: depotRows, error: depotError } = await supabase
+      .from("depot")
+      .select("id, lat, lng")
+      .eq("company_id", company_id)
+      .eq("is_active", true)
+      .not("lat", "is", null)
+      .not("lng", "is", null);
+
+    if (depotError) throw depotError;
+
+    const depotsById = new Map<string, DepotPoint>();
+    for (const depot of depotRows ?? []) {
+      if (depot.lat == null || depot.lng == null) continue;
+      // depot.lat/lng → planner location_x/y (lat/lng convention)
+      depotsById.set(depot.id, {
+        id: depot.id,
+        location_x: depot.lat,
+        location_y: depot.lng,
+      });
+    }
+
+    const resolvedDepot = resolveDepotPoint(shipments, depotsById);
 
     const { data: vehicleRows, error: vehicleError } = await supabase
       .from("vehicle")
@@ -193,7 +270,36 @@ Deno.serve(async (req) => {
       });
     }
 
-    const planned = greedyPlan(shipments, vehicles);
+    // Plan per depot group when assignments exist; otherwise one tour set from resolved depot.
+    const groups = new Map<string, Shipment[]>();
+    for (const shipment of shipments) {
+      const key = shipment.depot_id && depotsById.has(shipment.depot_id)
+        ? shipment.depot_id
+        : "__default__";
+      const list = groups.get(key) ?? [];
+      list.push(shipment);
+      groups.set(key, list);
+    }
+
+    const planned: { vehicleId: string; stops: { shipmentId: string; index: number }[]; cost: number; depot_id: string | null }[] = [];
+    // Round-robin vehicles across depot groups to avoid double-booking the same vehicle.
+    const remainingVehicles = [...vehicles];
+
+    for (const [groupKey, groupShipments] of groups) {
+      if (remainingVehicles.length === 0) break;
+      const depotPoint = groupKey !== "__default__" && depotsById.has(groupKey)
+        ? depotsById.get(groupKey)!
+        : resolvedDepot.point;
+      const groupDepotId = groupKey !== "__default__" ? groupKey : resolvedDepot.depot_id;
+      const groupTours = greedyPlan(groupShipments, remainingVehicles, depotPoint);
+      const usedVehicleIds = new Set(groupTours.map((t) => t.vehicleId));
+      for (let i = remainingVehicles.length - 1; i >= 0; i--) {
+        if (usedVehicleIds.has(remainingVehicles[i].id)) remainingVehicles.splice(i, 1);
+      }
+      for (const tour of groupTours) {
+        planned.push({ ...tour, depot_id: groupDepotId });
+      }
+    }
     const plannedShipmentIds = new Set(planned.flatMap((tour) => tour.stops.map((stop) => stop.shipmentId)));
     const unplannedShipments = shipments.filter((shipment) => !plannedShipmentIds.has(shipment.id));
 
@@ -215,7 +321,15 @@ Deno.serve(async (req) => {
       .insert({
         company_id,
         status: force_replan ? "replanned" : "completed",
-        input_snapshot: { shipment_count: shipments.length, vehicle_count: vehicles.length, force_replan },
+        input_snapshot: {
+          shipment_count: shipments.length,
+          vehicle_count: vehicles.length,
+          force_replan,
+          depot_source: resolvedDepot.source,
+          depot_id: resolvedDepot.depot_id,
+          filter_depot_id: filter_depot_id ?? null,
+          depot_groups: groups.size,
+        },
         result_snapshot: { tour_count: planned.length, total_cost: totalCost },
       })
       .select("id")
@@ -306,6 +420,9 @@ Deno.serve(async (req) => {
       tours: planned.length,
       total_stops: planned.reduce((sum, tour) => sum + tour.stops.length, 0),
       total_cost: totalCost,
+      depot_source: resolvedDepot.source,
+      depot_id: resolvedDepot.depot_id,
+      depot_groups: groups.size,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

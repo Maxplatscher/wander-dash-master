@@ -314,10 +314,10 @@ function DonutChart({ drivers }: { drivers: { name: string; percent: number }[] 
    MAIN PAGE
    ═══════════════════════════════════════════ */
 export function OperativeLage() {
-  const { selectedDate, navigateTo } = useDispatch();
+  const { selectedDate, navigateTo, selectedDepotId } = useDispatch();
   const dateStr = selectedDate.toISOString().split('T')[0];
   const { data: activeDrivers } = useActiveDriversOnTour(dateStr);
-  const { data: problems } = useProblems(dateStr);
+  const { data: problems } = useProblems(dateStr, selectedDepotId);
   const queryClient = useQueryClient();
 
   const [showAddDriver, setShowAddDriver] = useState(false);

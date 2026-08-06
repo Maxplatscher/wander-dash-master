@@ -41,14 +41,20 @@ const dotColor: Record<SeverityLevel, string> = {
 };
 
 /* ── Hook: load real problems from DB ── */
-function useProblems(date: string) {
+export function useProblems(date: string, depotId: string | null = null) {
   return useQuery({
-    queryKey: ['problems', date],
+    queryKey: ['problems', date, depotId],
     queryFn: async () => {
       const problems: Problem[] = [];
 
+      let shipmentsQuery = supabase
+        .from('shipment')
+        .select('id, customer_name, delivery_address, weight_kg')
+        .eq('service_date', date);
+      if (depotId) shipmentsQuery = shipmentsQuery.eq('depot_id', depotId);
+
       const [{ data: shipments }, { data: activePlan }, { data: allActiveTours }, { data: drivers }] = await Promise.all([
-        supabase.from('shipment').select('id, customer_name, delivery_address, weight_kg').eq('service_date', date),
+        shipmentsQuery,
         supabase.from('touren_plan').select('id, version').eq('date', date).eq('is_active', true).order('version', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('tour').select('id, description, is_active, version, plan_version_id').eq('date', date).eq('is_active', true),
         supabase.from('driver').select('id, name, status'),
@@ -268,9 +274,9 @@ function AbsentDetail({ meta }: { meta: any }) {
 
 /* ── Main Component ── */
 export function Probleme() {
-  const { selectedDate } = useDispatch();
+  const { selectedDate, selectedDepotId } = useDispatch();
   const dateStr = selectedDate.toISOString().split('T')[0];
-  const { data: problems, isLoading } = useProblems(dateStr);
+  const { data: problems, isLoading } = useProblems(dateStr, selectedDepotId);
   const [filter, setFilter] = useState<ProblemType | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -431,4 +437,3 @@ function ProblemCard({ problem, onClick, onDismiss }: { problem: Problem; onClic
   );
 }
 
-export { useProblems };

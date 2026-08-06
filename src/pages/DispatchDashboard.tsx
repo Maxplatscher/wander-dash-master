@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { DispatchProvider, useDispatch } from '@/lib/dispatch-context';
 import { useAuth } from '@/hooks/useAuth';
-import { getSectionLabel, SECTIONS, SectionId } from '@/lib/navigation';
+import { SECTIONS, SectionId } from '@/lib/navigation';
 import { OperativeLage } from './dispatch/OperativeLage';
 import { Tagesleitstelle } from './dispatch/Tagesleitstelle';
 import { Kalender } from './dispatch/Kalender';
@@ -10,13 +10,13 @@ import { Fahrer } from './dispatch/Fahrer';
 import { Einstellungen } from './dispatch/Einstellungen';
 import { Probleme } from './dispatch/Probleme';
 import {
-  CalendarDays, Building, LogOut, Menu, X, Search, Bell, Settings as SettingsIcon,
+  CalendarDays, LogOut, Menu, Search, Bell, Settings as SettingsIcon,
   LayoutDashboard, Calendar, Package, Users, AlertTriangle, Settings
 } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ParticleBackground } from '@/components/dispatch/ParticleBackground';
+import { DepotSwitcher } from '@/components/dispatch/DepotSwitcher';
 
 const sectionIcons: Record<SectionId, React.ElementType> = {
   'operative-lage': LayoutDashboard,
@@ -44,7 +44,7 @@ function PageContent() {
 }
 
 function DashboardLayout() {
-  const { selectedDate, setSelectedDate, tenant, setTenant, currentSection, navigateTo } = useDispatch();
+  const { selectedDate, setSelectedDate, selectedDepotLabel, currentSection, navigateTo } = useDispatch();
   const { user, role, signOut } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -52,7 +52,6 @@ function DashboardLayout() {
     <div className="min-h-screen flex w-full bg-dashboard relative">
       <ParticleBackground />
 
-      {/* ═══ LEFT SIDEBAR — permanent (dark glass) ═══ */}
       <aside
         className={cn(
           'h-[calc(100vh-2rem)] sticky top-4 ml-4 my-4 flex flex-col z-10 transition-all duration-300 shrink-0 rounded-[24px] border border-white/10 overflow-hidden',
@@ -65,7 +64,6 @@ function DashboardLayout() {
           boxShadow: '0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)',
         }}
       >
-        {/* Logo */}
         <div className="h-14 flex items-center px-4 gap-2 border-b border-white/10">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shrink-0 shadow-glow">
             <LayoutDashboard className="w-4 h-4 text-primary-foreground" />
@@ -73,7 +71,6 @@ function DashboardLayout() {
           {!sidebarCollapsed && <span className="font-bold text-sm text-foreground">DispoCenter</span>}
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
           {SECTIONS.map(section => {
             const Icon = sectionIcons[section.id] ?? LayoutDashboard;
@@ -98,7 +95,6 @@ function DashboardLayout() {
           })}
         </nav>
 
-        {/* Bottom */}
         <div className="p-3 border-t border-white/10 space-y-2">
           <button
             onClick={() => setSidebarCollapsed(c => !c)}
@@ -108,14 +104,14 @@ function DashboardLayout() {
             {!sidebarCollapsed && <span>Einklappen</span>}
           </button>
           {!sidebarCollapsed && (
-            <p className="text-[10px] text-muted-foreground text-center">DispoCenter · {tenant}</p>
+            <p className="text-[10px] text-muted-foreground text-center truncate px-1" title={selectedDepotLabel}>
+              DispoCenter · {selectedDepotLabel}
+            </p>
           )}
         </div>
       </aside>
 
-      {/* ═══ MAIN AREA ═══ */}
       <div className="flex-1 flex flex-col min-w-0 p-4 gap-4">
-        {/* Top bar */}
         <header
           className="hover-lift p-5 flex items-center sticky top-4 z-10 gap-4 rounded-[24px] border border-white/10"
           style={{
@@ -123,7 +119,6 @@ function DashboardLayout() {
             boxShadow: '0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)',
           }}
         >
-          {/* Search */}
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
@@ -144,17 +139,7 @@ function DashboardLayout() {
               />
             </div>
 
-            <Select value={tenant} onValueChange={setTenant}>
-              <SelectTrigger className="h-8 w-[130px] text-xs rounded-lg border-white/10 bg-white/5 text-foreground">
-                <Building className="w-3 h-3 mr-1" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Mandant A">Mandant A</SelectItem>
-                <SelectItem value="Mandant B">Mandant B</SelectItem>
-                <SelectItem value="Mandant C">Mandant C</SelectItem>
-              </SelectContent>
-            </Select>
+            <DepotSwitcher />
 
             <button className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 transition-colors">
               <Bell className="w-4 h-4 text-muted-foreground" />
@@ -163,7 +148,6 @@ function DashboardLayout() {
               <SettingsIcon className="w-4 h-4 text-muted-foreground" />
             </button>
 
-            {/* Avatar */}
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-primary-foreground text-xs font-bold">
                 {user?.email?.charAt(0).toUpperCase() ?? 'U'}
@@ -179,7 +163,6 @@ function DashboardLayout() {
           </div>
         </header>
 
-        {/* Page content */}
         <main className="flex-1 overflow-y-auto relative">
           <PageContent />
         </main>

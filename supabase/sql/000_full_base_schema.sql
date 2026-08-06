@@ -298,6 +298,8 @@ CREATE TABLE public.depot (
   postal_code TEXT,
   country TEXT DEFAULT 'DE',
   timezone TEXT DEFAULT 'Europe/Berlin',
+  lat DOUBLE PRECISION,
+  lng DOUBLE PRECISION,
   is_active BOOLEAN NOT NULL DEFAULT true,
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -308,6 +310,11 @@ ALTER TABLE public.depot ENABLE ROW LEVEL SECURITY;
 CREATE UNIQUE INDEX depot_company_id_name_key
   ON public.depot (company_id, name);
 
+-- Phase 3A: Sendung → Depot
+ALTER TABLE public.shipment
+  ADD COLUMN IF NOT EXISTS depot_id UUID REFERENCES public.depot(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_shipment_depot_id ON public.shipment (depot_id);
+
 CREATE TABLE public.system_integrations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL,
@@ -316,9 +323,6 @@ CREATE TABLE public.system_integrations (
   display_name TEXT,
   base_url TEXT,
   username TEXT,
-  secret_ciphertext TEXT,
-  access_token_ciphertext TEXT,
-  refresh_token_ciphertext TEXT,
   token_expires_at TIMESTAMPTZ,
   is_active BOOLEAN NOT NULL DEFAULT true,
   last_sync_at TIMESTAMPTZ,

@@ -39,6 +39,8 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          lat: number | null
+          lng: number | null
           metadata: Json
           name: string
           postal_code: string | null
@@ -54,6 +56,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          lat?: number | null
+          lng?: number | null
           metadata?: Json
           name: string
           postal_code?: string | null
@@ -69,6 +73,8 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          lat?: number | null
+          lng?: number | null
           metadata?: Json
           name?: string
           postal_code?: string | null
@@ -203,6 +209,7 @@ export type Database = {
           customer_name: string | null
           delivery_address: string | null
           demand: number | null
+          depot_id: string | null
           email_notes: string | null
           email_processed_at: string | null
           email_received_at: string | null
@@ -228,6 +235,7 @@ export type Database = {
           customer_name?: string | null
           delivery_address?: string | null
           demand?: number | null
+          depot_id?: string | null
           email_notes?: string | null
           email_processed_at?: string | null
           email_received_at?: string | null
@@ -253,6 +261,7 @@ export type Database = {
           customer_name?: string | null
           delivery_address?: string | null
           demand?: number | null
+          depot_id?: string | null
           email_notes?: string | null
           email_processed_at?: string | null
           email_received_at?: string | null
@@ -279,6 +288,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipment_depot_id_fkey"
+            columns: ["depot_id"]
+            isOneToOne: false
+            referencedRelation: "depot"
             referencedColumns: ["id"]
           },
         ]
@@ -630,6 +646,24 @@ export type Database = {
         }
         Returns: undefined
       }
+      create_integration_vault_secret: {
+        Args: {
+          p_secret: string
+          p_name: string
+          p_description?: string | null
+        }
+        Returns: string
+      }
+      update_integration_vault_secret: {
+        Args: {
+          p_secret_id: string
+          p_secret: string
+          p_name?: string | null
+          p_description?: string | null
+        }
+        Returns: undefined
+      }
+      /** @deprecated Use Edge Function upsert-integration. RPC raises on call. */
       upsert_integration: {
         Args: {
           p_company_id: string

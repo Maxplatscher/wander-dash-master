@@ -25,10 +25,10 @@ const navItems: NavItem[] = [
 ];
 
 export function DispatchSidebar() {
-  const { currentSection, navigateTo, role, tenant, selectedDate } = useDispatch();
+  const { currentSection, navigateTo, role, selectedDepotLabel, selectedDate, selectedDepotId } = useDispatch();
   const [collapsed, setCollapsed] = useState(false);
   const dateStr = selectedDate.toISOString().split('T')[0];
-  const { data: problems } = useProblems(dateStr);
+  const { data: problems } = useProblems(dateStr, selectedDepotId);
   const problemCount = problems?.length ?? 0;
 
   const visibleItems = navItems.filter(item => item.roles.includes(role));
@@ -46,7 +46,7 @@ export function DispatchSidebar() {
         {!collapsed && (
           <div className="overflow-hidden">
             <h1 className="font-semibold text-sm text-sidebar-primary-foreground truncate">DispoCenter</h1>
-            <p className="text-[10px] text-sidebar-foreground/50 truncate">{tenant}</p>
+            <p className="text-[10px] text-sidebar-foreground/50 truncate">{selectedDepotLabel}</p>
           </div>
         )}
       </div>
