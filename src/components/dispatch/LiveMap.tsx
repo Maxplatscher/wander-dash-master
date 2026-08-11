@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyD45ivdJQ9LwYJBctnXPoi8NHGWK2IMhLg';
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
 
 const center = { lat: 51.1657, lng: 10.4515 };
 

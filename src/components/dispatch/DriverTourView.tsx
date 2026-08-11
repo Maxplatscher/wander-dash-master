@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyD45ivdJQ9LwYJBctnXPoi8NHGWK2IMhLg';
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
 
 interface Stop {
   id: string;

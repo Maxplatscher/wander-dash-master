@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyD45ivdJQ9LwYJBctnXPoi8NHGWK2IMhLg';
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
 
 interface DriverInfo {
   name: string;
