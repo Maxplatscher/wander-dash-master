@@ -12,10 +12,8 @@ import {
   TYPE_LABELS,
 } from '@/types/integrations';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -236,32 +234,28 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
   };
 
   if (error) {
-    return (
-      <div className="p-4 text-sm text-red-500">
-        Fehler beim Laden: {error}
-      </div>
-    );
+    return <div className="p-4 text-sm text-danger">Fehler beim Laden: {error}</div>;
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex items-center justify-between gap-3">
+        <p className="meta-text">
           Verbinde externe Systeme pro Standort oder global für alle Standorte.
         </p>
-        <Button size="sm" onClick={openCreateDialog} disabled={!companyId}>
+        <Button size="sm" className="rounded font-semibold" onClick={openCreateDialog} disabled={!companyId}>
           <Plus className="w-4 h-4 mr-1.5" />
           Integration hinzufügen
         </Button>
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+        <div className="flex items-center gap-2 meta-text py-4">
           <Loader2 className="w-4 h-4 animate-spin" />
-          Integrationen werden geladen...
+          Integrationen werden geladen…
         </div>
       ) : integrations.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-sm border border-dashed border-hairline px-4 py-8 text-center meta-text">
           Noch keine Integrationen vorhanden.
         </div>
       ) : (
@@ -272,78 +266,103 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
             const depotLabel = integration.depot_id
               ? depots.find((d) => d.id === integration.depot_id)?.name ?? 'Standort'
               : 'Alle Standorte (global)';
+            const configEntries = Object.entries(integration.config ?? {});
+            const credKeys = CREDENTIAL_FIELDS[integration.system_type] ?? [];
 
             return (
-              <Card key={integration.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <span>{TYPE_ICONS[integration.system_type]}</span>
-                        {integration.name}
-                      </CardTitle>
-                      <p className="text-xs text-muted-foreground mt-1">{depotLabel}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${integration.is_active ? 'bg-green-500' : 'bg-gray-400'}`} />
-                      <Badge variant="outline">{TYPE_LABELS[integration.system_type]}</Badge>
-                    </div>
+              <div key={integration.id} className="sub-card p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-semibold text-foreground truncate">
+                      {integration.name}
+                    </p>
+                    <code className="font-mono text-[11.5px] text-muted-foreground">
+                      {integration.system_type}
+                    </code>
+                    <p className="meta-text mt-0.5">{depotLabel}</p>
                   </div>
-                </CardHeader>
-                <CardContent className="pt-0">
+                  <span
+                    className={
+                      integration.is_active
+                        ? 'shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm bg-success/15 text-success'
+                        : 'shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm bg-white/10 text-muted-foreground'
+                    }
+                  >
+                    {integration.is_active ? 'aktiv' : 'inaktiv'}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  {configEntries.map(([key, value]) => (
+                    <div key={key} className="flex items-baseline justify-between gap-3 text-[12px]">
+                      <code className="font-mono text-dim">{key}</code>
+                      <span className="text-foreground truncate text-right">{value || '—'}</span>
+                    </div>
+                  ))}
+                  {credKeys.map((key) => (
+                    <div key={key} className="flex items-baseline justify-between gap-3 text-[12px]">
+                      <code className="font-mono text-dim">{key}</code>
+                      <span className="font-mono text-primary truncate text-right">
+                        {integration.vault_secret_id ? `${key.slice(0, 2)}••••••••` : '—'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-hairline">
+                  <p className="meta-text">
+                    Letzter Test — manuell auslösen
+                  </p>
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openEditDialog(integration)}>
+                    <Button variant="outline" size="sm" className="rounded h-8" onClick={() => openEditDialog(integration)}>
                       <Pencil className="w-3.5 h-3.5 mr-1.5" />
                       Bearbeiten
                     </Button>
-                    <Button variant="outline" size="sm" disabled={isTesting} onClick={() => handleTest(integration)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded h-8"
+                      disabled={isTesting}
+                      onClick={() => void handleTest(integration)}
+                    >
                       {isTesting ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                          Prüfe...
-                        </>
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                       ) : (
-                        <>
-                          <TestTube2 className="w-3.5 h-3.5 mr-1.5" />
-                          Testen
-                        </>
+                        <TestTube2 className="w-3.5 h-3.5 mr-1.5" />
                       )}
+                      Verbindung testen
                     </Button>
                     <Button
-                      variant="destructive"
+                      variant="outline"
                       size="sm"
+                      className="rounded h-8 text-danger border-danger/30 hover:bg-danger/10"
                       disabled={isDeleting}
                       onClick={() => requestDelete(integration)}
                     >
                       {isDeleting ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                          Lösche...
-                        </>
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                       ) : (
-                        <>
-                          <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                          Löschen
-                        </>
+                        <Trash2 className="w-3.5 h-3.5 mr-1.5" />
                       )}
+                      Löschen
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl border-hairline bg-panel sm:rounded">
           <DialogHeader>
             <DialogTitle className="text-base flex items-center gap-2">
-              <PlugZap className="w-4 h-4" />
+              <PlugZap className="w-4 h-4 text-primary" />
               {editing ? 'Integration bearbeiten' : 'Neue Integration'}
             </DialogTitle>
             <DialogDescription>
-              Sensible Zugangsdaten werden beim Speichern über das RPC serverseitig im Vault abgelegt.
+              Sensible Zugangsdaten werden serverseitig im Vault abgelegt.
             </DialogDescription>
           </DialogHeader>
 
@@ -419,21 +438,23 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
               </div>
             ))}
 
-            <div className="md:col-span-2 flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+            <div className="md:col-span-2 flex items-center justify-between sub-card px-3 py-2">
               <div>
                 <p className="text-sm font-medium">Aktiv</p>
-                <p className="text-xs text-muted-foreground">Nur aktive Integrationen werden im Betrieb verwendet</p>
+                <p className="meta-text">Nur aktive Integrationen werden im Betrieb verwendet</p>
               </div>
               <Switch
                 checked={form.is_active}
-                onCheckedChange={(checked) => setForm(prev => ({ ...prev, is_active: checked }))}
+                onCheckedChange={(checked) => setForm((prev) => ({ ...prev, is_active: checked }))}
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Abbrechen</Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button variant="outline" className="rounded" onClick={() => setDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button className="rounded font-semibold" onClick={() => void handleSave()} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
               Speichern
             </Button>

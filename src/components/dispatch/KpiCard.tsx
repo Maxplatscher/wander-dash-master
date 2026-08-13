@@ -96,7 +96,7 @@ export function KpiCard({ icon: Icon, label, value, subtitle, variant = 'default
         </div>
       </div>
       <div>
-        <p className="text-3xl font-extrabold text-foreground tracking-tight">
+        <p className="text-3xl font-extrabold text-foreground tracking-tight whitespace-nowrap">
           {isNumber ? <AnimatedNumber value={value as number} /> : value}
         </p>
         {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}

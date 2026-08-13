@@ -1,62 +1,225 @@
-import { Truck, Phone, MapPin } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDispatch } from '@/lib/dispatch-context';
 import { DriverTourView } from '@/components/dispatch/DriverTourView';
+import { supabase } from '@/integrations/supabase/client';
 
-const drivers = [
-  { name: 'Max Müller', initials: 'MM', phone: '+49 171 1234567', vehicle: 'MB Sprinter · B-DI 1001', status: 'aktiv', tours: 3 },
-  { name: 'Lisa König', initials: 'LK', phone: '+49 171 2345678', vehicle: 'VW Crafter · B-DI 1002', status: 'aktiv', tours: 2 },
-  { name: 'Tom Berger', initials: 'TB', phone: '+49 171 3456789', vehicle: 'MB Sprinter · B-DI 1003', status: 'aktiv', tours: 2 },
-  { name: 'Sarah Weber', initials: 'SW', phone: '+49 171 4567890', vehicle: 'Iveco Daily · B-DI 1004', status: 'aktiv', tours: 1 },
-  { name: 'Jan Peters', initials: 'JP', phone: '+49 171 5678901', vehicle: '—', status: 'abwesend', tours: 0 },
-  { name: 'Anna Richter', initials: 'AR', phone: '+49 171 6789012', vehicle: 'VW Crafter · B-DI 1005', status: 'verfügbar', tours: 0 },
-];
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase();
+}
 
-const statusColors: Record<string, string> = {
-  aktiv: 'bg-emerald-50 text-emerald-700',
-  abwesend: 'bg-red-50 text-red-600',
-  verfügbar: 'bg-primary/10 text-primary',
+function normalizeStatus(status: string | null | undefined): 'aktiv' | 'verfügbar' | 'abwesend' {
+  const s = (status ?? '').toLowerCase();
+  if (s.includes('abwesend') || s.includes('krank') || s === 'inactive') return 'abwesend';
+  if (s === 'active' || s === 'aktiv') return 'aktiv';
+  return 'verfügbar';
+}
+
+const STATUS_STYLE: Record<string, { badge: string; tile: string }> = {
+  aktiv: { badge: 'bg-success/15 text-success', tile: 'bg-success/15 text-success' },
+  verfügbar: { badge: 'bg-primary/15 text-primary', tile: 'bg-primary/15 text-primary' },
+  abwesend: { badge: 'bg-danger/15 text-danger', tile: 'bg-danger/15 text-danger' },
 };
 
-export function Fahrer() {
-  const { role } = useDispatch();
+function fmtDate(d: Date) {
+  return d.toISOString().split('T')[0];
+}
 
-  // Driver role: show "Meine Tour heute"
+function useFleetCards(companyId: string | null, date: string) {
+  return useQuery({
+    queryKey: ['drivers', companyId, date],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const cid = companyId!;
+      const [driversRes, vehiclesRes, toursRes] = await Promise.all([
+        supabase
+          .from('driver')
+          .select('id, name, phone, status, shift_start, shift_end, assigned_vehicle_id')
+          .eq('company_id', cid)
+          .order('name'),
+        supabase.from('vehicle').select('id, name, capacity').eq('company_id', cid),
+        supabase.from('tour').select('id, description, is_active').eq('date', date).eq('is_active', true),
+      ]);
+
+      const drivers = driversRes.data ?? [];
+      const vehicles = vehiclesRes.data ?? [];
+      const tours = toursRes.data ?? [];
+      const vehicleMap = new Map(vehicles.map((v) => [v.id, v]));
+      const tourIds = tours.map((t) => t.id);
+
+      let stops: {
+        tour_id: string;
+        shipment_id: string | null;
+        vehicle_id: string | null;
+        driver_completed: boolean | null;
+      }[] = [];
+      let shipmentWeights = new Map<string, number>();
+
+      if (tourIds.length > 0) {
+        const { data: stopData } = await supabase
+          .from('tour_stop')
+          .select('tour_id, shipment_id, vehicle_id, driver_completed')
+          .in('tour_id', tourIds);
+        stops = stopData ?? [];
+        const shipmentIds = stops.map((s) => s.shipment_id).filter(Boolean) as string[];
+        if (shipmentIds.length > 0) {
+          const { data: shipments } = await supabase
+            .from('shipment')
+            .select('id, weight_kg')
+            .in('id', shipmentIds);
+          shipmentWeights = new Map((shipments ?? []).map((s) => [s.id, s.weight_kg ?? 0]));
+        }
+      }
+
+      return drivers.map((driver, idx) => {
+        const status = normalizeStatus(driver.status);
+        const vehicle = driver.assigned_vehicle_id
+          ? vehicleMap.get(driver.assigned_vehicle_id)
+          : null;
+
+        // Tour-Zuordnung: Fahrzeug-Match, sonst Index-Fallback wie Startseite
+        let tour = tours.find((t) =>
+          stops.some(
+            (s) =>
+              s.tour_id === t.id &&
+              driver.assigned_vehicle_id &&
+              s.vehicle_id === driver.assigned_vehicle_id,
+          ),
+        );
+        if (!tour && idx < tours.length) tour = tours[idx];
+
+        const tourStops = tour ? stops.filter((s) => s.tour_id === tour!.id) : [];
+        const done = tourStops.filter((s) => s.driver_completed).length;
+        const total = tourStops.length;
+        const weight = tourStops.reduce(
+          (sum, s) => sum + (s.shipment_id ? shipmentWeights.get(s.shipment_id) ?? 0 : 0),
+          0,
+        );
+        const capacity = vehicle?.capacity ?? 0;
+        const util = capacity > 0 ? Math.min(100, Math.round((weight / capacity) * 100)) : 0;
+
+        return {
+          id: driver.id,
+          name: driver.name ?? 'Fahrer',
+          phone: driver.phone || '—',
+          status,
+          shiftStart: driver.shift_start?.slice(0, 5) || '—',
+          shiftEnd: driver.shift_end?.slice(0, 5) || '—',
+          vehicleName: vehicle?.name ?? '—',
+          capacity,
+          weight,
+          util,
+          tourLabel: tour?.description ?? (tour ? `Tour-${tour.id.slice(0, 4)}` : null),
+          stopsDone: done,
+          stopsTotal: total,
+          progress: total > 0 ? Math.round((done / total) * 100) : 0,
+        };
+      });
+    },
+  });
+}
+
+export function Fahrer() {
+  const { role, companyId, selectedDate } = useDispatch();
+  const dateStr = fmtDate(selectedDate);
+  const { data: cards, isLoading } = useFleetCards(companyId, dateStr);
+
   if (role === 'driver') {
     return <DriverTourView />;
   }
 
-  // Admin/Dispatcher: show driver grid
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {drivers.map(d => (
-          <div key={d.name} className="rounded-lg border border-border bg-card p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-                {d.initials}
-              </div>
-              <div>
-                <p className="font-medium text-sm text-card-foreground">{d.name}</p>
-                <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full', statusColors[d.status])}>
-                  {d.status}
-                </span>
-              </div>
-            </div>
-            <div className="space-y-1.5 text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <Phone className="w-3 h-3" /> {d.phone}
-              </div>
-              <div className="flex items-center gap-2">
-                <Truck className="w-3 h-3" /> {d.vehicle}
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-3 h-3" /> {d.tours} Touren heute
-              </div>
-            </div>
-          </div>
-        ))}
+    <div className="space-y-5">
+      <div>
+        <p className="section-title">Fahrer & Fahrzeuge</p>
+        <h2 className="page-title mt-1">Flotte</h2>
+        <p className="meta-text mt-1">
+          {selectedDate.toLocaleDateString('de-DE', {
+            weekday: 'long',
+            day: '2-digit',
+            month: 'long',
+          })}
+        </p>
       </div>
+
+      {isLoading || !companyId ? (
+        <div className="glass-card flex items-center justify-center py-16">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : !cards?.length ? (
+        <div className="glass-card p-8 text-center meta-text">
+          Noch keine Fahrer angelegt — im Onboarding oder unter Lieferscheine ergänzen.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {cards.map((d) => {
+            const style = STATUS_STYLE[d.status];
+            return (
+              <div key={d.id} className="glass-card p-4 flex flex-col">
+                <div className="flex items-start gap-3">
+                  <div
+                    className={cn(
+                      'w-10 h-10 shrink-0 rounded flex items-center justify-center text-sm font-semibold',
+                      style.tile,
+                    )}
+                  >
+                    {initials(d.name)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px] font-semibold text-foreground truncate">{d.name}</p>
+                    <p className="text-[11.5px] text-muted-foreground truncate">{d.phone}</p>
+                  </div>
+                  <span
+                    className={cn(
+                      'shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm',
+                      style.badge,
+                    )}
+                  >
+                    {d.status}
+                  </span>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm text-primary truncate">
+                      {d.tourLabel ?? 'Keine Tour'}
+                    </p>
+                    <span className="meta-text whitespace-nowrap shrink-0">
+                      {d.stopsDone} / {d.stopsTotal} Stopps
+                    </span>
+                  </div>
+                  <div className="progress-track">
+                    <div className="progress-fill" style={{ width: `${d.progress}%` }} />
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-hairline grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-dim font-semibold">Schicht</p>
+                    <p className="text-sm text-foreground mt-0.5 whitespace-nowrap">
+                      {d.shiftStart}–{d.shiftEnd}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-dim font-semibold">Auslastung</p>
+                    <p className="text-sm text-foreground mt-0.5 whitespace-nowrap">
+                      {d.weight} / {d.capacity || '—'} kg
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[10px] uppercase tracking-wide text-dim font-semibold">Fahrzeug</p>
+                    <p className="text-sm text-foreground mt-0.5 truncate">{d.vehicleName}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

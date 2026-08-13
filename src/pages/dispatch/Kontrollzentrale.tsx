@@ -2,20 +2,24 @@ import { useState } from 'react';
 import { Mail, Package, Plus, Play, Loader2, Truck, User, Box } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useDispatch } from '@/lib/dispatch-context';
 import { cn } from '@/lib/utils';
 
-const statusBadge: Record<string, string> = {
-  new: 'bg-blue-50 text-blue-700',
-  processing: 'bg-amber-50 text-amber-700',
-  ready: 'bg-emerald-50 text-emerald-700',
-  error: 'bg-red-50 text-red-700',
+const STATUS_BADGE: Record<string, string> = {
+  new: 'bg-primary/15 text-primary',
+  processing: 'bg-warning/15 text-warning',
+  ready: 'bg-success/15 text-success',
+  error: 'bg-danger/15 text-danger',
+};
+
+const SOURCE_LABEL: Record<string, string> = {
+  email_imap: 'email_imap',
+  manual: 'manual',
+  csv_import: 'csv_import',
+  rest_api: 'rest_api',
 };
 
 export function Kontrollzentrale() {
@@ -23,7 +27,6 @@ export function Kontrollzentrale() {
   const queryClient = useQueryClient();
   const dateStr = selectedDate.toISOString().split('T')[0];
 
-  // Shipments query
   const { data: shipments, isLoading: shipmentsLoading } = useQuery({
     queryKey: ['shipments', dateStr, selectedDepotId, refreshKey],
     queryFn: async () => {
@@ -39,7 +42,6 @@ export function Kontrollzentrale() {
     },
   });
 
-  // Demo-Builder state
   const [driverName, setDriverName] = useState('');
   const [driverPhone, setDriverPhone] = useState('');
   const [vehicleName, setVehicleName] = useState('');
@@ -63,8 +65,8 @@ export function Kontrollzentrale() {
       setDriverName('');
       setDriverPhone('');
       queryClient.invalidateQueries({ queryKey: ['drivers'] });
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Fehler');
     } finally {
       setAdding(null);
     }
@@ -76,7 +78,7 @@ export function Kontrollzentrale() {
     try {
       const { error } = await supabase.from('vehicle').insert({
         name: vehicleName.trim(),
-        capacity: vehicleCap ? parseInt(vehicleCap) : null,
+        capacity: vehicleCap ? parseInt(vehicleCap, 10) : null,
         company_id: (await supabase.rpc('get_user_company_id')).data!,
       });
       if (error) throw error;
@@ -84,8 +86,8 @@ export function Kontrollzentrale() {
       setVehicleName('');
       setVehicleCap('');
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Fehler');
     } finally {
       setAdding(null);
     }
@@ -99,8 +101,8 @@ export function Kontrollzentrale() {
       toast.success('Demo-Szenario geladen');
       refreshAll();
       queryClient.invalidateQueries();
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Fehler');
     } finally {
       setDemoLoading(false);
     }
@@ -128,152 +130,231 @@ export function Kontrollzentrale() {
       );
       refreshAll();
       queryClient.invalidateQueries();
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Fehler');
     } finally {
       setPlanLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Email-Zugang */}
-      <Card>
-        <CardHeader className="pb-3">
+    <div className="space-y-5">
+      <div>
+        <p className="section-title">Lieferscheine</p>
+        <h2 className="page-title mt-1">Eingang & Disposition</h2>
+        <p className="meta-text mt-1">
+          {selectedDate.toLocaleDateString('de-DE')}
+          {selectedDepotId ? ` · ${selectedDepotLabel}` : ' · alle Depots'}
+        </p>
+      </div>
+
+      {/* 1. E-Mail-Zugang */}
+      <div className="glass-card p-5 space-y-3">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-primary" />
-            <CardTitle className="text-base">Email-Zugang für Lieferscheine</CardTitle>
+            <Mail className="w-4 h-4 text-primary" />
+            <p className="card-title">E-Mail-Zugang</p>
           </div>
-          <CardDescription>
-            Lieferscheine per Email empfangen — das System verarbeitet eingehende Emails automatisch und erstellt daraus Sendungen & Touren.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
-            <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-card-foreground font-mono">lieferscheine@dispatch.example.com</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Platzhalter — Email-Integration wird konfiguriert</p>
-            </div>
-            <Badge variant="outline" className="shrink-0">Ausstehend</Badge>
-          </div>
-        </CardContent>
-      </Card>
+          <span className="shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm bg-warning/15 text-warning">
+            Ausstehend
+          </span>
+        </div>
+        <p className="meta-text">
+          Lieferscheine per IMAP empfangen — eingehende Mails werden über die System-Integration
+          verarbeitet und als Sendungen angelegt.
+        </p>
+        <div className="sub-card px-3 py-2.5 flex items-center gap-3">
+          <Mail className="w-3.5 h-3.5 text-dim shrink-0" />
+          <code className="font-mono text-sm text-foreground truncate">
+            lieferscheine@dispatch.example.com
+          </code>
+        </div>
+      </div>
 
-      {/* Lieferscheine-Tabelle */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-primary" />
-              <CardTitle className="text-base">Lieferscheine</CardTitle>
-            </div>
-            <Badge variant="secondary">{shipments?.length ?? 0} Einträge</Badge>
-          </div>
-          <CardDescription>
-            Sendungen für {selectedDate.toLocaleDateString('de-DE')}
-            {selectedDepotId ? ` · ${selectedDepotLabel}` : ' · alle Depots'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {shipmentsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : !shipments?.length ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              Keine Lieferscheine für dieses Datum vorhanden.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name / Sendung</TableHead>
-                  <TableHead>Kunde</TableHead>
-                  <TableHead>Adresse</TableHead>
-                  <TableHead className="text-center">Gewicht</TableHead>
-                  <TableHead className="text-center">Quelle</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {shipments.map(s => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.name || '—'}</TableCell>
-                    <TableCell>{s.customer_name || '—'}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{s.delivery_address || '—'}</TableCell>
-                    <TableCell className="text-center">{s.weight_kg ? `${s.weight_kg} kg` : '—'}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline" className="text-xs">{s.intake_source || 'manual'}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className={cn('text-xs font-medium px-2 py-1 rounded-full', statusBadge[s.intake_status ?? 'new'] ?? statusBadge.new)}>
-                        {s.intake_status || 'new'}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Demo-Builder */}
-      <Card className="border-dashed border-2">
-        <CardHeader className="pb-3">
+      {/* 2. Lieferschein-Tabelle */}
+      <div className="glass-card overflow-hidden">
+        <div className="px-5 py-4 flex items-center justify-between gap-3 border-b border-hairline">
           <div className="flex items-center gap-2">
-            <Box className="w-5 h-5 text-primary" />
-            <CardTitle className="text-base">Demo & Testdaten</CardTitle>
+            <Package className="w-4 h-4 text-primary" />
+            <p className="card-title">Lieferscheine</p>
           </div>
-          <CardDescription>Erstelle manuell Testdaten oder lade ein komplettes Demo-Szenario.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Add Driver */}
-          <div className="flex items-end gap-2">
-            <div className="flex-1 space-y-1">
-              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Fahrer</label>
-              <div className="flex gap-2">
-                <Input placeholder="Name" value={driverName} onChange={e => setDriverName(e.target.value)} className="h-8 text-sm" />
-                <Input placeholder="Telefon" value={driverPhone} onChange={e => setDriverPhone(e.target.value)} className="h-8 text-sm w-32" />
-              </div>
+          <span className="meta-text text-dim">{shipments?.length ?? 0} Einträge</span>
+        </div>
+
+        {shipmentsLoading ? (
+          <div className="flex items-center justify-center py-14">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : !shipments?.length ? (
+          <p className="text-center py-14 meta-text">
+            Keine Lieferscheine für dieses Datum vorhanden.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left">
+              <thead>
+                <tr className="border-b border-hairline">
+                  {['Sendung', 'Kunde', 'Adresse', 'Gewicht', 'Quelle', 'Status'].map((h) => (
+                    <th
+                      key={h}
+                      className="px-5 py-2.5 text-[10.5px] font-semibold uppercase tracking-wider text-dim"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {shipments.map((s) => {
+                  const status = s.intake_status ?? 'new';
+                  const source = s.intake_source || 'manual';
+                  return (
+                    <tr key={s.id} className="border-b border-white/[0.04]">
+                      <td className="px-5 py-3 font-mono text-xs text-primary whitespace-nowrap">
+                        {s.name || s.id.slice(0, 8)}
+                      </td>
+                      <td className="px-5 py-3 text-sm text-foreground">
+                        {s.customer_name || '—'}
+                      </td>
+                      <td className="px-5 py-3 text-sm text-muted-foreground max-w-[220px] truncate">
+                        {s.delivery_address || '—'}
+                      </td>
+                      <td className="px-5 py-3 text-sm whitespace-nowrap">
+                        {s.weight_kg != null ? `${s.weight_kg} kg` : '—'}
+                      </td>
+                      <td className="px-5 py-3">
+                        <code className="font-mono text-[11.5px] text-muted-foreground">
+                          {SOURCE_LABEL[source] ?? source}
+                        </code>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span
+                          className={cn(
+                            'inline-block text-[10.5px] font-semibold px-1.5 py-0.5 rounded-sm',
+                            STATUS_BADGE[status] ?? STATUS_BADGE.new,
+                          )}
+                        >
+                          {status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 3. Demo & Testdaten */}
+      <div className="rounded-sm border border-dashed border-hairline bg-panel/60 p-5 space-y-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Box className="w-4 h-4 text-dim" />
+            <p className="card-title">Demo & Testdaten</p>
+          </div>
+          <p className="meta-text mt-1">
+            Dev-Bereich — manuell Testdaten anlegen oder Edge-Functions auslösen.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-wide text-dim font-semibold flex items-center gap-1">
+              <User className="w-3 h-3" /> Fahrer
+            </label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Name"
+                value={driverName}
+                onChange={(e) => setDriverName(e.target.value)}
+                className="h-8 text-sm rounded bg-white/[0.03] border-hairline"
+              />
+              <Input
+                placeholder="Telefon"
+                value={driverPhone}
+                onChange={(e) => setDriverPhone(e.target.value)}
+                className="h-8 text-sm rounded w-32 bg-white/[0.03] border-hairline"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void addDriver()}
+                disabled={adding === 'driver' || !driverName.trim()}
+                className="h-8 rounded shrink-0"
+              >
+                {adding === 'driver' ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Plus className="w-3 h-3" />
+                )}
+              </Button>
             </div>
-            <Button size="sm" variant="outline" onClick={addDriver} disabled={adding === 'driver' || !driverName.trim()} className="h-8">
-              {adding === 'driver' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-              <span className="ml-1">Hinzufügen</span>
-            </Button>
           </div>
 
-          {/* Add Vehicle */}
-          <div className="flex items-end gap-2">
-            <div className="flex-1 space-y-1">
-              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><Truck className="w-3 h-3" /> Fahrzeug</label>
-              <div className="flex gap-2">
-                <Input placeholder="Name (z.B. LKW-03)" value={vehicleName} onChange={e => setVehicleName(e.target.value)} className="h-8 text-sm" />
-                <Input placeholder="Kapazität" type="number" value={vehicleCap} onChange={e => setVehicleCap(e.target.value)} className="h-8 text-sm w-24" />
-              </div>
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-wide text-dim font-semibold flex items-center gap-1">
+              <Truck className="w-3 h-3" /> Fahrzeug
+            </label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Name"
+                value={vehicleName}
+                onChange={(e) => setVehicleName(e.target.value)}
+                className="h-8 text-sm rounded bg-white/[0.03] border-hairline"
+              />
+              <Input
+                placeholder="Kapazität kg"
+                type="number"
+                value={vehicleCap}
+                onChange={(e) => setVehicleCap(e.target.value)}
+                className="h-8 text-sm rounded w-28 bg-white/[0.03] border-hairline"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void addVehicle()}
+                disabled={adding === 'vehicle' || !vehicleName.trim()}
+                className="h-8 rounded shrink-0"
+              >
+                {adding === 'vehicle' ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Plus className="w-3 h-3" />
+                )}
+              </Button>
             </div>
-            <Button size="sm" variant="outline" onClick={addVehicle} disabled={adding === 'vehicle' || !vehicleName.trim()} className="h-8">
-              {adding === 'vehicle' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-              <span className="ml-1">Hinzufügen</span>
-            </Button>
           </div>
+        </div>
 
-          <hr className="border-border" />
-
-          {/* Scenario Buttons */}
-          <div className="flex gap-2 flex-wrap">
-            <Button onClick={loadDemo} disabled={demoLoading} variant="secondary">
-              {demoLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Box className="w-4 h-4 mr-1.5" />}
-              Komplettes Demo-Szenario laden
-            </Button>
-            <Button onClick={startPlanning} disabled={planLoading}>
-              {planLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Play className="w-4 h-4 mr-1.5" />}
-              Planung starten
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="border-t border-hairline pt-4 flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            className="rounded"
+            onClick={() => void loadDemo()}
+            disabled={demoLoading}
+          >
+            {demoLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+            ) : (
+              <Box className="w-4 h-4 mr-1.5" />
+            )}
+            Demo-Szenario laden · demo-setup
+          </Button>
+          <Button
+            className="rounded font-semibold"
+            onClick={() => void startPlanning()}
+            disabled={planLoading}
+          >
+            {planLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+            ) : (
+              <Play className="w-4 h-4 mr-1.5" />
+            )}
+            Planung starten · plan-tour
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

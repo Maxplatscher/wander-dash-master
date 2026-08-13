@@ -1,6 +1,5 @@
 export type SectionId =
-  | 'tagesleitstelle'
-  | 'operative-lage'
+  | 'startseite'
   | 'kalender'
   | 'kontrollzentrale'
   | 'fahrer'
@@ -8,21 +7,37 @@ export type SectionId =
   | 'probleme';
 
 export const SECTIONS: { id: SectionId; label: string }[] = [
-  { id: 'tagesleitstelle', label: 'Tagesleitstelle' },
-  { id: 'operative-lage', label: 'Operative Lage' },
+  { id: 'startseite', label: 'Startseite' },
   { id: 'kalender', label: 'Kalender' },
-  { id: 'kontrollzentrale', label: 'Lieferscheine & mehr' },
+  { id: 'kontrollzentrale', label: 'Lieferscheine' },
   { id: 'fahrer', label: 'Fahrer & Fahrzeuge' },
   { id: 'einstellungen', label: 'Einstellungen' },
   { id: 'probleme', label: 'Probleme' },
 ];
 
+const LEGACY_SECTION_IDS = new Set(['tagesleitstelle', 'operative-lage']);
+
+/** Mappt Hash (inkl. alter Bookmarks) auf eine gültige SectionId. */
+export function resolveSectionId(raw: string): SectionId {
+  if (LEGACY_SECTION_IDS.has(raw)) return 'startseite';
+  if (SECTIONS.some((s) => s.id === raw)) return raw as SectionId;
+  return 'startseite';
+}
+
 export function getInitialSection(): SectionId {
-  const hash = window.location.hash.replace('#', '') as SectionId;
-  if (SECTIONS.some(s => s.id === hash)) return hash;
-  return 'tagesleitstelle';
+  const raw = window.location.hash.replace('#', '');
+  const section = resolveSectionId(raw);
+
+  // Alte Bookmarks und leerer Hash → kanonisch #startseite
+  if (LEGACY_SECTION_IDS.has(raw) || raw !== section) {
+    history.replaceState(null, '', `#${section}`);
+  } else if (!raw) {
+    history.replaceState(null, '', `#${section}`);
+  }
+
+  return section;
 }
 
 export function getSectionLabel(id: SectionId): string {
-  return SECTIONS.find(s => s.id === id)?.label ?? id;
+  return SECTIONS.find((s) => s.id === id)?.label ?? id;
 }

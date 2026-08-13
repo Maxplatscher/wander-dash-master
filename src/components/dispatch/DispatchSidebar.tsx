@@ -16,9 +16,9 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: 'operative-lage', label: 'Startseite', icon: LayoutDashboard, roles: ['admin', 'dispatcher', 'driver'] },
+  { id: 'startseite', label: 'Startseite', icon: LayoutDashboard, roles: ['admin', 'dispatcher', 'driver'] },
   { id: 'kalender', label: 'Kalender', icon: Calendar, roles: ['admin', 'dispatcher'] },
-  { id: 'kontrollzentrale', label: 'Lieferscheine & mehr', icon: Package, roles: ['admin', 'dispatcher'] },
+  { id: 'kontrollzentrale', label: 'Lieferscheine', icon: Package, roles: ['admin', 'dispatcher'] },
   { id: 'fahrer', label: 'Fahrer & Fahrzeuge', icon: Users, roles: ['admin', 'dispatcher'] },
   { id: 'probleme', label: 'Probleme', icon: AlertTriangle, roles: ['admin', 'dispatcher'] },
   { id: 'einstellungen', label: 'Einstellungen', icon: Settings, roles: ['admin'] },

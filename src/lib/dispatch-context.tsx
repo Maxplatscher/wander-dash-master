@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { SectionId, getInitialSection } from './navigation';
+import { SectionId, getInitialSection, resolveSectionId } from './navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -75,9 +75,13 @@ export function DispatchProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const onHash = () => {
-      const hash = window.location.hash.replace('#', '') as SectionId;
-      if (hash && hash !== currentSection) {
-        setCurrentSection(hash);
+      const raw = window.location.hash.replace('#', '');
+      const section = resolveSectionId(raw);
+      if (raw !== section) {
+        history.replaceState(null, '', `#${section}`);
+      }
+      if (section !== currentSection) {
+        setCurrentSection(section);
       }
     };
     window.addEventListener('hashchange', onHash);

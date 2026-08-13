@@ -1,275 +1,265 @@
-import { useState, useEffect } from 'react';
-import { Settings, Monitor, Building, Wrench, Palette, Check, ChevronRight, ChevronLeft, PlugZap } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { useEffect, useState } from 'react';
+import { useDispatch } from '@/lib/dispatch-context';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { IntegrationenSektion } from '@/components/settings/IntegrationenSektion';
-import {
-  THEME_PRESETS,
-  ThemePreset,
-  applyTheme,
-  loadSavedThemeName,
-  saveThemeName,
-} from '@/lib/theme-presets';
+import { cn } from '@/lib/utils';
 
-/* ── Section IDs ── */
-type SettingsSection = 'ui' | 'betrieb' | 'system' | 'integrationen' | 'benutzer';
+type KeyStatus = 'aktiv' | 'zu_pruefen' | 'offen';
 
-const sectionMeta: { id: SettingsSection; icon: React.ElementType; label: string; desc: string }[] = [
-  { id: 'ui', icon: Monitor, label: 'UI-Einstellungen', desc: 'Theme, Sprache, Layout' },
-  { id: 'betrieb', icon: Building, label: 'Betriebskonfiguration', desc: 'Mandant, Zeitfenster, Regeln' },
-  { id: 'system', icon: Wrench, label: 'System', desc: 'Cache, Logging' },
-  { id: 'integrationen', icon: PlugZap, label: 'System-Integrationen', desc: 'Fremd-Systeme und Verbindungen' },
-  { id: 'benutzer', icon: Settings, label: 'Benutzer & Rollen', desc: 'Zugänge, Berechtigungen' },
+type ApiKeyRow = {
+  service: string;
+  variable: string;
+  value: string;
+  storage: string;
+  status: KeyStatus;
+};
+
+function maskValue(raw: string | undefined | null): string {
+  if (!raw) return '—';
+  if (raw.startsWith('http')) {
+    try {
+      const u = new URL(raw);
+      const host = u.host;
+      if (host.length <= 8) return `${u.protocol}//••••`;
+      return `${u.protocol}//${host.slice(0, 4)}••••${host.slice(-6)}`;
+    } catch {
+      return '••••••••••••';
+    }
+  }
+  if (raw.length < 12) return `${raw.slice(0, 2)}••••••••`;
+  return `${raw.slice(0, 8)}••••••••••${raw.slice(-5)}`;
+}
+
+const STATUS_STYLE: Record<KeyStatus, string> = {
+  aktiv: 'bg-success/15 text-success',
+  zu_pruefen: 'bg-warning/15 text-warning',
+  offen: 'bg-danger/15 text-danger',
+};
+
+const STATUS_LABEL: Record<KeyStatus, string> = {
+  aktiv: 'aktiv',
+  zu_pruefen: 'zu prüfen',
+  offen: 'offen',
+};
+
+const OPEN_TECH = [
+  {
+    title: 'Google-Maps-Key im Frontend',
+    detail: 'Browser-Key nur per HTTP-Referrer einschränken; alten geleakten Key rotieren.',
+    phase: 'Phase 9',
+    tone: 'warning' as const,
+  },
+  {
+    title: 'GRANT SELECT ON users',
+    detail: 'Migration nachziehen, damit Onboarding/Rollen zuverlässig lesen können.',
+    phase: 'Phase 1',
+    tone: 'danger' as const,
+  },
+  {
+    title: 'Vault-Verschlüsselung',
+    detail: 'Integrations-Credentials nur über Edge Function / Vault — Klartext-Spalten entfernt.',
+    phase: 'Phase 3B',
+    tone: 'success' as const,
+  },
+  {
+    title: 'Automatische Depot-Auswahl',
+    detail: 'assign-depot + Distance Matrix; Fallback Haversine bei fehlendem Key.',
+    phase: 'Phase 3A',
+    tone: 'warning' as const,
+  },
+  {
+    title: 'config.toml Projekt-ID',
+    detail: 'dtfdlbzgvekdlexurwgi → sxqbmxqnwtrgibfryvqf angleichen.',
+    phase: 'Cleanup',
+    tone: 'danger' as const,
+  },
 ];
 
-/* ── Sub-panels ── */
-
-function UISettings() {
-  const [activeTheme, setActiveTheme] = useState(loadSavedThemeName);
-  const [compactMode, setCompactMode] = useState(() => localStorage.getItem('dispatch-compact') === 'true');
-  const [language, setLanguage] = useState(() => localStorage.getItem('dispatch-lang') ?? 'de');
-
-  const handleTheme = (t: ThemePreset) => {
-    applyTheme(t);
-    setActiveTheme(t.name);
-    saveThemeName(t.name);
-    toast.success(`Theme „${t.name}" aktiviert`);
-  };
+export function Einstellungen() {
+  const { companyId } = useDispatch();
+  const { role } = useAuth();
+  const [resolvedCompanyId, setResolvedCompanyId] = useState<string | null>(companyId);
+  const [resolvedRole, setResolvedRole] = useState<string>(role ?? '—');
 
   useEffect(() => {
-    localStorage.setItem('dispatch-compact', String(compactMode));
-  }, [compactMode]);
+    let cancelled = false;
+    (async () => {
+      if (!companyId) {
+        const { data } = await supabase.rpc('get_user_company_id');
+        if (!cancelled) setResolvedCompanyId((data as string | null) ?? null);
+      } else {
+        setResolvedCompanyId(companyId);
+      }
+      const { data: r } = await supabase.rpc('get_my_role');
+      if (!cancelled && r) setResolvedRole(String(r));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId]);
 
-  useEffect(() => {
-    localStorage.setItem('dispatch-lang', language);
-  }, [language]);
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const publishable = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+  const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+
+  const apiKeys: ApiKeyRow[] = [
+    {
+      service: 'Supabase',
+      variable: 'VITE_SUPABASE_URL',
+      value: maskValue(supabaseUrl),
+      storage: '.env / Vite',
+      status: supabaseUrl ? 'aktiv' : 'offen',
+    },
+    {
+      service: 'Supabase',
+      variable: 'VITE_SUPABASE_PUBLISHABLE_KEY',
+      value: maskValue(publishable),
+      storage: '.env / Vite',
+      status: publishable ? 'aktiv' : 'offen',
+    },
+    {
+      service: 'Google Maps',
+      variable: 'VITE_GOOGLE_MAPS_API_KEY',
+      value: maskValue(mapsKey),
+      storage: '.env / Vite',
+      status: mapsKey ? 'zu_pruefen' : 'offen',
+    },
+    {
+      service: 'Gemini',
+      variable: 'GEMINI_API_KEY',
+      value: '••••••••••••••••',
+      storage: 'Edge Secret',
+      status: 'zu_pruefen',
+    },
+    {
+      service: 'Supabase',
+      variable: 'SUPABASE_SERVICE_ROLE_KEY',
+      value: '••••••••••••••••',
+      storage: 'Edge Secret',
+      status: 'zu_pruefen',
+    },
+    {
+      service: 'Google Distance Matrix',
+      variable: 'GOOGLE_DISTANCE_MATRIX_KEY',
+      value: '—',
+      storage: 'Edge Secret',
+      status: 'offen',
+    },
+  ];
+
+  const projectRef =
+    supabaseUrl?.match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1] ?? 'sxqbmxqnwtrgibfryvqf';
 
   return (
-    <div className="space-y-6">
-      {/* Theme picker */}
+    <div className="space-y-5 max-w-4xl">
       <div>
-        <h4 className="text-sm font-semibold text-card-foreground flex items-center gap-2 mb-3">
-          <Palette className="w-4 h-4" /> Farbschema
-        </h4>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {THEME_PRESETS.map(t => (
-            <button
-              key={t.name}
-              onClick={() => handleTheme(t)}
-              className={cn(
-                'relative rounded-lg border p-4 text-left transition-all hover:shadow-md',
-                activeTheme === t.name
-                  ? 'border-primary ring-2 ring-primary/30 bg-accent/30'
-                  : 'border-border bg-card hover:border-primary/30'
-              )}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="w-5 h-5 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: t.preview }} />
-                <span className="text-xs font-medium text-card-foreground">{t.name}</span>
-              </div>
-              {/* mini preview bar */}
-              <div className="flex gap-1 mt-2">
-                <div className="h-2 flex-1 rounded" style={{ backgroundColor: t.preview }} />
-                <div className="h-2 w-6 rounded bg-muted" />
-                <div className="h-2 w-4 rounded bg-muted" />
-              </div>
-              {activeTheme === t.name && (
-                <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                  <Check className="w-3 h-3 text-primary-foreground" />
-                </div>
-              )}
-            </button>
+        <p className="section-title">Einstellungen</p>
+        <h2 className="page-title mt-1">System & Umgebung</h2>
+      </div>
+
+      {/* 1. Umgebung */}
+      <div className="glass-card p-5 space-y-3">
+        <p className="card-title">Umgebung</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            { label: 'Supabase-Projekt', value: projectRef },
+            { label: 'Region', value: 'eu-central-1' },
+            { label: 'Company-ID', value: resolvedCompanyId ?? '—' },
+            { label: 'Rolle', value: `${resolvedRole} · get_my_role()` },
+          ].map((f) => (
+            <div key={f.label} className="sub-card p-3">
+              <p className="text-[10px] uppercase tracking-wide text-dim font-semibold">{f.label}</p>
+              <code className="font-mono text-[12.5px] text-foreground mt-1 block break-all">
+                {f.value}
+              </code>
+            </div>
           ))}
         </div>
       </div>
 
-      {/* Compact mode */}
-      <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
+      {/* 2. API-Schlüssel */}
+      <div className="glass-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-hairline">
+          <p className="card-title">API-Schlüssel</p>
+          <p className="meta-text mt-1">Werte immer maskiert — Klartext-Secrets werden nicht gerendert.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left">
+            <thead>
+              <tr className="border-b border-hairline">
+                {['Dienst', 'Variable', 'Wert', 'Ablage', 'Status'].map((h) => (
+                  <th
+                    key={h}
+                    className="px-5 py-2.5 text-[10.5px] font-semibold uppercase tracking-wider text-dim"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {apiKeys.map((row) => (
+                <tr key={row.variable} className="border-b border-white/[0.04]">
+                  <td className="px-5 py-3 text-sm text-foreground">{row.service}</td>
+                  <td className="px-5 py-3">
+                    <code className="font-mono text-[11.5px] text-muted-foreground">{row.variable}</code>
+                  </td>
+                  <td className="px-5 py-3">
+                    <code className="font-mono text-[11.5px] text-foreground">{row.value}</code>
+                  </td>
+                  <td className="px-5 py-3 meta-text">{row.storage}</td>
+                  <td className="px-5 py-3">
+                    <span
+                      className={cn(
+                        'inline-block px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm',
+                        STATUS_STYLE[row.status],
+                      )}
+                    >
+                      {STATUS_LABEL[row.status]}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 3. System-Integrationen */}
+      <div className="glass-card p-5 space-y-4">
         <div>
-          <Label className="text-sm font-medium">Kompakt-Modus</Label>
-          <p className="text-xs text-muted-foreground">Weniger Abstände, mehr Inhalt pro Seite</p>
+          <p className="card-title">System-Integrationen</p>
+          <p className="meta-text mt-1">Fremd-Systeme und Verbindungen — CRUD unverändert.</p>
         </div>
-        <Switch checked={compactMode} onCheckedChange={setCompactMode} />
+        <IntegrationenSektion companyId={resolvedCompanyId} />
       </div>
 
-      {/* Language */}
-      <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
-        <div>
-          <Label className="text-sm font-medium">Sprache</Label>
-          <p className="text-xs text-muted-foreground">Anzeigesprache des Dashboards</p>
-        </div>
-        <Select value={language} onValueChange={setLanguage}>
-          <SelectTrigger className="w-[140px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="de">Deutsch</SelectItem>
-            <SelectItem value="en">English</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  );
-}
-
-function BetriebSettings() {
-  return (
-    <div className="space-y-4">
-      {[
-        { label: 'Standard-Zeitfenster', desc: 'Liefer-Zeitfenster für neue Sendungen', value: '08:00 – 18:00' },
-        { label: 'Max. Stopps pro Tour', desc: 'Obergrenze für die Tourenplanung', value: '25' },
-        { label: 'Planungsvorlauf', desc: 'Tage im Voraus für die automatische Planung', value: '1 Tag' },
-      ].map(item => (
-        <div key={item.label} className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
-          <div>
-            <p className="text-sm font-medium text-card-foreground">{item.label}</p>
-            <p className="text-xs text-muted-foreground">{item.desc}</p>
-          </div>
-          <span className="text-xs font-mono bg-muted px-2 py-1 rounded text-muted-foreground">{item.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SystemSettings() {
-  return (
-    <div className="space-y-4">
-      {[
-        { label: 'Cache leeren', desc: 'Lokale Daten zurücksetzen', action: 'Cache leeren' },
-        { label: 'Logging-Level', desc: 'Aktuell: Info', action: 'Ändern' },
-      ].map(item => (
-        <div key={item.label} className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
-          <div>
-            <p className="text-sm font-medium text-card-foreground">{item.label}</p>
-            <p className="text-xs text-muted-foreground">{item.desc}</p>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs"
-            onClick={() => {
-              if (item.label === 'Cache leeren') {
-                localStorage.clear();
-                toast.success('Cache geleert');
-                window.location.reload();
-              } else {
-                toast.info('Wird in einem zukünftigen Update verfügbar');
-              }
-            }}
-          >
-            {item.action}
-          </Button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function IntegrationenSettings({ companyId }: { companyId: string | null }) {
-  return (
-    <section>
-      <h2 className="text-lg font-semibold mb-4">System-Integrationen</h2>
-      <IntegrationenSektion companyId={companyId} />
-    </section>
-  );
-}
-
-function BenutzerSettings() {
-  return (
-    <div className="space-y-4 text-sm text-muted-foreground">
-      <div className="rounded-lg border border-border bg-card p-4">
-        <p className="font-medium text-card-foreground mb-1">Rollen & Berechtigungen</p>
-        <p className="text-xs">Admin, Dispatcher und Fahrer – Rollen werden über das Backend verwaltet.</p>
-      </div>
-      <div className="rounded-lg border border-border bg-card p-4">
-        <p className="font-medium text-card-foreground mb-1">Audit-Log</p>
-        <p className="text-xs">Alle Änderungen werden protokolliert und sind für Admins einsehbar.</p>
-      </div>
-    </div>
-  );
-}
-
-/* ── Main ── */
-
-export function Einstellungen() {
-  const [active, setActive] = useState<SettingsSection | null>(null);
-  const [currentCompanyId, setCurrentCompanyId] = useState<string | null>(null);
-
-  // Apply saved theme on mount
-  useEffect(() => {
-    const saved = loadSavedTheme();
-    const t = themes.find(th => th.name === saved);
-    if (t) applyTheme(t);
-  }, []);
-
-  useEffect(() => {
-    const loadCompanyId = async () => {
-      const { data, error } = await supabase.rpc('get_user_company_id');
-      if (error) {
-        toast.error(`company_id konnte nicht geladen werden: ${error.message}`);
-        return;
-      }
-      setCurrentCompanyId(data ?? null);
-    };
-    loadCompanyId();
-  }, []);
-
-  if (active) {
-    const meta = sectionMeta.find(s => s.id === active)!;
-    const Panel = {
-      ui: UISettings,
-      betrieb: BetriebSettings,
-      system: SystemSettings,
-      integrationen: () => <IntegrationenSettings companyId={currentCompanyId} />,
-      benutzer: BenutzerSettings,
-    }[active];
-
-    return (
-      <div className="space-y-4">
-        <button
-          onClick={() => setActive(null)}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ChevronLeft className="w-3.5 h-3.5" /> Zurück
-        </button>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center">
-            <meta.icon className="w-4 h-4 text-accent-foreground" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-sm text-card-foreground">{meta.label}</h3>
-            <p className="text-xs text-muted-foreground">{meta.desc}</p>
-          </div>
-        </div>
-        <Panel />
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {sectionMeta.map(s => (
-        <button
-          key={s.id}
-          onClick={() => setActive(s.id)}
-          className="rounded-lg border border-border bg-card p-5 hover:border-primary/30 transition-colors cursor-pointer text-left group"
-        >
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center">
-              <s.icon className="w-4 h-4 text-accent-foreground" />
+      {/* 4. Offene technische Punkte */}
+      <div className="glass-card p-5 space-y-3">
+        <p className="card-title">Offene technische Punkte</p>
+        <div className="space-y-2">
+          {OPEN_TECH.map((item) => (
+            <div
+              key={item.title}
+              className={cn(
+                'sub-card p-3 border-l-[3px]',
+                item.tone === 'danger' && 'border-l-danger',
+                item.tone === 'warning' && 'border-l-warning',
+                item.tone === 'success' && 'border-l-success',
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                <span className="shrink-0 font-mono text-[10.5px] text-dim px-1.5 py-0.5 rounded-sm bg-white/[0.03] border border-hairline">
+                  {item.phase}
+                </span>
+              </div>
+              <p className="meta-text mt-1">{item.detail}</p>
             </div>
-            <h3 className="font-semibold text-sm text-card-foreground">{s.label}</h3>
-            <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-          <p className="text-xs text-muted-foreground">{s.desc}</p>
-        </button>
-      ))}
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

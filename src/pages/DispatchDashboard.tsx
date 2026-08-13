@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { DispatchProvider, useDispatch } from '@/lib/dispatch-context';
 import { useAuth } from '@/hooks/useAuth';
 import { SECTIONS, SectionId } from '@/lib/navigation';
-import { OperativeLage } from './dispatch/OperativeLage';
-import { Tagesleitstelle } from './dispatch/Tagesleitstelle';
+import { Startseite } from './dispatch/Startseite';
 import { Kalender } from './dispatch/Kalender';
 import { Kontrollzentrale } from './dispatch/Kontrollzentrale';
 import { Fahrer } from './dispatch/Fahrer';
@@ -11,7 +10,7 @@ import { Einstellungen } from './dispatch/Einstellungen';
 import { Probleme } from './dispatch/Probleme';
 import {
   CalendarDays, LogOut, Menu, Search, Bell, Settings as SettingsIcon,
-  LayoutDashboard, Calendar, Package, Users, AlertTriangle, Settings
+  LayoutDashboard, Calendar, Package, Users, AlertTriangle, Settings, Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -19,27 +18,25 @@ import { ParticleBackground } from '@/components/dispatch/ParticleBackground';
 import { DepotSwitcher } from '@/components/dispatch/DepotSwitcher';
 
 const sectionIcons: Record<SectionId, React.ElementType> = {
-  'operative-lage': LayoutDashboard,
-  'tagesleitstelle': LayoutDashboard,
-  'kalender': Calendar,
-  'kontrollzentrale': Package,
-  'fahrer': Users,
-  'probleme': AlertTriangle,
-  'einstellungen': Settings,
+  startseite: Home,
+  kalender: Calendar,
+  kontrollzentrale: Package,
+  fahrer: Users,
+  probleme: AlertTriangle,
+  einstellungen: Settings,
 };
 
 function PageContent() {
   const { currentSection } = useDispatch();
 
   switch (currentSection) {
-    case 'tagesleitstelle': return <Tagesleitstelle />;
-    case 'operative-lage': return <OperativeLage />;
+    case 'startseite': return <Startseite />;
     case 'kalender': return <Kalender />;
     case 'kontrollzentrale': return <Kontrollzentrale />;
     case 'fahrer': return <Fahrer />;
     case 'einstellungen': return <Einstellungen />;
     case 'probleme': return <Probleme />;
-    default: return <OperativeLage />;
+    default: return <Startseite />;
   }
 }
 

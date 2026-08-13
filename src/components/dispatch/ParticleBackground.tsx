@@ -9,9 +9,10 @@ interface Particle {
   opacity: number;
 }
 
-const PARTICLE_COUNT = 60;
-const CONNECTION_DIST = 140;
-const SPEED = 0.3;
+const PARTICLE_COUNT = 40;
+const CONNECTION_DIST = 120;
+const SPEED = 0.25;
+/** Cyan #7ce8f5 — max. Deckkraft ≤ 8 % */
 
 export function ParticleBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -41,8 +42,8 @@ export function ParticleBackground() {
         y: Math.random() * h,
         vx: (Math.random() - 0.5) * SPEED * 2,
         vy: (Math.random() - 0.5) * SPEED * 2,
-        radius: Math.random() * 1.5 + 0.8,
-        opacity: Math.random() * 0.4 + 0.15,
+        radius: Math.random() * 1.2 + 0.5,
+        opacity: Math.random() * 0.05 + 0.02,
       }));
     }
 
@@ -57,9 +58,9 @@ export function ParticleBackground() {
           const dy = particles[i].y - particles[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < CONNECTION_DIST) {
-            const alpha = (1 - dist / CONNECTION_DIST) * 0.15;
-            ctx.strokeStyle = `rgba(139, 92, 246, ${alpha})`;
-            ctx.lineWidth = 0.6;
+            const alpha = (1 - dist / CONNECTION_DIST) * 0.04;
+            ctx.strokeStyle = `rgba(124, 232, 245, ${alpha})`;
+            ctx.lineWidth = 0.5;
             ctx.beginPath();
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
@@ -72,7 +73,7 @@ export function ParticleBackground() {
       for (const p of particles) {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(167, 139, 250, ${p.opacity})`;
+        ctx.fillStyle = `rgba(124, 232, 245, ${Math.min(p.opacity, 0.08)})`;
         ctx.fill();
       }
     }
