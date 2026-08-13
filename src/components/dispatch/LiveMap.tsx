@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import { getGoogleMapsApiKey, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_LOADER_ID } from '@/lib/google-maps';
 
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
+const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
 
 const center = { lat: 51.1657, lng: 10.4515 };
 
@@ -25,7 +26,11 @@ interface LiveMapProps {
 }
 
 export function LiveMap({ fill = false }: LiveMapProps = {}) {
-  const { isLoaded } = useJsApiLoader({ id: 'google-map', googleMapsApiKey: GOOGLE_MAPS_API_KEY });
+  const { isLoaded } = useJsApiLoader({
+    id: GOOGLE_MAPS_LOADER_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
+  });
   const [selected, setSelected] = useState<typeof driverMarkers[0] | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
 

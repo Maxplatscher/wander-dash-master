@@ -8,94 +8,13 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { IntegrationenSektion } from '@/components/settings/IntegrationenSektion';
-
-/* ── Theme presets ── */
-interface ThemePreset {
-  name: string;
-  primary: string;
-  sidebarBg: string;
-  sidebarPrimary: string;
-  sidebarAccent: string;
-  sidebarBorder: string;
-  preview: string; // tailwind-safe color for the dot
-}
-
-const themes: ThemePreset[] = [
-  {
-    name: 'Teal (Standard)',
-    primary: '174 62% 38%',
-    sidebarBg: '210 25% 14%',
-    sidebarPrimary: '174 62% 50%',
-    sidebarAccent: '210 20% 20%',
-    sidebarBorder: '210 15% 22%',
-    preview: '#319795',
-  },
-  {
-    name: 'Blau',
-    primary: '217 91% 60%',
-    sidebarBg: '222 47% 11%',
-    sidebarPrimary: '217 91% 60%',
-    sidebarAccent: '222 30% 18%',
-    sidebarBorder: '222 25% 20%',
-    preview: '#3B82F6',
-  },
-  {
-    name: 'Violett',
-    primary: '262 83% 58%',
-    sidebarBg: '270 30% 12%',
-    sidebarPrimary: '262 83% 58%',
-    sidebarAccent: '270 20% 20%',
-    sidebarBorder: '270 15% 22%',
-    preview: '#8B5CF6',
-  },
-  {
-    name: 'Orange',
-    primary: '25 95% 53%',
-    sidebarBg: '20 25% 12%',
-    sidebarPrimary: '25 95% 53%',
-    sidebarAccent: '20 20% 20%',
-    sidebarBorder: '20 15% 22%',
-    preview: '#F97316',
-  },
-  {
-    name: 'Grün',
-    primary: '142 71% 45%',
-    sidebarBg: '150 25% 12%',
-    sidebarPrimary: '142 71% 45%',
-    sidebarAccent: '150 20% 20%',
-    sidebarBorder: '150 15% 22%',
-    preview: '#22C55E',
-  },
-  {
-    name: 'Rot',
-    primary: '0 72% 51%',
-    sidebarBg: '0 25% 12%',
-    sidebarPrimary: '0 72% 51%',
-    sidebarAccent: '0 20% 20%',
-    sidebarBorder: '0 15% 22%',
-    preview: '#EF4444',
-  },
-];
-
-function applyTheme(t: ThemePreset) {
-  const root = document.documentElement;
-  root.style.setProperty('--primary', t.primary);
-  root.style.setProperty('--ring', t.primary);
-  root.style.setProperty('--accent', t.primary.replace(/\d+%$/, '92%'));
-  root.style.setProperty('--accent-foreground', t.primary.replace(/\d+%$/, '25%'));
-  root.style.setProperty('--sidebar-background', t.sidebarBg);
-  root.style.setProperty('--sidebar-primary', t.sidebarPrimary);
-  root.style.setProperty('--sidebar-accent', t.sidebarAccent);
-  root.style.setProperty('--sidebar-border', t.sidebarBorder);
-  root.style.setProperty('--sidebar-ring', t.sidebarPrimary);
-}
-
-function loadSavedTheme(): string {
-  return localStorage.getItem('dispatch-theme') ?? 'Teal (Standard)';
-}
-function saveTheme(name: string) {
-  localStorage.setItem('dispatch-theme', name);
-}
+import {
+  THEME_PRESETS,
+  ThemePreset,
+  applyTheme,
+  loadSavedThemeName,
+  saveThemeName,
+} from '@/lib/theme-presets';
 
 /* ── Section IDs ── */
 type SettingsSection = 'ui' | 'betrieb' | 'system' | 'integrationen' | 'benutzer';
@@ -111,14 +30,14 @@ const sectionMeta: { id: SettingsSection; icon: React.ElementType; label: string
 /* ── Sub-panels ── */
 
 function UISettings() {
-  const [activeTheme, setActiveTheme] = useState(loadSavedTheme);
+  const [activeTheme, setActiveTheme] = useState(loadSavedThemeName);
   const [compactMode, setCompactMode] = useState(() => localStorage.getItem('dispatch-compact') === 'true');
   const [language, setLanguage] = useState(() => localStorage.getItem('dispatch-lang') ?? 'de');
 
   const handleTheme = (t: ThemePreset) => {
     applyTheme(t);
     setActiveTheme(t.name);
-    saveTheme(t.name);
+    saveThemeName(t.name);
     toast.success(`Theme „${t.name}" aktiviert`);
   };
 
@@ -138,7 +57,7 @@ function UISettings() {
           <Palette className="w-4 h-4" /> Farbschema
         </h4>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {themes.map(t => (
+          {THEME_PRESETS.map(t => (
             <button
               key={t.name}
               onClick={() => handleTheme(t)}

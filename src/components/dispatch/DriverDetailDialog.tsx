@@ -5,8 +5,9 @@ import { CheckCircle2, Circle, MapPin, Package, Clock, Truck, Route } from 'luci
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { getGoogleMapsApiKey, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_LOADER_ID } from '@/lib/google-maps';
 
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
+const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
 
 interface DriverInfo {
   name: string;
@@ -63,7 +64,11 @@ function useTourStops(tourId: string | undefined) {
 
 export function DriverDetailDialog({ open, onOpenChange, driver, gradientClass }: Props) {
   const { data: stops, isLoading } = useTourStops(driver?.tourId);
-  const { isLoaded } = useJsApiLoader({ id: 'google-map', googleMapsApiKey: GOOGLE_MAPS_API_KEY });
+  const { isLoaded } = useJsApiLoader({
+    id: GOOGLE_MAPS_LOADER_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
+  });
 
   const completedStops = stops?.filter(s => s.driver_completed) ?? [];
   const nextStop = stops?.find(s => !s.driver_completed);

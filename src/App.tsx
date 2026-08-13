@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -7,7 +6,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import DispatchDashboard from "./pages/DispatchDashboard";
 import Auth from "./pages/Auth";
+import Setup from "./pages/Setup";
 import NotFound from "./pages/NotFound.tsx";
+import { OnboardingRoute } from "@/components/setup/OnboardingRoute";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -34,7 +35,26 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={<ProtectedRoute><DispatchDashboard /></ProtectedRoute>} />
+            <Route
+              path="/setup"
+              element={
+                <ProtectedRoute>
+                  <Setup />
+                </ProtectedRoute>
+              }
+            />
+            {/* Alter Consent-Pfad → neuer Wizard */}
+            <Route path="/setup-consent" element={<Navigate to="/setup" replace />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <OnboardingRoute>
+                    <DispatchDashboard />
+                  </OnboardingRoute>
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

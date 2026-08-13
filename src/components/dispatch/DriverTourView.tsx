@@ -4,8 +4,9 @@ import { CheckCircle2, Circle, MapPin, Clock, Navigation, Package } from 'lucide
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { getGoogleMapsApiKey, GOOGLE_MAPS_LIBRARIES, GOOGLE_MAPS_LOADER_ID } from '@/lib/google-maps';
 
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
+const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
 
 interface Stop {
   id: string;
@@ -32,7 +33,11 @@ const driverPosition = { lat: 52.5130, lng: 13.3850 };
 export function DriverTourView() {
   const [stops, setStops] = useState<Stop[]>(initialStops);
   const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
-  const { isLoaded } = useJsApiLoader({ id: 'google-map-driver', googleMapsApiKey: GOOGLE_MAPS_API_KEY });
+  const { isLoaded } = useJsApiLoader({
+    id: GOOGLE_MAPS_LOADER_ID,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
+  });
 
   const doneCount = stops.filter(s => s.done).length;
   const totalPackages = stops.reduce((a, s) => a + s.packages, 0);

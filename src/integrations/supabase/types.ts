@@ -85,33 +85,55 @@ export type Database = {
       }
       driver: {
         Row: {
+          assigned_vehicle_id: string | null
+          birth_date: string | null
           company_id: string
           id: string
           name: string | null
+          notes: string | null
+          personnel_number: string | null
           phone: string | null
+          photo_url: string | null
           shift_end: string | null
           shift_start: string | null
           status: string | null
         }
         Insert: {
+          assigned_vehicle_id?: string | null
+          birth_date?: string | null
           company_id: string
           id?: string
           name?: string | null
+          notes?: string | null
+          personnel_number?: string | null
           phone?: string | null
+          photo_url?: string | null
           shift_end?: string | null
           shift_start?: string | null
           status?: string | null
         }
         Update: {
+          assigned_vehicle_id?: string | null
+          birth_date?: string | null
           company_id?: string
           id?: string
           name?: string | null
+          notes?: string | null
+          personnel_number?: string | null
           phone?: string | null
+          photo_url?: string | null
           shift_end?: string | null
           shift_start?: string | null
           status?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "driver_assigned_vehicle_id_fkey"
+            columns: ["assigned_vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "driver_company_id_fkey"
             columns: ["company_id"]
@@ -557,6 +579,7 @@ export type Database = {
           email: string
           id: string
           is_active: boolean | null
+          onboarding_completed_at: string | null
           password_hash: string | null
           role: string | null
         }
@@ -567,6 +590,7 @@ export type Database = {
           email: string
           id?: string
           is_active?: boolean | null
+          onboarding_completed_at?: string | null
           password_hash?: string | null
           role?: string | null
         }
@@ -577,6 +601,7 @@ export type Database = {
           email?: string
           id?: string
           is_active?: boolean | null
+          onboarding_completed_at?: string | null
           password_hash?: string | null
           role?: string | null
         }

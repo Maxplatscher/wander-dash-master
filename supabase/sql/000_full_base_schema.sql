@@ -43,7 +43,12 @@ CREATE TABLE public.driver (
   phone TEXT,
   status TEXT,
   shift_start TIME,
-  shift_end TIME
+  shift_end TIME,
+  personnel_number TEXT,
+  birth_date DATE,
+  photo_url TEXT,
+  assigned_vehicle_id UUID REFERENCES public.vehicle(id) ON DELETE SET NULL,
+  notes TEXT
 );
 ALTER TABLE public.driver ENABLE ROW LEVEL SECURITY;
 
@@ -137,6 +142,7 @@ CREATE TABLE public.users (
   role TEXT DEFAULT 'user',
   is_active BOOLEAN DEFAULT true,
   driver_id UUID REFERENCES public.driver(id),
+  onboarding_completed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
