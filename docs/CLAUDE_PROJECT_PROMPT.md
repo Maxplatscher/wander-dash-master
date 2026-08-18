@@ -132,7 +132,7 @@ src/pages/Index.tsx               → verwaist / nicht geroutet (Alt-Lastenrelik
 ~40 Standard-shadcn-Komponenten (Button, Card, Dialog, Select, Table, Sheet, Tabs, Toast, etc.) — unverändertes shadcn, bezieht Farben automatisch aus den globalen CSS-Variablen. Bei Design-Arbeiten i.d.R. nicht einzeln anfassen.
 
 ### Supabase (`supabase/`)
-- `config.toml` — **enthält noch die alte/falsche Projekt-ID `dtfdlbzgvekdlexurwgi`** (das ist das früher gelöschte Projekt, siehe Abschnitt 8) — sollte auf `sxqbmxqnwtrgibfryvqf` korrigiert werden
+- `config.toml` — `project_id = sxqbmxqnwtrgibfryvqf` (DC Project)
 - `functions/demo-setup/` — legt Demo-Company mit Fahrern/Fahrzeugen/Sendungen an
 - `functions/plan-tour/` — einfache Tourenplanung (Manhattan-Distanz-Heuristik, kapazitätsbasiert)
 - `functions/ai-resolve/` — KI-gestützte Problemlösung (unzugeordnete Sendungen zuordnen, Zeitkonflikte neu planen) — nutzt vermutlich Gemini API
@@ -182,9 +182,9 @@ Das ist der Hauptauftrag für die Weiterarbeit: **die restlichen Seiten auf `.gl
 
 ## 8. Bekannte offene Punkte / technische Schulden
 
-1. **Google Maps API-Key im Klartext im Frontend-Code** (`AIzaSyD45ivdJQ9LwYJBctnXPoi8NHGWK2IMhLg`), identisch dreifach hardcodiert in `LiveMap.tsx`, `DriverDetailDialog.tsx`, `DriverTourView.tsx`. Sollte in `.env` als `VITE_GOOGLE_MAPS_API_KEY` wandern und im Google Cloud Console per HTTP-Referrer eingeschränkt werden.
+1. **Google Maps API-Key (Phase 9):** Code-seitig erledigt — nur noch `VITE_GOOGLE_MAPS_API_KEY` in `.env` / `src/lib/google-maps.ts`. Offen: in Google Cloud Console HTTP-Referrer-Restriction setzen und jeden jemals geleakten/alten Key rotieren (löschen).
 2. **Mock-/Fake-Daten statt echter DB-Anbindung** in: `Fahrer.tsx` (6 hardcodierte Fahrer), `Kalender.tsx` (`demoEvents`), `DriverTourView.tsx` (6 Fake-Stops in Berlin), `LiveMap.tsx` (4 Fake-Marker), `DriverDetailDialog.tsx` (Kartenposition fix auf Berlin), `Versionen.tsx` (komplett). Das widerspricht dem im Projekt dokumentierten Grundsatz „keine Mock-Daten, nur echte DB-Werte".
-3. **`supabase/config.toml`** zeigt noch auf die alte/gelöschte Projekt-ID `dtfdlbzgvekdlexurwgi` statt `sxqbmxqnwtrgibfryvqf`.
+3. **`supabase/config.toml`** — erledigt (`sxqbmxqnwtrgibfryvqf`).
 4. **`Versionen.tsx` ist nicht geroutet** — entweder in die Navigation einbinden oder als totes Feature entfernen.
 5. **Verwaiste Alt-Komponenten** (`Index.tsx`, `AppSidebar.tsx`, `NavLink.tsx`, `StatCard.tsx`, `TourCard.tsx`, `DispatchSidebar.tsx`) — Cleanup-Kandidaten.
 6. **Theme-Picker in `Einstellungen.tsx`** erlaubt 6 Farbschemata über CSS-Var-Overrides (Teal/Blau/Violett/Orange/Grün/Rot) — kollidiert konzeptionell mit dem jetzt fest verdrahteten Dark-Glass-Design. Sollte entweder entfernt oder als „Akzentfarbe innerhalb des Dark-Themes" neu gedacht werden.
@@ -219,8 +219,8 @@ Wichtige RPCs: `get_my_role`, `get_user_company_id`, `upsert_integration`, `dele
 1. `Kalender.tsx` auf Glass-Design umstellen + echte `shipment`-Daten statt `demoEvents` (kann sich stark an `OrdersCalendar.tsx` orientieren, das bereits beides — Glass-Design und echte Daten — hat)
 2. `Kontrollzentrale.tsx`, `Probleme.tsx`, `Einstellungen.tsx` auf Glass-Design umstellen (reines Styling, keine Logikänderung)
 3. `Fahrer.tsx` von hardcodierten Daten auf echte `driver`/`vehicle`-Query umstellen + Glass-Design
-4. Google-Maps-Key in `.env` auslagern, alle drei Vorkommen darauf umstellen
-5. `supabase/config.toml` korrigieren
+4. Google-Maps-Key: Referrer in GCP setzen + alten Key rotieren (Code nutzt bereits `.env`)
+5. ~~`supabase/config.toml` korrigieren~~ (erledigt)
 6. Entscheidung einholen: `Versionen.tsx` und die verwaisten Alt-Komponenten behalten/einbinden oder löschen
 
 Bitte jeden dieser Punkte einzeln umsetzen und nach jedem Schritt kurz Rückmeldung geben, bevor der nächste beginnt (siehe Arbeitsweise in Abschnitt 1).

@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
     let result: TestResult;
     const start = Date.now();
 
-    if (integration.system_type === "rest_api") {
+    if (integration.system_type === "rest_api" || integration.system_type === "research_source") {
       const config = (integration.config ?? {}) as Record<string, string>;
       const rawUrl = config.base_url;
       if (!rawUrl) {
@@ -224,7 +224,10 @@ Deno.serve(async (req) => {
             const desc = describeHttpStatus(response.status);
             result = {
               success: desc.success,
-              message: desc.message,
+              message:
+                integration.system_type === "research_source"
+                  ? `Recherchequelle erreichbar — ${desc.message}`
+                  : desc.message,
               latency_ms: Date.now() - start,
             };
           } catch (error) {

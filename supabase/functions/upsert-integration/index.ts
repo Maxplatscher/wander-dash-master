@@ -11,6 +11,7 @@ const ALLOWED_TYPES = new Set([
   "email_imap",
   "rest_api",
   "csv_import",
+  "research_source",
 ]);
 
 function jsonResponse(body: unknown, status = 200) {

@@ -7,6 +7,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useDispatch } from '@/lib/dispatch-context';
 import { cn } from '@/lib/utils';
+import { ArticleReviewPanel } from '@/components/dispatch/ArticleReviewPanel';
+import { parseMissingFields } from '@/lib/article-research';
 
 const STATUS_BADGE: Record<string, string> = {
   new: 'bg-primary/15 text-primary',
@@ -208,10 +210,19 @@ export function Kontrollzentrale() {
                 {shipments.map((s) => {
                   const status = s.intake_status ?? 'new';
                   const source = s.intake_source || 'manual';
+                  const pendingArticles =
+                    parseMissingFields(s.missing_fields).unknown_articles?.filter(
+                      (a) => a.status === 'pending',
+                    ).length ?? 0;
                   return (
                     <tr key={s.id} className="border-b border-white/[0.04]">
                       <td className="px-5 py-3 font-mono text-xs text-primary whitespace-nowrap">
                         {s.name || s.id.slice(0, 8)}
+                        {pendingArticles > 0 && (
+                          <span className="ml-2 inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-sm bg-warning/15 text-warning align-middle">
+                            {pendingArticles} Artikel
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-3 text-sm text-foreground">
                         {s.customer_name || '—'}
@@ -245,6 +256,10 @@ export function Kontrollzentrale() {
           </div>
         )}
       </div>
+
+      {shipments && shipments.length > 0 && (
+        <ArticleReviewPanel shipments={shipments} dateStr={dateStr} />
+      )}
 
       {/* 3. Demo & Testdaten */}
       <div className="rounded-sm border border-dashed border-hairline bg-panel/60 p-5 space-y-4">

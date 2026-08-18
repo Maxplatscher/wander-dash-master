@@ -29,6 +29,76 @@ export type Database = {
         }
         Relationships: []
       }
+      artikel: {
+        Row: {
+          artikelnummer: string | null
+          bestaetigt_am: string | null
+          bestaetigt_von: string | null
+          company_id: string
+          created_at: string
+          height_mm: number | null
+          id: string
+          length_mm: number | null
+          name: string
+          packmittel_id: string | null
+          quelle_url: string | null
+          weight_kg: number | null
+          width_mm: number | null
+        }
+        Insert: {
+          artikelnummer?: string | null
+          bestaetigt_am?: string | null
+          bestaetigt_von?: string | null
+          company_id: string
+          created_at?: string
+          height_mm?: number | null
+          id?: string
+          length_mm?: number | null
+          name: string
+          packmittel_id?: string | null
+          quelle_url?: string | null
+          weight_kg?: number | null
+          width_mm?: number | null
+        }
+        Update: {
+          artikelnummer?: string | null
+          bestaetigt_am?: string | null
+          bestaetigt_von?: string | null
+          company_id?: string
+          created_at?: string
+          height_mm?: number | null
+          id?: string
+          length_mm?: number | null
+          name?: string
+          packmittel_id?: string | null
+          quelle_url?: string | null
+          weight_kg?: number | null
+          width_mm?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artikel_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artikel_packmittel_id_fkey"
+            columns: ["packmittel_id"]
+            isOneToOne: false
+            referencedRelation: "packmittel"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artikel_bestaetigt_von_fkey"
+            columns: ["bestaetigt_von"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       depot: {
         Row: {
           address: string | null
@@ -186,6 +256,50 @@ export type Database = {
             columns: ["shipment_id"]
             isOneToOne: false
             referencedRelation: "shipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      packmittel: {
+        Row: {
+          company_id: string
+          created_at: string
+          height_mm: number | null
+          id: string
+          length_mm: number | null
+          max_weight_kg: number | null
+          name: string
+          stackable: boolean | null
+          width_mm: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          height_mm?: number | null
+          id?: string
+          length_mm?: number | null
+          max_weight_kg?: number | null
+          name: string
+          stackable?: boolean | null
+          width_mm?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          height_mm?: number | null
+          id?: string
+          length_mm?: number | null
+          max_weight_kg?: number | null
+          name?: string
+          stackable?: boolean | null
+          width_mm?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "packmittel_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
             referencedColumns: ["id"]
           },
         ]

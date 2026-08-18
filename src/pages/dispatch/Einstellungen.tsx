@@ -46,15 +46,16 @@ const STATUS_LABEL: Record<KeyStatus, string> = {
 const OPEN_TECH = [
   {
     title: 'Google-Maps-Key im Frontend',
-    detail: 'Browser-Key nur per HTTP-Referrer einschränken; alten geleakten Key rotieren.',
+    detail:
+      'Code: VITE_GOOGLE_MAPS_API_KEY via .env. GCP: HTTP-Referrer setzen; geleakte Keys rotieren/löschen.',
     phase: 'Phase 9',
-    tone: 'warning' as const,
+    tone: 'success' as const,
   },
   {
     title: 'GRANT SELECT ON users',
-    detail: 'Migration nachziehen, damit Onboarding/Rollen zuverlässig lesen können.',
+    detail: 'Erledigt: Migration 20260805120000 — authenticated darf users lesen (RLS filtert weiter).',
     phase: 'Phase 1',
-    tone: 'danger' as const,
+    tone: 'success' as const,
   },
   {
     title: 'Vault-Verschlüsselung',
@@ -64,15 +65,16 @@ const OPEN_TECH = [
   },
   {
     title: 'Automatische Depot-Auswahl',
-    detail: 'assign-depot + Distance Matrix; Fallback Haversine bei fehlendem Key.',
+    detail:
+      'Erledigt: assign-depot (Distance Matrix via GOOGLE_MAPS_API_KEY, sonst Haversine). Braucht Depot-lat/lng + Sendungs-Koordinaten.',
     phase: 'Phase 3A',
-    tone: 'warning' as const,
+    tone: 'success' as const,
   },
   {
     title: 'config.toml Projekt-ID',
-    detail: 'dtfdlbzgvekdlexurwgi → sxqbmxqnwtrgibfryvqf angleichen.',
+    detail: 'Erledigt: project_id = sxqbmxqnwtrgibfryvqf (DC Project).',
     phase: 'Cleanup',
-    tone: 'danger' as const,
+    tone: 'success' as const,
   },
 ];
 
@@ -129,8 +131,15 @@ export function Einstellungen() {
       service: 'Gemini',
       variable: 'GEMINI_API_KEY',
       value: '••••••••••••••••',
-      storage: 'Edge Secret',
+      storage: 'Edge Secret (ai-resolve, research-article)',
       status: 'zu_pruefen',
+    },
+    {
+      service: 'Websuche (Artikel)',
+      variable: 'SERPER_API_KEY oder TAVILY_API_KEY',
+      value: '—',
+      storage: 'Edge Secret',
+      status: 'offen',
     },
     {
       service: 'Supabase',
@@ -141,10 +150,10 @@ export function Einstellungen() {
     },
     {
       service: 'Google Distance Matrix',
-      variable: 'GOOGLE_DISTANCE_MATRIX_KEY',
-      value: '—',
-      storage: 'Edge Secret',
-      status: 'offen',
+      variable: 'GOOGLE_MAPS_API_KEY',
+      value: '••••••••••••••••',
+      storage: 'Edge Secret (assign-depot)',
+      status: 'zu_pruefen',
     },
   ];
 

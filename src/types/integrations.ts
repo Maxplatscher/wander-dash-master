@@ -1,4 +1,10 @@
-export type SystemType = 'erp' | 'telematics' | 'email_imap' | 'rest_api' | 'csv_import';
+export type SystemType =
+  | 'erp'
+  | 'telematics'
+  | 'email_imap'
+  | 'rest_api'
+  | 'csv_import'
+  | 'research_source';
 
 export interface SystemIntegration {
   id: string;
@@ -19,6 +25,7 @@ export const CONFIG_FIELDS: Record<SystemType, string[]> = {
   email_imap: ['host', 'port', 'folder'],
   rest_api: ['base_url', 'timeout_ms'],
   csv_import: ['sftp_host', 'sftp_port', 'remote_path'],
+  research_source: ['base_url', 'notiz'],
 };
 
 export const CREDENTIAL_FIELDS: Record<SystemType, string[]> = {
@@ -27,6 +34,7 @@ export const CREDENTIAL_FIELDS: Record<SystemType, string[]> = {
   email_imap: ['username', 'password'],
   rest_api: ['auth_header'],
   csv_import: ['sftp_username', 'sftp_password'],
+  research_source: [],
 };
 
 export const TYPE_LABELS: Record<SystemType, string> = {
@@ -35,6 +43,7 @@ export const TYPE_LABELS: Record<SystemType, string> = {
   email_imap: 'E-Mail (IMAP)',
   rest_api: 'REST API',
   csv_import: 'CSV / SFTP',
+  research_source: 'Branchen-Website (Recherchequelle)',
 };
 
 export const TYPE_ICONS: Record<SystemType, string> = {
@@ -43,4 +52,5 @@ export const TYPE_ICONS: Record<SystemType, string> = {
   email_imap: '📧',
   rest_api: '🔌',
   csv_import: '📂',
+  research_source: '🔎',
 };

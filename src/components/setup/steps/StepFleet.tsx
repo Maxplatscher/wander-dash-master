@@ -10,6 +10,7 @@ import {
   FleetStepData,
   newDraftKey,
 } from '@/lib/onboarding';
+import { seedDefaultPackmittel } from '@/lib/packmittel-defaults';
 import { toast } from 'sonner';
 
 const EXISTING_VEHICLE_PREFIX = 'existing:';
@@ -176,10 +177,17 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
         if (error) throw new Error(`Fahrer: ${error.message}`);
       }
 
+      const packSeed = await seedDefaultPackmittel(supabase, cid);
+      if (packSeed.error) {
+        console.warn('Packmittel-Vorlagen:', packSeed.error);
+      }
+
       if (filledDrivers.length || filledVehicles.length) {
         toast.success(
           `${filledDrivers.length} Fahrer, ${filledVehicles.length} Fahrzeug(e) gespeichert`,
         );
+      } else if (packSeed.seeded) {
+        toast.success('Standard-Packmittel angelegt');
       }
 
       onContinue(value);

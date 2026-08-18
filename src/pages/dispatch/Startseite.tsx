@@ -576,7 +576,7 @@ export function Startseite() {
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            Leitstand
+            Live Status
           </button>
           <button
             type="button"
@@ -588,7 +588,7 @@ export function Startseite() {
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            Zeitstrahl
+            Tagesplan
           </button>
         </div>
       </div>

@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-type ViewMode = 'month' | 'week';
+type ViewMode = 'month' | 'week' | 'day';
 
 type ShipmentRow = {
   id: string;
@@ -170,6 +170,11 @@ export function Kalender() {
   const [planLoading, setPlanLoading] = useState(false);
 
   const range = useMemo(() => {
+    if (viewMode === 'day') {
+      const d = new Date(viewDate);
+      d.setHours(12, 0, 0, 0);
+      return { from: d, to: d };
+    }
     if (viewMode === 'week') {
       const from = startOfWeek(viewDate);
       const to = new Date(from);
@@ -274,7 +279,12 @@ export function Kalender() {
       setViewDate((prev) => {
         const d = new Date(prev);
         if (viewMode === 'month') d.setMonth(d.getMonth() + dir);
-        else d.setDate(d.getDate() + dir * 7);
+        else if (viewMode === 'week') d.setDate(d.getDate() + dir * 7);
+        else {
+          d.setDate(d.getDate() + dir);
+          setSelectedDay(fmt(d));
+          setSelectedDate(new Date(d));
+        }
         return d;
       });
     },
@@ -394,10 +404,34 @@ export function Kalender() {
     return rows;
   }, [weekDays, assignedByDate, shipmentsByDate]);
 
+  const dayKey = viewMode === 'day' ? fmt(viewDate) : selectedDay;
+  const dayKeyStats = dayStats(dayKey);
+  const dayKeyShipments = shipmentsByDate.get(dayKey) ?? [];
+  const dayKeyAssigned = assignedByDate.get(dayKey) ?? new Set();
+  const dayKeyUnassigned = dayKeyShipments.filter((s) => !dayKeyAssigned.has(s.id));
+  const dayKeyAssignedList = dayKeyShipments.filter((s) => dayKeyAssigned.has(s.id));
+
   const title =
     viewMode === 'month'
       ? `${MONTHS[month]} ${year}`
-      : `KW ${isoWeekNumber(viewDate)} · ${weekDays[0].toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })} – ${weekDays[6].toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+      : viewMode === 'week'
+        ? `KW ${isoWeekNumber(viewDate)} · ${weekDays[0].toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })} – ${weekDays[6].toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}`
+        : viewDate.toLocaleDateString('de-DE', {
+            weekday: 'long',
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+          });
+
+  const switchView = (mode: ViewMode) => {
+    setViewMode(mode);
+    if (mode === 'day') {
+      const key = selectedDay || fmt(viewDate);
+      setViewDate(new Date(`${key}T12:00:00`));
+      setSelectedDay(key);
+      setSelectedDate(new Date(`${key}T12:00:00`));
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -412,17 +446,18 @@ export function Kalender() {
           <Button size="sm" variant="outline" className="h-8 w-8 p-0 rounded" onClick={() => navigate(1)}>
             <ChevronRight className="w-4 h-4" />
           </Button>
-          <h2 className="page-title text-lg ml-1">{title}</h2>
+          <h2 className="page-title text-lg ml-1 capitalize">{title}</h2>
         </div>
         <div className="flex rounded border border-hairline p-0.5 bg-background/40">
           {([
-            { id: 'month' as const, label: 'Monat' },
+            { id: 'day' as const, label: 'Tag' },
             { id: 'week' as const, label: 'Woche' },
+            { id: 'month' as const, label: 'Monat' },
           ]).map((m) => (
             <button
               key={m.id}
               type="button"
-              onClick={() => setViewMode(m.id)}
+              onClick={() => switchView(m.id)}
               className={cn(
                 'px-3 py-1.5 text-xs font-semibold rounded-sm transition-colors',
                 viewMode === m.id
@@ -585,7 +620,7 @@ export function Kalender() {
             </div>
           </div>
         </div>
-      ) : (
+      ) : viewMode === 'week' ? (
         <div className="space-y-4">
           <div className="glass-card overflow-x-auto">
             <table className="w-full min-w-[960px] border-collapse text-left">
@@ -726,6 +761,105 @@ export function Kalender() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Touren', value: dayKeyStats.tours },
+              { label: 'Sendungen', value: dayKeyStats.shipments },
+              { label: 'Offen', value: dayKeyStats.unassigned },
+              { label: 'Auslastung', value: `${dayKeyStats.util}%` },
+            ].map((k) => (
+              <div key={k.label} className="glass-card p-4 text-center">
+                <p className="text-[10px] uppercase tracking-wide text-dim">{k.label}</p>
+                <p className="text-2xl font-semibold text-foreground whitespace-nowrap mt-1">{k.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              className="rounded font-semibold"
+              disabled={planLoading}
+              onClick={() => void startPlanning(dayKey)}
+            >
+              {planLoading ? 'Plant…' : 'Planung starten'}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="glass-card p-4 space-y-3">
+              <p className="card-title">Fahrer & Touren</p>
+              {driverDayRows.length === 0 ? (
+                <p className="meta-text">Keine Fahrer.</p>
+              ) : (
+                driverDayRows.map(({ driver, vehicle, weight, capacity, util, stopsDone, stopsTotal, tour }) => (
+                  <div key={driver.id} className="sub-card p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-foreground truncate">{driver.name}</p>
+                      <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-sm', statusBadge(driver.status).className)}>
+                        {statusBadge(driver.status).label}
+                      </span>
+                    </div>
+                    <p className="meta-text truncate">
+                      {vehicle?.name ?? '—'} · {stopsDone}/{stopsTotal} Stopps
+                      {tour ? ` · ${tour.description ?? tour.id.slice(0, 8)}` : ' · keine Tour'}
+                    </p>
+                    <div className="progress-track">
+                      <div className="progress-fill" style={{ width: `${util}%` }} />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground whitespace-nowrap">
+                      {weight} / {capacity || '—'} kg · {util}%
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div className="glass-card p-4 space-y-3">
+                <p className="card-title">Zugeordnet ({dayKeyAssignedList.length})</p>
+                {dayKeyAssignedList.length === 0 ? (
+                  <p className="meta-text">Keine zugeordneten Sendungen.</p>
+                ) : (
+                  dayKeyAssignedList.map((s) => (
+                    <div key={s.id} className="sub-card p-2.5">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {s.name || s.customer_name || 'Sendung'}
+                      </p>
+                      <p className="meta-text truncate">{s.delivery_address || '—'}</p>
+                      <p className="meta-text text-dim whitespace-nowrap">
+                        {s.weight_kg ?? '—'} kg · {formatTime(s.window_start)}–{formatTime(s.window_end)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="glass-card p-4 space-y-3">
+                <p className="card-title">Nicht disponiert ({dayKeyUnassigned.length})</p>
+                {dayKeyUnassigned.length === 0 ? (
+                  <div className="flex flex-col items-center py-4 text-muted-foreground gap-2">
+                    <Package className="w-6 h-6 opacity-40" />
+                    <p className="meta-text">Alle Sendungen zugeordnet</p>
+                  </div>
+                ) : (
+                  dayKeyUnassigned.map((s) => (
+                    <div key={s.id} className="sub-card p-2.5">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {s.name || s.customer_name || 'Sendung'}
+                      </p>
+                      <p className="meta-text truncate">{s.delivery_address || '—'}</p>
+                      <p className="meta-text text-dim whitespace-nowrap">
+                        {s.weight_kg ?? '—'} kg · {formatTime(s.window_start)}–{formatTime(s.window_end)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>

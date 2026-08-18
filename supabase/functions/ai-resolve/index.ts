@@ -41,8 +41,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+
+    const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -119,61 +121,72 @@ Deno.serve(async (req) => {
       }
     }
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "resolve_problem",
-            description: "Return the resolution for the logistics problem",
-            parameters: {
-              type: "object",
-              properties: {
-                message: { type: "string", description: "Human-readable summary of the solution" },
-                actions: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      action: { type: "string", enum: ["move_shipment", "create_tour", "reorder_stops", "assign_driver"] },
-                      details: { type: "string" },
+    const aiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "x-goog-api-key": GEMINI_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+          tools: [{
+            function_declarations: [{
+              name: "resolve_problem",
+              description: "Return the resolution for the logistics problem",
+              parameters: {
+                type: "object",
+                properties: {
+                  message: { type: "string", description: "Human-readable summary of the solution" },
+                  actions: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        action: {
+                          type: "string",
+                          enum: ["move_shipment", "create_tour", "reorder_stops", "assign_driver"],
+                        },
+                        details: { type: "string" },
+                      },
+                      required: ["action", "details"],
                     },
-                    required: ["action", "details"],
                   },
                 },
+                required: ["message", "actions"],
               },
-              required: ["message", "actions"],
+            }],
+          }],
+          tool_config: {
+            function_calling_config: {
+              mode: "ANY",
+              allowed_function_names: ["resolve_problem"],
             },
           },
-        }],
-        tool_choice: { type: "function", function: { name: "resolve_problem" } },
-      }),
-    });
+        }),
+      },
+    );
 
     if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return jsonResponse({ error: "KI-Ratenlimit erreicht. Bitte versuchen Sie es in einer Minute erneut." }, 429);
+      const errBody = await aiResponse.json().catch(() => null);
+      if (aiResponse.status === 429 || errBody?.error?.status === "RESOURCE_EXHAUSTED") {
+        return jsonResponse({
+          error: "KI-Ratenlimit erreicht. Bitte versuchen Sie es in einer Minute erneut.",
+        }, 429);
       }
-      if (aiResponse.status === 402) {
-        return jsonResponse({ error: "KI-Guthaben aufgebraucht. Bitte laden Sie Ihr Guthaben auf." }, 402);
-      }
-      const errText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errText);
-      throw new Error(`AI gateway error: ${aiResponse.status}`);
+      console.error("Gemini API error:", aiResponse.status, errBody);
+      throw new Error(`Gemini API error: ${aiResponse.status}`);
     }
 
     const aiResult = await aiResponse.json();
-    let resolution: { message: string; actions: Array<{ action: string; details: string }>; resolved: boolean; requires_manual: boolean } = {
+    let resolution: {
+      message: string;
+      actions: Array<{ action: string; details: string }>;
+      resolved: boolean;
+      requires_manual: boolean;
+    } = {
       message: "KI-Analyse abgeschlossen",
       actions: [],
       resolved: false,
@@ -181,15 +194,19 @@ Deno.serve(async (req) => {
     };
 
     try {
-      const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-      if (toolCall?.function?.arguments) {
+      const parts = aiResult.candidates?.[0]?.content?.parts ?? [];
+      const functionCall = parts.find((p: { functionCall?: unknown }) => p.functionCall)?.functionCall;
+      if (functionCall?.args && typeof functionCall.args === "object") {
         resolution = {
           ...resolution,
-          ...JSON.parse(toolCall.function.arguments),
+          ...functionCall.args,
         };
+      } else {
+        const textPart = parts.find((p: { text?: string }) => typeof p.text === "string")?.text;
+        if (textPart) resolution.message = textPart;
       }
     } catch {
-      resolution.message = aiResult.choices?.[0]?.message?.content ?? "Analyse abgeschlossen";
+      resolution.message = "Analyse abgeschlossen";
     }
 
     if (type === "capacity") {
