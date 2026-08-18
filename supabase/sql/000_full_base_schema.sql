@@ -13,11 +13,6 @@ CREATE TABLE public.company (
 );
 ALTER TABLE public.company ENABLE ROW LEVEL SECURITY;
 
--- Optionaler Alias, falls "companies" verwendet wird.
-CREATE OR REPLACE VIEW public.companies AS
-SELECT id, name
-FROM public.company;
-
 CREATE TABLE public.plan_run (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES public.company(id) ON DELETE CASCADE,
