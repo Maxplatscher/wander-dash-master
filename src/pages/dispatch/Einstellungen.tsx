@@ -136,10 +136,10 @@ export function Einstellungen() {
     },
     {
       service: 'Websuche (Artikel)',
-      variable: 'Gemini Grounding / SERPER_API_KEY / TAVILY_API_KEY',
-      value: 'Gemini-Kontingent prüfen',
-      storage: 'Gemini integriert; externe Provider als Edge Secret',
-      status: 'zu_pruefen',
+      variable: 'SERPER_API_KEY',
+      value: '••••••••••••••••',
+      storage: 'Edge Secret; Gemini Grounding als Fallback',
+      status: 'aktiv',
     },
     {
       service: 'Supabase',

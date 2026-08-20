@@ -17,7 +17,7 @@
 
 6. `plan-tour` rechnet weiterhin nur 1-dimensional mit Gewicht (`weight_kg`/`demand`) und einer Manhattan-Distanz-Heuristik — keine Volumen-/Packmittel-Logik, obwohl `artikel`/`packmittel`-Tabellen bereits existieren. Die Verknüpfung „Artikelmaße → Ladevolumen → Tourenplanung" ist konzeptionell offen (war als Donnerstag-Punkt vorgesehen).
 7. `vehicle`-Tabelle hat noch keine Laderaum-Maße (Länge/Breite/Höhe) — Voraussetzung für Punkt 6.
-8. Artikel-KI-Recherche (`research-article`/`ArticleReviewPanel`) ist end-to-end getestet. Offen bleibt ein verfügbares Websuchkontingent: Gemini Google Search liefert im aktuellen Projekt HTTP 429; alternativ `SERPER_API_KEY` oder `TAVILY_API_KEY` setzen. Quelllose Schätzungen werden inzwischen bewusst abgelehnt.
+8. Artikel-KI-Recherche (`research-article`/`ArticleReviewPanel`) ist mit Serper end-to-end getestet: konkrete Herstellerquelle, 95 % Confidence und verifizierte Produktmaße. Gemini Google Search bleibt als Fallback eingebaut; quelllose Schätzungen werden bewusst abgelehnt.
 
 ## D. Fehlende Infrastruktur
 
