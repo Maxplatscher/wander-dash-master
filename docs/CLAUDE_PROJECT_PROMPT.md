@@ -208,7 +208,7 @@ Alle Tabellen mit RLS aktiviert, aktuell 0 Zeilen (siehe Punkt 8 oben).
 - **email_log** — Log eingehender Lieferschein-E-Mails
 - **users** — App-User (email, company_id, role, driver_id, is_active) — **eigene Tabelle, nicht `auth.users`**
 - **user_roles** — Rollenzuordnung (enum `app_role`: admin/dispatcher/driver), verweist auf `auth.users`
-- **system_integrations** — externe Systemanbindungen (system_key, base_url, verschlüsselte Credentials/Tokens, metadata)
+- **system_integrations** — externe Systemanbindungen (`system_type`, `name`, `config`, optional `vault_secret_id`, Teststatus); Zugangsdaten liegen ausschließlich im Supabase Vault und werden über Edge Functions verwaltet
 
 Wichtige RPCs: `get_my_role`, `get_user_company_id`, `upsert_integration`, `delete_integration_with_secret`.
 

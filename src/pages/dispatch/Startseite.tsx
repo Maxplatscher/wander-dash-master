@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   Route,
   Users,
@@ -8,30 +8,25 @@ import {
   CheckCircle2,
   Gauge,
   Plus,
-  FileText,
-  Truck,
   Cloud,
   CloudRain,
   CloudSnow,
   CloudLightning,
   CloudFog,
   Sun,
+  Umbrella,
 } from 'lucide-react';
 import { KpiCard } from '@/components/dispatch/KpiCard';
 import { KpiDetailDialog } from '@/components/dispatch/KpiDetailDialog';
 import { LiveMap } from '@/components/dispatch/LiveMap';
 import { DriverDetailDialog } from '@/components/dispatch/DriverDetailDialog';
+import { AddDriverDialog } from '@/components/dispatch/AddDriverDialog';
 import { useDispatch } from '@/lib/dispatch-context';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useProblems } from '@/pages/dispatch/Probleme';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 
 type ViewMode = 'leitstand' | 'zeitstrahl';
 
@@ -278,7 +273,7 @@ function CompactWeather() {
     queryKey: ['weather-inline'],
     queryFn: async () => {
       const res = await fetch(
-        'https://api.open-meteo.com/v1/forecast?latitude=48.14&longitude=11.58&current_weather=true&hourly=temperature_2m,weathercode&timezone=Europe%2FBerlin',
+        'https://api.open-meteo.com/v1/forecast?latitude=48.14&longitude=11.58&current_weather=true&hourly=temperature_2m,weathercode,precipitation_probability&timezone=Europe%2FBerlin',
       );
       return res.json();
     },
@@ -292,8 +287,9 @@ function CompactWeather() {
     const times: string[] = data?.hourly?.time ?? [];
     const temps: number[] = data?.hourly?.temperature_2m ?? [];
     const codes: number[] = data?.hourly?.weathercode ?? [];
+    const precipitation: number[] = data?.hourly?.precipitation_probability ?? [];
     const now = Date.now();
-    const rows: { label: string; temp: number; code: number }[] = [];
+    const rows: { label: string; temp: number; code: number; precipitation: number }[] = [];
     for (let i = 0; i < times.length && rows.length < 4; i++) {
       const t = new Date(times[i]).getTime();
       if (t >= now - 30 * 60_000) {
@@ -301,6 +297,7 @@ function CompactWeather() {
           label: new Date(times[i]).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }),
           temp: Math.round(temps[i] ?? 0),
           code: codes[i] ?? 1,
+          precipitation: Math.round(precipitation[i] ?? 0),
         });
       }
     }
@@ -332,6 +329,10 @@ function CompactWeather() {
               <p className="text-[10px] text-dim uppercase tracking-wide">{h.label}</p>
               <HIcon className="w-3.5 h-3.5 mx-auto my-1 text-primary" />
               <p className="text-xs font-semibold text-foreground whitespace-nowrap">{h.temp}°</p>
+              <p className="mt-0.5 flex items-center justify-center gap-1 text-[10px] text-dim whitespace-nowrap">
+                <Umbrella className="h-2.5 w-2.5" aria-hidden="true" />
+                {h.precipitation} %
+              </p>
             </div>
           );
         })}
@@ -444,7 +445,6 @@ export function Startseite() {
   const { data: kpis } = useKpis(dateStr, selectedDepotId);
   const { data: driverRows } = useActiveDriversOnTour(dateStr);
   const { data: problems } = useProblems(dateStr, selectedDepotId);
-  const queryClient = useQueryClient();
 
   const [viewMode, setViewMode] = useState<ViewMode>('leitstand');
   const [detailType, setDetailType] = useState<
@@ -452,23 +452,6 @@ export function Startseite() {
   >(null);
   const [showAddDriver, setShowAddDriver] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<DriverDayRow | null>(null);
-  const [newDriver, setNewDriver] = useState({
-    name: '',
-    phone: '',
-    vehicleName: '',
-    vehicleCapacity: '',
-    hints: '',
-  });
-  const [saving, setSaving] = useState(false);
-  const [selectedVehicleId, setSelectedVehicleId] = useState('new');
-
-  const { data: existingVehicles } = useQuery({
-    queryKey: ['vehicles-for-driver'],
-    queryFn: async () => {
-      const { data } = await supabase.from('vehicle').select('id, name, capacity');
-      return data ?? [];
-    },
-  });
 
   const activeOnTour = useMemo(
     () => (driverRows ?? []).filter((d) => d.tourId),
@@ -485,66 +468,6 @@ export function Startseite() {
     year: 'numeric',
   });
   const kurzlage = `${kpis?.activeTours ?? 0} von ${kpis?.totalTours ?? 0} Touren laufen, ${kpis?.unassigned ?? 0} Sendungen warten auf Zuordnung`;
-
-  const handleAddDriver = async () => {
-    if (!newDriver.name.trim()) return;
-    setSaving(true);
-    try {
-      const { data: cid } = await supabase.rpc('get_user_company_id');
-      if (!cid) {
-        toast.error('Kein Unternehmen zugeordnet');
-        setSaving(false);
-        return;
-      }
-
-      let vehicleId: string | null = null;
-      if (selectedVehicleId === 'new' && newDriver.vehicleName.trim()) {
-        const { data: veh, error: vErr } = await supabase
-          .from('vehicle')
-          .insert({
-            name: newDriver.vehicleName.trim(),
-            capacity: newDriver.vehicleCapacity ? parseInt(newDriver.vehicleCapacity, 10) : null,
-            company_id: cid,
-          })
-          .select('id')
-          .single();
-        if (vErr) throw vErr;
-        vehicleId = veh.id;
-      } else if (selectedVehicleId !== 'new') {
-        vehicleId = selectedVehicleId;
-      }
-
-      const { data: driver, error } = await supabase
-        .from('driver')
-        .insert({
-          name: newDriver.name.trim(),
-          phone: newDriver.phone.trim() || null,
-          company_id: cid,
-          status: 'verfügbar',
-          assigned_vehicle_id: vehicleId,
-          notes: newDriver.hints.trim() || null,
-        })
-        .select('id')
-        .single();
-      if (error) throw error;
-
-      if (newDriver.hints.trim()) {
-        console.log('Driver hints for AI:', newDriver.hints.trim(), 'driver:', driver.id, 'vehicle:', vehicleId);
-      }
-
-      toast.success('Fahrer & Fahrzeug hinzugefügt');
-      setNewDriver({ name: '', phone: '', vehicleName: '', vehicleCapacity: '', hints: '' });
-      setSelectedVehicleId('new');
-      setShowAddDriver(false);
-      queryClient.invalidateQueries({ queryKey: ['active-drivers-tour'] });
-      queryClient.invalidateQueries({ queryKey: ['vehicles-for-driver'] });
-      queryClient.invalidateQueries({ queryKey: ['kpis'] });
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Fehler beim Speichern');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="space-y-5 max-w-[1600px] mx-auto">
@@ -710,112 +633,7 @@ export function Startseite() {
         <TimelineView rows={driverRows ?? []} problems={problems ?? []} />
       )}
 
-      <Dialog open={showAddDriver} onOpenChange={setShowAddDriver}>
-        <DialogContent className="sm:max-w-lg border-hairline">
-          <DialogHeader>
-            <DialogTitle>Neuen Fahrer hinzufügen</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Name *</label>
-              <Input
-                placeholder="z.B. Max Müller"
-                value={newDriver.name}
-                onChange={(e) => setNewDriver((p) => ({ ...p, name: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Telefon</label>
-              <Input
-                placeholder="+49 171 ..."
-                value={newDriver.phone}
-                onChange={(e) => setNewDriver((p) => ({ ...p, phone: e.target.value }))}
-              />
-            </div>
-            <div className="border-t border-hairline pt-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Truck className="w-4 h-4 text-primary" />
-                <label className="text-sm font-semibold text-foreground">Fahrzeug zuweisen</label>
-              </div>
-              {existingVehicles && existingVehicles.length > 0 ? (
-                <>
-                  <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Fahrzeug wählen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">+ Neues Fahrzeug anlegen</SelectItem>
-                      {existingVehicles.map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {v.name} {v.capacity ? `(${v.capacity} kg)` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedVehicleId === 'new' && (
-                    <div className="mt-3 space-y-3 pl-2 border-l-2 border-primary/30">
-                      <div>
-                        <label className="text-sm font-medium mb-1 block">Fahrzeugname *</label>
-                        <Input
-                          placeholder="z.B. Sprinter 1"
-                          value={newDriver.vehicleName}
-                          onChange={(e) => setNewDriver((p) => ({ ...p, vehicleName: e.target.value }))}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium mb-1 block">Kapazität (kg)</label>
-                        <Input
-                          type="number"
-                          placeholder="z.B. 1500"
-                          value={newDriver.vehicleCapacity}
-                          onChange={(e) =>
-                            setNewDriver((p) => ({ ...p, vehicleCapacity: e.target.value }))
-                          }
-                        />
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="space-y-3">
-                  <p className="meta-text">Noch kein Fahrzeug vorhanden – lege eines an:</p>
-                  <Input
-                    placeholder="Fahrzeugname *"
-                    value={newDriver.vehicleName}
-                    onChange={(e) => setNewDriver((p) => ({ ...p, vehicleName: e.target.value }))}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Kapazität (kg)"
-                    value={newDriver.vehicleCapacity}
-                    onChange={(e) => setNewDriver((p) => ({ ...p, vehicleCapacity: e.target.value }))}
-                  />
-                </div>
-              )}
-            </div>
-            <div className="border-t border-hairline pt-4">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="w-4 h-4 text-warning" />
-                <label className="text-sm font-semibold">Hinweise</label>
-              </div>
-              <Textarea
-                placeholder="z.B. kennt Gebiet Nord gut…"
-                value={newDriver.hints}
-                onChange={(e) => setNewDriver((p) => ({ ...p, hints: e.target.value }))}
-                rows={3}
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowAddDriver(false)}>
-                Abbrechen
-              </Button>
-              <Button onClick={() => void handleAddDriver()} disabled={saving || !newDriver.name.trim()}>
-                {saving ? 'Speichern…' : 'Fahrer anlegen'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AddDriverDialog open={showAddDriver} onOpenChange={setShowAddDriver} />
 
       <DriverDetailDialog
         open={!!selectedDriver?.tourId}

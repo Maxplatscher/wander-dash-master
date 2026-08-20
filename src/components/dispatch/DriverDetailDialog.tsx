@@ -1,22 +1,35 @@
-import { useQuery } from '@tanstack/react-query';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckCircle2, Circle, MapPin, Package, Clock, Truck, Route } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { cn } from '@/lib/utils';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { useQuery } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  CheckCircle2,
+  Circle,
+  MapPin,
+  Package,
+  Clock,
+  Truck,
+  Route,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 import {
   getCyanSquareMarkerIcon,
   getDarkMapOptions,
   getGoogleMapsApiKey,
   GOOGLE_MAPS_LIBRARIES,
   GOOGLE_MAPS_LOADER_ID,
-} from '@/lib/google-maps';
+} from "@/lib/google-maps";
 
 const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
 
 interface DriverInfo {
   name: string;
-  tourId: string;
+  tourId: string | null;
   tourDescription: string;
   currentLocation: string;
   completedStops: number;
@@ -31,24 +44,30 @@ interface Props {
   gradientClass: string;
 }
 
-function useTourStops(tourId: string | undefined) {
+function useTourStops(tourId: string | null | undefined) {
   return useQuery({
-    queryKey: ['tour-stops-detail', tourId],
+    queryKey: ["tour-stops-detail", tourId],
     enabled: !!tourId,
     queryFn: async () => {
       const { data: stops } = await supabase
-        .from('tour_stop')
-        .select('id, stop_index, driver_completed, driver_completed_at, arrival_time, departure_time, shipment_id, segment_cost')
-        .eq('tour_id', tourId!)
-        .order('stop_index');
+        .from("tour_stop")
+        .select(
+          "id, stop_index, driver_completed, driver_completed_at, arrival_time, departure_time, shipment_id, segment_cost",
+        )
+        .eq("tour_id", tourId!)
+        .order("stop_index");
 
       if (!stops?.length) return [];
 
-      const shipmentIds = stops.map((s) => s.shipment_id).filter(Boolean) as string[];
+      const shipmentIds = stops
+        .map((s) => s.shipment_id)
+        .filter(Boolean) as string[];
       const { data: shipments } = await supabase
-        .from('shipment')
-        .select('id, customer_name, delivery_address, weight_kg, window_start, window_end')
-        .in('id', shipmentIds);
+        .from("shipment")
+        .select(
+          "id, customer_name, delivery_address, weight_kg, window_start, window_end",
+        )
+        .in("id", shipmentIds);
 
       const shipmentMap = new Map((shipments ?? []).map((s) => [s.id, s]));
 
@@ -56,8 +75,8 @@ function useTourStops(tourId: string | undefined) {
         const shipment = s.shipment_id ? shipmentMap.get(s.shipment_id) : null;
         return {
           ...s,
-          customerName: shipment?.customer_name ?? 'Unbekannt',
-          address: shipment?.delivery_address ?? '–',
+          customerName: shipment?.customer_name ?? "Unbekannt",
+          address: shipment?.delivery_address ?? "–",
           weightKg: shipment?.weight_kg ?? 0,
           lat: null as number | null,
           lng: null as number | null,
@@ -116,44 +135,50 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
               <span className="whitespace-nowrap">{progressPercent}%</span>
             </div>
             <div className="progress-track">
-              <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
+              <div
+                className="progress-fill"
+                style={{ width: `${progressPercent}%` }}
+              />
             </div>
           </div>
         </div>
 
         <div className="p-5 space-y-5">
-          <div>
-            <h3 className="card-title flex items-center gap-2 mb-2">
-              <MapPin className="w-4 h-4 text-primary" /> Live-Standort
-            </h3>
-            <div
-              className="rounded-sm border border-hairline overflow-hidden bg-[#101012]"
-              style={{ height: 200 }}
-            >
-              {isLoaded ? (
-                <GoogleMap
-                  mapContainerStyle={{ width: '100%', height: '100%' }}
-                  center={mapCenter}
-                  zoom={12}
-                  options={getDarkMapOptions()}
-                >
-                  <Marker
-                    position={mapCenter}
-                    icon={getCyanSquareMarkerIcon()}
-                    title={driver.name}
-                  />
-                </GoogleMap>
-              ) : (
-                <div className="h-full flex items-center justify-center meta-text">
-                  Karte wird geladen…
-                </div>
-              )}
+          {driver.tourId && (
+            <div>
+              <h3 className="card-title flex items-center gap-2 mb-2">
+                <MapPin className="w-4 h-4 text-primary" /> Live-Standort
+              </h3>
+              <div
+                className="rounded-sm border border-hairline overflow-hidden bg-[#101012]"
+                style={{ height: 200 }}
+              >
+                {isLoaded ? (
+                  <GoogleMap
+                    mapContainerStyle={{ width: "100%", height: "100%" }}
+                    center={mapCenter}
+                    zoom={12}
+                    options={getDarkMapOptions()}
+                  >
+                    <Marker
+                      position={mapCenter}
+                      icon={getCyanSquareMarkerIcon()}
+                      title={driver.name}
+                    />
+                  </GoogleMap>
+                ) : (
+                  <div className="h-full flex items-center justify-center meta-text">
+                    Karte wird geladen…
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <h3 className="card-title flex items-center gap-2 mb-2">
-              <CheckCircle2 className="w-4 h-4 text-success" /> Erledigte Stops ({completedStops.length})
+              <CheckCircle2 className="w-4 h-4 text-success" /> Erledigte Stops
+              ({completedStops.length})
             </h3>
             {isLoading ? (
               <p className="meta-text">Laden…</p>
@@ -162,15 +187,22 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
             ) : (
               <div className="space-y-1.5">
                 {completedStops.map((stop) => (
-                  <div key={stop.id} className="flex items-center gap-3 sub-card p-2.5 text-xs">
+                  <div
+                    key={stop.id}
+                    className="flex items-center gap-3 sub-card p-2.5 text-xs"
+                  >
                     <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground line-through opacity-70">
                         {stop.customerName}
                       </p>
-                      <p className="text-muted-foreground truncate">{stop.address}</p>
+                      <p className="text-muted-foreground truncate">
+                        {stop.address}
+                      </p>
                     </div>
-                    <span className="text-muted-foreground whitespace-nowrap">{stop.weightKg} kg</span>
+                    <span className="text-muted-foreground whitespace-nowrap">
+                      {stop.weightKg} kg
+                    </span>
                   </div>
                 ))}
               </div>
@@ -183,7 +215,9 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
                 <Route className="w-4 h-4 text-primary" /> Nächster Stop
               </h3>
               <div className="rounded-sm border border-primary/30 bg-primary/5 p-3">
-                <p className="font-semibold text-sm text-foreground">{nextStop.customerName}</p>
+                <p className="font-semibold text-sm text-foreground">
+                  {nextStop.customerName}
+                </p>
                 <p className="meta-text mt-0.5">{nextStop.address}</p>
                 <div className="flex items-center gap-3 mt-2 meta-text">
                   <span className="flex items-center gap-1">
@@ -198,17 +232,27 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
           {upcomingStops.length > 1 && (
             <div>
               <h3 className="card-title flex items-center gap-2 mb-2">
-                <Clock className="w-4 h-4 text-warning" /> Noch zu fahren ({upcomingStops.length - 1})
+                <Clock className="w-4 h-4 text-warning" /> Noch zu fahren (
+                {upcomingStops.length - 1})
               </h3>
               <div className="space-y-1.5">
                 {upcomingStops.slice(1).map((stop) => (
-                  <div key={stop.id} className="flex items-center gap-3 sub-card p-2.5 text-xs">
+                  <div
+                    key={stop.id}
+                    className="flex items-center gap-3 sub-card p-2.5 text-xs"
+                  >
                     <Circle className="w-4 h-4 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground">{stop.customerName}</p>
-                      <p className="text-muted-foreground truncate">{stop.address}</p>
+                      <p className="font-medium text-foreground">
+                        {stop.customerName}
+                      </p>
+                      <p className="text-muted-foreground truncate">
+                        {stop.address}
+                      </p>
                     </div>
-                    <span className="text-muted-foreground whitespace-nowrap">{stop.weightKg} kg</span>
+                    <span className="text-muted-foreground whitespace-nowrap">
+                      {stop.weightKg} kg
+                    </span>
                   </div>
                 ))}
               </div>

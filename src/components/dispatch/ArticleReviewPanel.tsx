@@ -41,6 +41,17 @@ function parseNum(v: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+async function functionErrorMessage(error: unknown): Promise<string> {
+  if (error && typeof error === 'object' && 'context' in error) {
+    const context = (error as { context?: unknown }).context;
+    if (context instanceof Response) {
+      const body = await context.clone().json().catch(() => null);
+      if (body && typeof body.error === 'string') return body.error;
+    }
+  }
+  return error instanceof Error ? error.message : 'Recherche fehlgeschlagen';
+}
+
 export function ArticleReviewPanel({ shipments, dateStr }: Props) {
   const queryClient = useQueryClient();
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -91,7 +102,7 @@ export function ArticleReviewPanel({ shipments, dateStr }: Props) {
       toast.success(n ? `${n} unbekannte Artikel recherchiert` : 'Keine unbekannten Artikel');
       invalidate();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Recherche fehlgeschlagen');
+      toast.error(await functionErrorMessage(e));
     } finally {
       setBusyKey(null);
     }
@@ -117,7 +128,7 @@ export function ArticleReviewPanel({ shipments, dateStr }: Props) {
       }
       invalidate();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Recherche fehlgeschlagen');
+      toast.error(await functionErrorMessage(e));
     } finally {
       setBusyKey(null);
     }

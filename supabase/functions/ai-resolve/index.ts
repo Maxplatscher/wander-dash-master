@@ -44,7 +44,8 @@ Deno.serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
 
-    const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
+    // Stable alias avoids hard failures when a dated model is retired for an API key/project.
+    const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-latest";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -177,7 +178,9 @@ Deno.serve(async (req) => {
         }, 429);
       }
       console.error("Gemini API error:", aiResponse.status, errBody);
-      throw new Error(`Gemini API error: ${aiResponse.status}`);
+      const providerMessage =
+        typeof errBody?.error?.message === "string" ? errBody.error.message : "Unbekannter Provider-Fehler";
+      throw new Error(`Gemini API error ${aiResponse.status}: ${providerMessage}`);
     }
 
     const aiResult = await aiResponse.json();

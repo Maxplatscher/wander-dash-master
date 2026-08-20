@@ -4,8 +4,8 @@
  * Provider-Strategie:
  * 1. Optional echte Websuche: SERPER_API_KEY oder TAVILY_API_KEY
  *    (Site-eingeschränkt über research_source-Integrationen, sonst allgemein)
- * 2. Extraktion/Strukturierung: GEMINI_API_KEY → Gemini generateContent (wie ai-resolve)
- * 3. Ohne Such-API: Gemini mit Branchen-URLs im Prompt (niedrigere confidence)
+ * 2. Ohne externen Such-Key: Gemini Grounding mit Google Search
+ * 3. Extraktion/Strukturierung: GEMINI_API_KEY → Gemini generateContent (wie ai-resolve)
  *
  * Schreibt nie blind in `artikel` — nur Vorschläge; optional in shipment.missing_fields.
  */
@@ -13,7 +13,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 type ArticleSuggestion = {
@@ -33,6 +34,28 @@ function jsonResponse(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+async function fetchGeminiWithRetry(
+  url: string,
+  init: RequestInit,
+  maxAttempts = 4,
+): Promise<Response> {
+  let response: Response | null = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    response = await fetch(url, init);
+    const retryable =
+      response.status === 429 ||
+      response.status === 500 ||
+      response.status === 502 ||
+      response.status === 503 ||
+      response.status === 504;
+    if (!retryable || attempt === maxAttempts) return response;
+    await new Promise((resolve) =>
+      setTimeout(resolve, 500 * Math.pow(2, attempt - 1)),
+    );
+  }
+  return response!;
 }
 
 function articleKey(name: string, artikelnummer?: string | null): string {
@@ -63,17 +86,28 @@ function extractPositionArticles(
     if (!row || typeof row !== "object") continue;
     const r = row as Record<string, unknown>;
     const name = String(
-      r.name ?? r.bezeichnung ?? r.artikel ?? r.artikelname ?? r.description ?? r.title ?? "",
+      r.name ??
+        r.bezeichnung ??
+        r.artikel ??
+        r.artikelname ??
+        r.description ??
+        r.title ??
+        "",
     ).trim();
     if (!name) continue;
     const artikelnummer =
-      String(r.artikelnummer ?? r.sku ?? r.artnr ?? r.article_number ?? r.nr ?? "").trim() || null;
+      String(
+        r.artikelnummer ?? r.sku ?? r.artnr ?? r.article_number ?? r.nr ?? "",
+      ).trim() || null;
     out.push({ name, artikelnummer });
   }
   return out;
 }
 
-async function searchSerper(query: string, apiKey: string): Promise<SearchHit[]> {
+async function searchSerper(
+  query: string,
+  apiKey: string,
+): Promise<SearchHit[]> {
   const res = await fetch("https://google.serper.dev/search", {
     method: "POST",
     headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
@@ -85,14 +119,19 @@ async function searchSerper(query: string, apiKey: string): Promise<SearchHit[]>
   }
   const data = await res.json();
   const organic = Array.isArray(data.organic) ? data.organic : [];
-  return organic.slice(0, 8).map((o: { title?: string; link?: string; snippet?: string }) => ({
-    title: o.title ?? "",
-    url: o.link ?? "",
-    snippet: o.snippet ?? "",
-  }));
+  return organic
+    .slice(0, 8)
+    .map((o: { title?: string; link?: string; snippet?: string }) => ({
+      title: o.title ?? "",
+      url: o.link ?? "",
+      snippet: o.snippet ?? "",
+    }));
 }
 
-async function searchTavily(query: string, apiKey: string): Promise<SearchHit[]> {
+async function searchTavily(
+  query: string,
+  apiKey: string,
+): Promise<SearchHit[]> {
   const res = await fetch("https://api.tavily.com/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -110,18 +149,125 @@ async function searchTavily(query: string, apiKey: string): Promise<SearchHit[]>
   }
   const data = await res.json();
   const results = Array.isArray(data.results) ? data.results : [];
-  return results.slice(0, 8).map((r: { title?: string; url?: string; content?: string }) => ({
-    title: r.title ?? "",
-    url: r.url ?? "",
-    snippet: r.content ?? "",
-  }));
+  return results
+    .slice(0, 8)
+    .map((r: { title?: string; url?: string; content?: string }) => ({
+      title: r.title ?? "",
+      url: r.url ?? "",
+      snippet: r.content ?? "",
+    }));
 }
 
-async function webSearch(query: string): Promise<{ hits: SearchHit[]; provider: string | null }> {
+async function resolveGroundingUrl(rawUrl: string): Promise<string> {
+  try {
+    const url = new URL(rawUrl);
+    if (
+      !url.hostname.includes("google.com") &&
+      !url.hostname.includes("googleusercontent.com")
+    ) {
+      return rawUrl;
+    }
+    const response = await fetch(rawUrl, {
+      method: "HEAD",
+      redirect: "manual",
+    });
+    const location = response.headers.get("location");
+    return location ? new URL(location, rawUrl).toString() : rawUrl;
+  } catch {
+    return rawUrl;
+  }
+}
+
+async function searchGeminiGrounded(
+  query: string,
+  apiKey: string,
+  model: string,
+): Promise<{ hits: SearchHit[]; status: string }> {
+  const response = await fetchGeminiWithRetry(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "x-goog-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text:
+                  `Recherchiere im Web nach: ${query}\n` +
+                  "Fasse nur belastbare Angaben zu Produkt-Abmessungen und Gewicht kurz zusammen. " +
+                  "Bevorzuge Hersteller- oder Händler-Produktseiten und keine Übersichts-/Startseiten.",
+              },
+            ],
+          },
+        ],
+        tools: [{ google_search: {} }],
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const status = `http-${response.status}`;
+    console.error(
+      "Gemini Google Search error:",
+      response.status,
+      await response.text(),
+    );
+    return { hits: [], status };
+  }
+
+  const result = await response.json();
+  const candidate = result.candidates?.[0];
+  const summary = (candidate?.content?.parts ?? [])
+    .map((part: { text?: string }) => part.text ?? "")
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, 4000);
+  const chunks = candidate?.groundingMetadata?.groundingChunks ?? [];
+  const rawHits = chunks
+    .map((chunk: { web?: { title?: string; uri?: string } }) => chunk.web)
+    .filter(
+      (
+        web: { uri?: string } | undefined,
+      ): web is { title?: string; uri: string } => Boolean(web?.uri),
+    )
+    .slice(0, 8);
+
+  const hits = await Promise.all(
+    rawHits.map(async (web: { title?: string; uri: string }) => ({
+      title: web.title ?? "",
+      url: await resolveGroundingUrl(web.uri),
+      snippet: summary,
+    })),
+  );
+  return { hits, status: hits.length ? "ok" : "empty" };
+}
+
+async function webSearch(
+  query: string,
+): Promise<{ hits: SearchHit[]; provider: string | null }> {
   const serper = Deno.env.get("SERPER_API_KEY");
-  if (serper) return { hits: await searchSerper(query, serper), provider: "serper" };
+  if (serper)
+    return { hits: await searchSerper(query, serper), provider: "serper" };
   const tavily = Deno.env.get("TAVILY_API_KEY");
-  if (tavily) return { hits: await searchTavily(query, tavily), provider: "tavily" };
+  if (tavily)
+    return { hits: await searchTavily(query, tavily), provider: "tavily" };
+  const gemini = Deno.env.get("GEMINI_API_KEY");
+  if (gemini) {
+    const model = Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-latest";
+    const result = await searchGeminiGrounded(query, gemini, model);
+    return {
+      hits: result.hits,
+      provider:
+        result.status === "ok"
+          ? "gemini-google-search"
+          : `gemini-google-search-${result.status}`,
+    };
+  }
   return { hits: [], provider: null };
 }
 
@@ -133,14 +279,17 @@ async function synthesizeWithGemini(params: {
 }): Promise<ArticleSuggestion> {
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
   if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY not configured (benötigt für Maß-Extraktion)");
+    throw new Error(
+      "GEMINI_API_KEY not configured (benötigt für Maß-Extraktion)",
+    );
   }
-  const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
+  // Stable alias avoids hard failures when a dated model is retired for an API key/project.
+  const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-latest";
 
   const systemPrompt =
     "Du bist ein Logistik-Stammdaten-Assistent. Extrahiere Packmaße und Gewicht eines Artikels aus Suchtreffern oder Branchenwissen. " +
     "Erfinde keine präzisen Maße ohne Beleg. Wenn unsicher: null-Felder und niedrige confidence. " +
-    "quelle_url muss eine konkrete URL aus den Treffern sein (oder eine der Branchen-Domains), nie eine erfundene URL.";
+    "quelle_url muss exakt eine konkrete URL aus den bereitgestellten Suchtreffern sein, nie eine Startseite oder erfundene URL.";
 
   const userPrompt = [
     `Artikel: ${params.name}`,
@@ -156,7 +305,7 @@ async function synthesizeWithGemini(params: {
     .filter(Boolean)
     .join("\n");
 
-  const aiResponse = await fetch(
+  const aiResponse = await fetchGeminiWithRetry(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
     {
       method: "POST",
@@ -167,25 +316,41 @@ async function synthesizeWithGemini(params: {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-        tools: [{
-          function_declarations: [{
-            name: "article_dimensions",
-            description: "Structured packaging dimensions for the article",
-            parameters: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                length_mm: { type: "number", nullable: true },
-                width_mm: { type: "number", nullable: true },
-                height_mm: { type: "number", nullable: true },
-                weight_kg: { type: "number", nullable: true },
-                quelle_url: { type: "string", nullable: true },
-                confidence: { type: "number", nullable: true, description: "0..1" },
+        tools: [
+          {
+            function_declarations: [
+              {
+                name: "article_dimensions",
+                description: "Structured packaging dimensions for the article",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    length_mm: { type: "number", nullable: true },
+                    width_mm: { type: "number", nullable: true },
+                    height_mm: { type: "number", nullable: true },
+                    weight_kg: { type: "number", nullable: true },
+                    quelle_url: { type: "string", nullable: true },
+                    confidence: {
+                      type: "number",
+                      nullable: true,
+                      description: "0..1",
+                    },
+                  },
+                  required: [
+                    "name",
+                    "length_mm",
+                    "width_mm",
+                    "height_mm",
+                    "weight_kg",
+                    "quelle_url",
+                    "confidence",
+                  ],
+                },
               },
-              required: ["name", "length_mm", "width_mm", "height_mm", "weight_kg", "quelle_url", "confidence"],
-            },
-          }],
-        }],
+            ],
+          },
+        ],
         tool_config: {
           function_calling_config: {
             mode: "ANY",
@@ -198,19 +363,32 @@ async function synthesizeWithGemini(params: {
 
   if (!aiResponse.ok) {
     const errBody = await aiResponse.json().catch(() => null);
-    if (aiResponse.status === 429 || errBody?.error?.status === "RESOURCE_EXHAUSTED") {
+    if (
+      aiResponse.status === 429 ||
+      errBody?.error?.status === "RESOURCE_EXHAUSTED"
+    ) {
       throw new Error("KI-Ratenlimit erreicht");
     }
     console.error("Gemini API error:", aiResponse.status, errBody);
-    throw new Error(`Gemini API error: ${aiResponse.status}`);
+    const providerMessage =
+      typeof errBody?.error?.message === "string"
+        ? errBody.error.message
+        : "Unbekannter Provider-Fehler";
+    throw new Error(
+      `Gemini API error ${aiResponse.status}: ${providerMessage}`,
+    );
   }
 
   const aiResult = await aiResponse.json();
   const parts = aiResult.candidates?.[0]?.content?.parts ?? [];
-  const functionCall = parts.find((p: { functionCall?: unknown }) => p.functionCall)?.functionCall;
-  const parsed = (functionCall?.args && typeof functionCall.args === "object"
-    ? functionCall.args
-    : null) as ArticleSuggestion | null;
+  const functionCall = parts.find(
+    (p: { functionCall?: unknown }) => p.functionCall,
+  )?.functionCall;
+  const parsed = (
+    functionCall?.args && typeof functionCall.args === "object"
+      ? functionCall.args
+      : null
+  ) as ArticleSuggestion | null;
 
   if (!parsed) {
     return {
@@ -224,8 +402,16 @@ async function synthesizeWithGemini(params: {
     };
   }
 
-  let confidence = typeof parsed.confidence === "number" ? parsed.confidence : 0.3;
+  let confidence =
+    typeof parsed.confidence === "number" ? parsed.confidence : 0.3;
   if (!params.hits.length) confidence = Math.min(confidence, 0.35);
+
+  const allowedSourceUrls = new Set(params.hits.map((hit) => hit.url));
+  const sourceUrl =
+    typeof parsed.quelle_url === "string" &&
+    allowedSourceUrls.has(parsed.quelle_url)
+      ? parsed.quelle_url
+      : (params.hits[0]?.url ?? null);
 
   return {
     name: parsed.name?.trim() || params.name,
@@ -233,7 +419,7 @@ async function synthesizeWithGemini(params: {
     width_mm: numOrNull(parsed.width_mm),
     height_mm: numOrNull(parsed.height_mm),
     weight_kg: numOrNull(parsed.weight_kg),
-    quelle_url: typeof parsed.quelle_url === "string" ? parsed.quelle_url : params.hits[0]?.url ?? null,
+    quelle_url: sourceUrl,
     confidence,
   };
 }
@@ -248,10 +434,18 @@ async function researchOne(params: {
   companyId: string;
   name: string;
   artikelnummer: string | null;
-}): Promise<{ suggestion: ArticleSuggestion; search_provider: string | null; known: boolean }> {
+}): Promise<{
+  suggestion: ArticleSuggestion;
+  search_provider: string | null;
+  known: boolean;
+}> {
   const { supabase, companyId, name, artikelnummer } = params;
 
-  let knownQuery = supabase.from("artikel").select("id").eq("company_id", companyId).ilike("name", name);
+  let knownQuery = supabase
+    .from("artikel")
+    .select("id")
+    .eq("company_id", companyId)
+    .ilike("name", name);
   if (artikelnummer) {
     const { data: byNr } = await supabase
       .from("artikel")
@@ -277,7 +471,9 @@ async function researchOne(params: {
     }
   }
 
-  const { data: byName } = await knownQuery.not("bestaetigt_am", "is", null).limit(1);
+  const { data: byName } = await knownQuery
+    .not("bestaetigt_am", "is", null)
+    .limit(1);
   if (byName?.length) {
     return {
       suggestion: {
@@ -338,7 +534,20 @@ async function researchOne(params: {
     return true;
   });
 
-  const suggestion = await synthesizeWithGemini({ name, artikelnummer, sourceHosts, hits });
+  if (!hits.length) {
+    const providerDetail = search_provider ?? "kein Suchprovider";
+    throw new Error(
+      `Keine belastbare Webquelle gefunden (${providerDetail}). ` +
+        "Bitte SERPER_API_KEY/TAVILY_API_KEY setzen oder das Gemini-Google-Search-Kontingent prüfen.",
+    );
+  }
+
+  const suggestion = await synthesizeWithGemini({
+    name,
+    artikelnummer,
+    sourceHosts,
+    hits,
+  });
   return { suggestion, search_provider, known: false };
 }
 
@@ -355,26 +564,41 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return jsonResponse({ error: "Unauthorized" }, 401);
 
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userData, error: userError } = await userClient.auth.getUser();
-    if (userError || !userData.user) return jsonResponse({ error: "Unauthorized" }, 401);
+    const userClient = createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      {
+        global: { headers: { Authorization: authHeader } },
+      },
+    );
+    const { data: userData, error: userError } =
+      await userClient.auth.getUser();
+    if (userError || !userData.user)
+      return jsonResponse({ error: "Unauthorized" }, 401);
 
     const body = await req.json();
     const action = body.action ?? "research";
 
     const { data: companyIdRpc } = await userClient.rpc("get_user_company_id");
-    const companyId = (body.company_id as string | undefined) ?? (companyIdRpc as string | null);
+    const companyId =
+      (body.company_id as string | undefined) ??
+      (companyIdRpc as string | null);
     if (!companyId) return jsonResponse({ error: "company_id required" }, 400);
 
     if (action === "research") {
       const name = String(body.name ?? body.article_name ?? "").trim();
       if (!name) return jsonResponse({ error: "name required" }, 400);
-      const artikelnummer = body.artikelnummer ? String(body.artikelnummer).trim() : null;
+      const artikelnummer = body.artikelnummer
+        ? String(body.artikelnummer).trim()
+        : null;
       const shipmentId = body.shipment_id as string | undefined;
 
-      const result = await researchOne({ supabase, companyId, name, artikelnummer });
+      const result = await researchOne({
+        supabase,
+        companyId,
+        name,
+        artikelnummer,
+      });
 
       if (shipmentId && !result.known) {
         const { data: shipment } = await supabase
@@ -386,10 +610,13 @@ Deno.serve(async (req) => {
 
         if (shipment) {
           const mf =
-            shipment.missing_fields && typeof shipment.missing_fields === "object"
+            shipment.missing_fields &&
+            typeof shipment.missing_fields === "object"
               ? { ...(shipment.missing_fields as Record<string, unknown>) }
               : {};
-          const list = Array.isArray(mf.unknown_articles) ? [...mf.unknown_articles] : [];
+          const list = Array.isArray(mf.unknown_articles)
+            ? [...mf.unknown_articles]
+            : [];
           const key = articleKey(name, artikelnummer);
           const idx = list.findIndex((x: { key?: string }) => x?.key === key);
           const entry = {
@@ -397,12 +624,16 @@ Deno.serve(async (req) => {
             name,
             artikelnummer,
             suggestion: result.suggestion,
+            search_provider: result.search_provider,
             status: "pending",
           };
           if (idx >= 0) list[idx] = entry;
           else list.push(entry);
           mf.unknown_articles = list;
-          await supabase.from("shipment").update({ missing_fields: mf }).eq("id", shipmentId);
+          await supabase
+            .from("shipment")
+            .update({ missing_fields: mf })
+            .eq("id", shipmentId);
         }
       }
 
@@ -411,7 +642,8 @@ Deno.serve(async (req) => {
 
     if (action === "scan_shipment") {
       const shipmentId = body.shipment_id as string;
-      if (!shipmentId) return jsonResponse({ error: "shipment_id required" }, 400);
+      if (!shipmentId)
+        return jsonResponse({ error: "shipment_id required" }, 400);
 
       const { data: shipment, error: shipErr } = await supabase
         .from("shipment")
@@ -420,14 +652,17 @@ Deno.serve(async (req) => {
         .eq("company_id", companyId)
         .maybeSingle();
 
-      if (shipErr || !shipment) return jsonResponse({ error: "Shipment not found" }, 404);
+      if (shipErr || !shipment)
+        return jsonResponse({ error: "Shipment not found" }, 404);
 
       const positions = extractPositionArticles(shipment.positionen);
       const mf =
         shipment.missing_fields && typeof shipment.missing_fields === "object"
           ? { ...(shipment.missing_fields as Record<string, unknown>) }
           : {};
-      const list = Array.isArray(mf.unknown_articles) ? [...mf.unknown_articles] : [];
+      const list = Array.isArray(mf.unknown_articles)
+        ? [...mf.unknown_articles]
+        : [];
       const researched: unknown[] = [];
 
       for (const pos of positions) {
@@ -445,6 +680,7 @@ Deno.serve(async (req) => {
           name: pos.name,
           artikelnummer: pos.artikelnummer,
           suggestion: result.suggestion,
+          search_provider: result.search_provider,
           status: "pending",
         };
         const idx = list.findIndex((x: { key?: string }) => x?.key === key);
@@ -454,12 +690,17 @@ Deno.serve(async (req) => {
       }
 
       mf.unknown_articles = list;
-      await supabase.from("shipment").update({ missing_fields: mf }).eq("id", shipmentId);
+      await supabase
+        .from("shipment")
+        .update({ missing_fields: mf })
+        .eq("id", shipmentId);
 
       return jsonResponse({
         scanned: positions.length,
         unknown: researched.length,
-        unknown_articles: list.filter((x: { status?: string }) => x?.status === "pending"),
+        unknown_articles: list.filter(
+          (x: { status?: string }) => x?.status === "pending",
+        ),
       });
     }
 

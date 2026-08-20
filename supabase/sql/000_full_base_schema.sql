@@ -350,17 +350,17 @@ CREATE TABLE public.system_integrations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL,
   depot_id UUID REFERENCES public.depot(id) ON DELETE CASCADE,
-  system_key TEXT NOT NULL,
-  display_name TEXT,
-  base_url TEXT,
-  username TEXT,
-  token_expires_at TIMESTAMPTZ,
+  system_type TEXT NOT NULL,
+  name TEXT NOT NULL,
+  config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  vault_secret_id UUID,
   is_active BOOLEAN NOT NULL DEFAULT true,
-  last_sync_at TIMESTAMPTZ,
-  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  last_test_at TIMESTAMPTZ,
+  last_test_result BOOLEAN,
+  last_test_message TEXT,
+  last_test_latency_ms INTEGER,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT system_integrations_scope_key_unique UNIQUE (company_id, depot_id, system_key)
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.system_integrations ENABLE ROW LEVEL SECURITY;
 

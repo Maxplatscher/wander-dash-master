@@ -30,7 +30,7 @@ export function DepotSwitcher({ className, compact = true }: DepotSwitcherProps)
       <SelectTrigger
         className={cn(
           compact
-            ? 'h-8 min-w-[150px] max-w-[220px] text-xs rounded-lg border-white/10 bg-white/5 text-foreground'
+            ? 'h-8 min-w-[150px] max-w-[220px] text-xs rounded border-white/10 bg-white/5 text-foreground'
             : 'h-10 w-full',
           className,
         )}

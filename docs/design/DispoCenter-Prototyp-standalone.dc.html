@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+<template id="__bundler_thumbnail" data-bg-color="#0d0d0f">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#0d0d0f"/>
+    <rect x="360" y="240" width="480" height="320" fill="#151517" stroke="#26262b" stroke-width="2"/>
+    <rect x="360" y="240" width="480" height="56" fill="#1b1b1e"/>
+    <rect x="392" y="262" width="120" height="12" fill="#7ce8f5"/>
+    <rect x="392" y="336" width="180" height="10" fill="#9a9aa4"/>
+    <rect x="392" y="368" width="416" height="6" fill="#26262b"/>
+    <rect x="392" y="368" width="270" height="6" fill="#7ce8f5"/>
+    <rect x="392" y="410" width="140" height="10" fill="#9a9aa4"/>
+    <rect x="392" y="442" width="416" height="6" fill="#26262b"/>
+    <rect x="392" y="442" width="170" height="6" fill="#7ce8f5"/>
+    <rect x="392" y="484" width="160" height="10" fill="#9a9aa4"/>
+    <rect x="392" y="516" width="416" height="6" fill="#26262b"/>
+    <rect x="392" y="516" width="340" height="6" fill="#7ce8f5"/>
+  </svg>
+</template>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap">
+<style>
+  :root {
+    --bg-base: #0d0d0f;
+    --panel: #151517;
+    --panel-2: #1b1b1e;
+    --bg-elevated: #151517;
+    --fg: #f4f4f6;
+    --fg-muted: #9a9aa4;
+    --fg-dim: #6b6b74;
+    --primary: #7ce8f5;
+    --primary-glow: #5fd8e8;
+    --cyan: #7ce8f5;
+    --success: #6ee7a5;
+    --warning: #f0b95e;
+    --danger: #ff7a7a;
+    --hairline: #26262b;
+    --glass: #151517;
+    --glass-hover: #1b1b1e;
+    --shadow-glass: none;
+  }
+  html, body {
+    margin: 0;
+    font-family: Inter, system-ui, sans-serif;
+    background-color: #0d0d0f;
+    background-image: radial-gradient(ellipse 900px 600px at 72% 22%, rgba(255,255,255,0.045) 0%, transparent 62%);
+    background-attachment: fixed;
+    color: #f4f4f6;
+  }
+  a { color: #7ce8f5; text-decoration: none; }
+  a:hover { color: #5fd8e8; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2f2f35; border-radius: 0; }
+  ::-webkit-scrollbar-thumb:hover { background: #3d3d45; }
+  @keyframes glow-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; display: flex; gap: 16px; padding: 16px; color: var(--fg);">
+
+  <aside style="width: {{ sidebarWidth }}; flex: none; position: sticky; top: 16px; height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; overflow: hidden; transition: width 220ms ease;">
+    <div style="height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--hairline);">
+      <span style="width: 30px; height: 30px; flex: none; border-radius: 4px; background: var(--primary); display: grid; place-items: center; color: #0d0d0f;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+      </span>
+      <sc-if value="{{ sidebarOpen }}" hint-placeholder-val="{{ true }}">
+        <span style="font-weight: 600; font-size: 14px;">DispoCenter</span>
+      </sc-if>
+    </div>
+    <nav style="flex: 1; padding: 12px 8px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto;">
+      <sc-for list="{{ sections }}" as="s" hint-placeholder-count="6">
+        <button onClick="{{ s.go }}" title="{{ s.label }}" style="display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; padding: 10px 11px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 13.5px; transition: background 160ms ease, color 160ms ease; justify-content: {{ s.justify }}; background: {{ s.bg }}; border: 1px solid {{ s.border }}; color: {{ s.color }}; font-weight: {{ s.weight }};" style-hover="background: rgba(255,255,255,0.05);">
+          <span style="width: 18px; height: 18px; flex: none; display: grid; place-items: center; color: {{ s.iconColor }};" dangerouslySetInnerHTML="{{ s.icon }}"></span>
+          <sc-if value="{{ sidebarOpen }}" hint-placeholder-val="{{ true }}">
+            <span>{{ s.label }}</span>
+          </sc-if>
+        </button>
+      </sc-for>
+    </nav>
+    <div style="padding: 10px; border-top: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 8px;">
+      <button onClick="{{ toggleSidebar }}" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 8px; border-radius: 4px; border: 1px solid transparent; background: transparent; color: var(--fg-muted); font-family: inherit; font-size: 11.5px; cursor: pointer;" style-hover="background: rgba(255,255,255,0.05); color: var(--fg);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg>
+        <sc-if value="{{ sidebarOpen }}" hint-placeholder-val="{{ true }}">
+          <span>Einklappen</span>
+        </sc-if>
+      </button>
+      <sc-if value="{{ sidebarOpen }}" hint-placeholder-val="{{ true }}">
+        <div style="font-size: 10px; color: var(--fg-dim); text-align: center; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">DispoCenter · {{ depotLabel }}</div>
+      </sc-if>
+    </div>
+  </aside>
+
+  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+
+    <header style="display: flex; align-items: center; gap: 14px; padding: 12px 18px; background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px;">
+      <div style="position: relative; flex: 1; max-width: 340px;">
+        <span style="position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--fg-muted); display: grid;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
+        </span>
+        <input type="text" placeholder="Suchen…" style="width: 100%; height: 36px; padding: 0 12px 0 34px; box-sizing: border-box; font-family: inherit; font-size: 13px; color: var(--fg); background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); border-radius: 4px; outline: none;" style-focus="border-color: var(--primary);">
+      </div>
+
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--fg-muted);">
+        <label style="display: flex; align-items: center; gap: 7px; padding: 0 11px; height: 32px; border-radius: 4px; background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); cursor: pointer;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="5" width="18" height="16"></rect><line x1="3" y1="10" x2="21" y2="10"></line><line x1="8" y1="3" x2="8" y2="6"></line><line x1="16" y1="3" x2="16" y2="6"></line></svg>
+          <span style="color: var(--fg);">{{ todayShort }}</span>
+        </label>
+
+        <button onClick="{{ cycleDepot }}" title="Depot wechseln" style="display: flex; align-items: center; gap: 7px; padding: 0 11px; height: 32px; border-radius: 4px; background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); color: var(--fg); font-family: inherit; font-size: 12px; cursor: pointer; max-width: 210px;" style-hover="border-color: var(--primary);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="flex: none; color: var(--fg-muted);"><path d="M4 21V6a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v15"></path><path d="M15 10h4a1 1 0 0 1 1 1v10"></path><line x1="8" y1="9" x2="11" y2="9"></line><line x1="8" y1="13" x2="11" y2="13"></line><line x1="8" y1="17" x2="11" y2="17"></line></svg>
+          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ depotLabel }}</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="flex: none; color: var(--fg-muted);"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+
+        <button title="Benachrichtigungen" style="position: relative; width: 32px; height: 32px; border-radius: 4px; display: grid; place-items: center; background: transparent; border: 1px solid transparent; color: var(--fg-muted); cursor: pointer;" style-hover="background: rgba(255,255,255,0.06); color: var(--fg);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+          <span style="position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 3px; background: var(--warning);"></span>
+        </button>
+        <button onClick="{{ goSettings }}" title="Einstellungen" style="width: 32px; height: 32px; border-radius: 4px; display: grid; place-items: center; background: transparent; border: 1px solid transparent; color: var(--fg-muted); cursor: pointer;" style-hover="background: rgba(255,255,255,0.06); color: var(--fg);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </button>
+
+        <span style="display: flex; align-items: center; gap: 9px; color: var(--fg); padding-left: 4px; border-left: 1px solid var(--hairline);">
+          <span style="width: 30px; height: 30px; margin-left: 6px; border-radius: 3px; background: var(--primary); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #0d0d0f;">M</span>
+          <span style="line-height: 1.25;">m.platscher<span style="display: block; font-size: 10px; color: var(--fg-dim);">admin</span></span>
+          <button title="Abmelden" style="width: 30px; height: 30px; border-radius: 4px; display: grid; place-items: center; background: transparent; border: 1px solid transparent; color: var(--fg-muted); cursor: pointer;" style-hover="background: rgba(255,122,122,0.14); color: var(--danger);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          </button>
+        </span>
+      </div>
+    </header>
+
+    <sc-if value="{{ isStart }}" hint-placeholder-val="{{ true }}">
+      <main style="display: flex; flex-direction: column; gap: 20px; padding-bottom: 8px;">
+
+        <div style="display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 22px 24px; background-image: linear-gradient(135deg, rgba(124,232,245,0.10), transparent 60%);">
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--fg-muted); margin-bottom: 8px;">Startseite</div>
+            <h2 style="margin: 0 0 6px; font-size: 26px; font-weight: 600; letter-spacing: -0.01em;">Guten Morgen, Max</h2>
+            <p style="margin: 0; font-size: 13.5px; color: var(--fg-muted);">{{ todayLabel }} · {{ tenant }} · 5 von 7 Touren laufen, 6 Sendungen warten auf Zuordnung.</p>
+          </div>
+          <div style="margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--hairline);">
+            <button onClick="{{ pickA }}" style="padding: 7px 16px; border-radius: 3px; border: 1px solid {{ aBorder }}; background: {{ aBg }}; color: {{ aColor }}; font-family: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;">Status<br></button>
+            <button onClick="{{ pickB }}" style="padding: 7px 16px; border-radius: 3px; border: 1px solid {{ bBorder }}; background: {{ bBg }}; color: {{ bColor }}; font-family: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;">Tagesverlauf<br></button>
+          </div>
+        </div>
+
+        <section style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px;">
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="6">
+            <div style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; border-left: 3px solid {{ k.tone }};">
+              <span style="font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--fg-muted);">{{ k.label }}</span>
+              <span style="display: flex; align-items: baseline; gap: 8px;">
+                <span style="font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; white-space: nowrap; color: {{ k.tone }};">{{ k.value }}</span>
+                <span style="font-size: 12px; color: var(--fg-dim);">{{ k.sub }}</span>
+              </span>
+            </div>
+          </sc-for>
+        </section>
+
+        <sc-if value="{{ isA }}" hint-placeholder-val="{{ true }}">
+          <div style="display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr); gap: 20px; align-items: start;">
+
+            <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+                <h3 style="margin: 0; font-size: 15px; font-weight: 600;">Live-Lage · Berlin</h3>
+                <span style="font-size: 12px; color: var(--fg-dim);">4 Fahrzeuge im Einsatz · Stand {{ clock }} Uhr</span>
+                <span style="margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--success);">
+                  <span style="width: 8px; height: 8px; border-radius: 3px; background: var(--success); animation: glow-pulse 2s ease-in-out infinite;"></span>Live
+                </span>
+              </div>
+              <div style="position: relative; height: 430px; border-radius: 6px; border: 1px solid var(--hairline); overflow: hidden; background-color: #101012;">
+                <div ref="{{ mapRef }}" style="position: absolute; inset: 0; background-color: #eef6ff; border-width: 1px; border-style: none; border-color: #e7e7ea"></div>
+                <div style="position: absolute; left: 14px; bottom: 12px; z-index: 500; font-size: 11px; color: var(--fg-dim); background: rgba(13,13,15,0.75); padding: 4px 9px; border-radius: 3px;">Kartenrahmen für Google Maps · Marker aus tour_stop</div>
+              </div>
+            </section>
+
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+              <section style="border-radius: 6px; border: 1px solid var(--hairline); padding: 20px; background-color: var(--panel); background-image: linear-gradient(135deg, rgba(124,232,245,0.10), transparent 60%);">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 6px 12px; border-radius: 3px; background: rgba(255,255,255,0.06); border: 1px solid var(--hairline);">{{ weather.city }}</span>
+                  <span style="font-size: 11px; color: var(--fg-dim);">Auto-Update alle 10 Min</span>
+                </div>
+                <div style="display: flex; align-items: flex-end; justify-content: space-between; margin-top: 18px;">
+                  <div style="display: flex; align-items: flex-end; gap: 14px;">
+                    <span style="font-size: 54px; font-weight: 700; line-height: 0.9; letter-spacing: -0.03em;">{{ weather.temp }}°</span>
+                    <span style="padding-bottom: 5px; font-size: 14px; color: var(--fg-muted);">{{ weather.label }}</span>
+                  </div>
+                  <div style="text-align: right; font-size: 12px; color: var(--fg-muted); line-height: 1.7;">
+                    Wind {{ weather.wind }} km/h<span style="display: block;">{{ weather.rain }} % Niederschlag</span>
+                  </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 18px;">
+                  <sc-for list="{{ weather.hours }}" as="h" hint-placeholder-count="4">
+                    <div style="text-align: center; padding: 9px 0; border-radius: 4px; background: rgba(255,255,255,0.025); border: 1px solid var(--hairline);">
+                      <div style="font-size: 11px; color: var(--fg-dim);">{{ h.t }}</div>
+                      <div style="font-size: 16px; font-weight: 600; margin-top: 2px;">{{ h.v }}°</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </section>
+
+              <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                  <h3 style="margin: 0; font-size: 15px; font-weight: 600;">Fahrer-Fortschritt</h3>
+                  <button onClick="{{ goFahrer }}" style="margin-left: auto; padding: 7px 13px; border-radius: 4px; border: 1px solid var(--hairline); background: transparent; color: var(--fg-muted); font-family: inherit; font-size: 12px; cursor: pointer;" style-hover="border-color: var(--primary); color: var(--fg);">Alle Fahrer</button>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                  <sc-for list="{{ ops }}" as="d" hint-placeholder-count="6">
+                    <div style="padding: 13px 14px; border-radius: 6px; background: rgba(255,255,255,0.025); border: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 9px;">
+                      <div style="display: flex; align-items: center; gap: 9px;">
+                        <span style="font-size: 13.5px; font-weight: 500;">{{ d.name }}</span>
+                        <span style="font-size: 11.5px; color: var(--primary);">{{ d.tour }}</span>
+                        <span style="margin-left: auto; font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 3px; background: {{ d.statusBg }}; color: {{ d.statusColor }};">{{ d.status }}</span>
+                      </div>
+                      <span style="height: 4px; background: rgba(255,255,255,0.07); display: block; overflow: hidden;">
+                        <span style="display: block; height: 4px; background: var(--primary); width: {{ d.pct }}%;"></span>
+                      </span>
+                      <div style="display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--fg-muted);">
+                        <span>{{ d.done }} / {{ d.stops }} Stopps</span>
+                        <span style="color: var(--fg-dim);">{{ d.vehicle }}</span>
+                        <span style="margin-left: auto; color: var(--fg-dim);">{{ d.shift }}</span>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </section>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isB }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+
+            <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 20px;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 18px;">
+                <h3 style="margin: 0; font-size: 15px; font-weight: 600;">Tagesverlauf</h3>
+                <span style="font-size: 12px; color: var(--fg-dim);">06:00 – 18:00 · gefüllt = erledigte Stopps</span>
+                <span style="margin-left: auto; font-size: 12px; color: var(--primary);">Jetzt {{ clock }} Uhr</span>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 0 18px; align-items: center;">
+                <div></div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--fg-dim); padding-bottom: 8px; border-bottom: 1px solid var(--hairline);">
+                  <sc-for list="{{ hours }}" as="h" hint-placeholder-count="7">
+                    <span>{{ h }}</span>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ timeline }}" as="t" hint-placeholder-count="6">
+                  <div style="display: contents;">
+                    <div style="padding: 13px 0;">
+                      <div style="font-size: 13.5px; font-weight: 500;">{{ t.driver }}</div>
+                      <div style="font-size: 11px; color: var(--fg-dim);">{{ t.vehicle }}</div>
+                    </div>
+                    <div style="padding: 13px 0;">
+                      <sc-if value="{{ t.hasTour }}" hint-placeholder-val="{{ true }}">
+                        <div style="position: relative; height: 30px; border-radius: 4px; background: rgba(255,255,255,0.025); border: 1px solid var(--hairline);">
+                          <div style="position: absolute; top: -1px; bottom: -1px; left: {{ t.left }}%; width: {{ t.width }}%; border-radius: 4px; border: 1px solid rgba(124,232,245,0.35); background: rgba(124,232,245,0.08); overflow: hidden;">
+                            <div style="position: absolute; top: 0; bottom: 0; left: 0; width: {{ t.pct }}%; background: rgba(124,232,245,0.5);"></div>
+                            <span style="position: absolute; left: 11px; top: 0; line-height: 28px; font-size: 11.5px; font-weight: 500; white-space: nowrap;">{{ t.id }} · {{ t.done }}/{{ t.stops }}</span>
+                          </div>
+                          <div style="position: absolute; top: -5px; bottom: -5px; left: {{ nowPct }}%; width: 2px; border-radius: 2px; background: var(--warning); box-shadow: 0 0 10px rgba(240,185,94,0.5);"></div>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ t.free }}" hint-placeholder-val="{{ false }}">
+                        <div style="height: 30px; display: flex; align-items: center; padding-left: 12px; border-radius: 4px; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.08); font-size: 12px; color: var(--fg-dim);">{{ t.note }}</div>
+                      </sc-if>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </section>
+
+            
+          </div><div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 20px; align-items: start;">
+              
+
+              
+            <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+                  <h3 style="margin: 0; font-size: 15px; font-weight: 600;">Offene Punkte</h3>
+                  <span style="font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 3px; background: rgba(255,122,122,0.14); color: var(--danger);">{{ issueCount }}</span>
+                  <button onClick="{{ goProbleme }}" style="margin-left: auto; padding: 7px 14px; border-radius: 4px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.05); color: var(--fg-muted); font-family: inherit; font-size: 12px; cursor: pointer;" style-hover="background: rgba(255,255,255,0.09); color: var(--fg);">Alle ansehen</button>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                  <sc-for list="{{ issues }}" as="i" hint-placeholder-count="3">
+                    <div style="padding: 13px 14px; border-radius: 6px; background: rgba(255,255,255,0.025); border: 1px solid var(--hairline); border-left: 3px solid {{ i.tone }};">
+                      <div style="display: flex; align-items: baseline; gap: 8px;">
+                        <span style="font-size: 13.5px; font-weight: 500;">{{ i.title }}</span>
+                        <span style="margin-left: auto; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: {{ i.tone }};">{{ i.kind }}</span>
+                      </div>
+                      <div style="font-size: 12.5px; color: var(--fg-muted); margin-top: 4px;">{{ i.detail }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </section>
+
+              <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+                  <h3 style="margin: 0; font-size: 15px; font-weight: 600;">Live-Lage</h3>
+                  <span style="font-size: 12px; color: var(--fg-dim);">{{ weather.city }} · {{ weather.temp }}° {{ weather.label }} · Wind {{ weather.wind }} km/h</span>
+                </div>
+                <div style="position: relative; height: 330px; border-radius: 6px; border: 1px solid var(--hairline); overflow: hidden; background-color: #101012;">
+                  <div ref="{{ mapRef }}" style="position: absolute; inset: 0;"></div>
+                </div>
+              </section></div>
+        </sc-if>
+      </main>
+    </sc-if>
+
+    <sc-if value="{{ isKalender }}" hint-placeholder-val="{{ false }}">
+      <main style="display: flex; flex-direction: column; gap: 20px; padding-bottom: 8px;">
+
+        <div style="display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap;">
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--fg-muted); margin-bottom: 6px;">Kalender</div>
+            <h2 style="margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.01em;">Disposition {{ periodLabel }}</h2>
+          </div>
+          <div style="margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--hairline);">
+            <button onClick="{{ pickA }}" style="padding: 7px 16px; border-radius: 3px; border: 1px solid {{ aBorder }}; background: {{ aBg }}; color: {{ aColor }}; font-family: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;">A — Monat + Tag</button>
+            <button onClick="{{ pickB }}" style="padding: 7px 16px; border-radius: 3px; border: 1px solid {{ bBorder }}; background: {{ bBg }}; color: {{ bColor }}; font-family: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;">B — Wochentafel</button>
+          </div>
+        </div>
+
+        <sc-if value="{{ isA }}" hint-placeholder-val="{{ true }}">
+          <div style="display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(340px, 1fr); gap: 20px; align-items: start;">
+
+            <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                <button onClick="{{ prevMonth }}" style="width: 34px; height: 34px; border-radius: 4px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.05); color: var(--fg-muted); font-family: inherit; cursor: pointer;" style-hover="background: rgba(255,255,255,0.09); color: var(--fg);">‹</button>
+                <button onClick="{{ today }}" style="padding: 0 14px; height: 34px; border-radius: 4px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.05); color: var(--fg-muted); font-family: inherit; font-size: 12.5px; cursor: pointer;" style-hover="background: rgba(255,255,255,0.09); color: var(--fg);">Heute</button>
+                <button onClick="{{ nextMonth }}" style="width: 34px; height: 34px; border-radius: 4px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.05); color: var(--fg-muted); font-family: inherit; cursor: pointer;" style-hover="background: rgba(255,255,255,0.09); color: var(--fg);">›</button>
+                <h3 style="margin: 0 0 0 10px; font-size: 16px; font-weight: 600;">{{ monthLabel }}</h3>
+                <div style="margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: 11.5px; color: var(--fg-dim);">
+                  <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 22px; height: 4px; border-radius: 3px; background: var(--primary);"></span>Auslastung</span>
+                  <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 8px; height: 8px; border-radius: 3px; background: var(--warning);"></span>Unzugeordnet</span>
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;">
+                <sc-for list="{{ weekdays }}" as="d" hint-placeholder-count="7">
+                  <div style="padding: 4px 6px 8px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--fg-dim);">{{ d }}</div>
+                </sc-for>
+                <sc-for list="{{ cells }}" as="c" hint-placeholder-count="35">
+                  <button onClick="{{ c.select }}" style="position: relative; min-height: 96px; padding: 9px 10px; text-align: left; cursor: pointer; font-family: inherit; display: flex; flex-direction: column; gap: 7px; border-radius: 6px; background: {{ c.bg }}; border: 1px solid {{ c.border }}; transition: background 160ms ease;" style-hover="background: rgba(255,255,255,0.07);">
+                    <span style="display: flex; align-items: center; gap: 7px;">
+                      <span style="font-size: 15px; font-weight: 600; color: {{ c.dayColor }};">{{ c.day }}</span>
+                      <sc-if value="{{ c.isToday }}" hint-placeholder-val="{{ false }}">
+                        <span style="font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 8px; border-radius: 3px; background: rgba(124,232,245,0.16); color: var(--primary);">heute</span>
+                      </sc-if>
+                      <sc-if value="{{ c.hasUnassigned }}" hint-placeholder-val="{{ false }}">
+                        <span style="margin-left: auto; width: 8px; height: 8px; border-radius: 3px; background: var(--warning);"></span>
+                      </sc-if>
+                    </span>
+                    <sc-if value="{{ c.hasWork }}" hint-placeholder-val="{{ true }}">
+                      <span style="display: flex; flex-direction: column; gap: 6px;">
+                        <span style="font-size: 11.5px; color: var(--fg-muted);">{{ c.tours }} Touren · {{ c.shipments }} Sdg.</span>
+                        <span style="height: 4px; border-radius: 3px; background: rgba(255,255,255,0.07); display: block; overflow: hidden;">
+                          <span style="display: block; height: 4px; border-radius: 3px; background: var(--primary); width: {{ c.load }}%;"></span>
+                        </span>
+                        <span style="font-size: 10.5px; color: var(--fg-dim);">{{ c.load }} % Kapazität</span>
+                      </span>
+                    </sc-if>
+                  </button>
+                </sc-for>
+              </div>
+            </section>
+
+            <section style="display: flex; flex-direction: column; gap: 20px;">
+              <div style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--fg-muted);">Tagesdetail</div>
+                <h3 style="margin: 6px 0 16px; font-size: 18px; font-weight: 600;">{{ dayLabel }}</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                  <sc-for list="{{ dayKpis }}" as="k" hint-placeholder-count="3">
+                    <div style="padding: 12px 14px; border-radius: 6px; background: rgba(255,255,255,0.025); border: 1px solid var(--hairline);">
+                      <div style="font-size: 26px; font-weight: 700; line-height: 1; color: {{ k.tone }};">{{ k.value }}</div>
+                      <div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-dim); margin-top: 6px;">{{ k.label }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+                <h3 style="margin: 0 0 14px; font-size: 15px; font-weight: 600;">Fahrer &amp; Auslastung</h3>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                  <sc-for list="{{ dayDrivers }}" as="d" hint-placeholder-count="6">
+                    <div style="padding: 12px 14px; border-radius: 6px; background: rgba(255,255,255,0.025); border: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 8px;">
+                      <div style="display: flex; align-items: center; gap: 9px;">
+                        <span style="font-size: 13.5px; font-weight: 500;">{{ d.name }}</span>
+                        <span style="font-size: 11px; color: var(--fg-dim);">{{ d.shift }}</span>
+                        <span style="margin-left: auto; font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 3px; background: {{ d.statusBg }}; color: {{ d.statusColor }};">{{ d.status }}</span>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="flex: 1; height: 4px; border-radius: 3px; background: rgba(255,255,255,0.07); overflow: hidden;">
+                          <span style="display: block; height: 4px; border-radius: 3px; background: var(--primary); width: {{ d.load }}%;"></span>
+                        </span>
+                        <span style="font-size: 11.5px; color: var(--fg-muted); width: 116px; text-align: right;">{{ d.kg }} / {{ d.cap }} kg</span>
+                      </div>
+                      <div style="font-size: 11.5px; color: var(--fg-dim);">{{ d.vehicle }} · {{ d.stops }} Stopps</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+                <h3 style="margin: 0 0 12px; font-size: 15px; font-weight: 600;">Nicht disponiert</h3>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <sc-for list="{{ unassigned }}" as="u" hint-placeholder-count="3">
+                    <div style="display: flex; align-items: center; gap: 12px; padding: 11px 13px; border-radius: 6px; background: rgba(240,185,94,0.07); border: 1px solid rgba(240,185,94,0.18); font-size: 13px;">
+                      <span style="font-weight: 600; color: var(--warning); width: 66px; flex: none;">{{ u.id }}</span>
+                      <span style="flex: 1; min-width: 0;">{{ u.customer }}<span style="display: block; font-size: 11.5px; color: var(--fg-dim);">{{ u.address }}</span></span>
+                      <span style="font-size: 11.5px; color: var(--fg-muted); text-align: right;">{{ u.window }}<span style="display: block;">{{ u.kg }} kg</span></span>
+                    </div>
+                  </sc-for>
+                </div>
+                <button style="margin-top: 14px; width: 100%; padding: 12px; border-radius: 6px; border: 1px solid rgba(124,232,245,0.4); background: var(--primary); color: #0d0d0f; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;" style-hover="filter: brightness(1.08);">Planung starten</button>
+              </div>
+            </section>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isB }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 20px;">
+            <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                <button onClick="{{ prevWeek }}" style="width: 34px; height: 34px; border-radius: 4px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.05); color: var(--fg-muted); font-family: inherit; cursor: pointer;" style-hover="background: rgba(255,255,255,0.09); color: var(--fg);">‹</button>
+                <button onClick="{{ today }}" style="padding: 0 14px; height: 34px; border-radius: 4px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.05); color: var(--fg-muted); font-family: inherit; font-size: 12.5px; cursor: pointer;" style-hover="background: rgba(255,255,255,0.09); color: var(--fg);">Heute</button>
+                <button onClick="{{ nextWeek }}" style="width: 34px; height: 34px; border-radius: 4px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.05); color: var(--fg-muted); font-family: inherit; cursor: pointer;" style-hover="background: rgba(255,255,255,0.09); color: var(--fg);">›</button>
+                <h3 style="margin: 0 0 0 10px; font-size: 16px; font-weight: 600;">{{ weekLabel }}</h3>
+                <span style="margin-left: auto; font-size: 11.5px; color: var(--fg-dim);">Zeilen = Fahrer · Zellen = Tour, Stopps, Auslastung</span>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 210px repeat(7, minmax(0, 1fr)); gap: 6px;">
+                <div style="padding: 4px 6px 8px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--fg-dim);">Fahrer / Fahrzeug</div>
+                <sc-for list="{{ weekDays }}" as="wd" hint-placeholder-count="7">
+                  <div style="padding: 4px 6px 8px;">
+                    <div style="font-size: 12.5px; font-weight: 600;">{{ wd.label }}</div>
+                    <div style="font-size: 10.5px; color: var(--fg-dim);">{{ wd.sub }}</div>
+                  </div>
+                </sc-for>
+                <sc-for list="{{ board }}" as="row" hint-placeholder-count="6">
+                  <div style="display: contents;">
+                    <div style="padding: 12px 13px; border-radius: 6px; background: rgba(255,255,255,0.025); border: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 3px;">
+                      <span style="font-size: 13.5px; font-weight: 500;">{{ row.name }}</span>
+                      <span style="font-size: 11.5px; color: var(--fg-muted);">{{ row.vehicle }}</span>
+                      <span style="font-size: 10.5px; color: var(--fg-dim);">{{ row.shift }} · {{ row.cap }} kg</span>
+                      <span style="align-self: flex-start; margin-top: 5px; font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 3px; background: {{ row.statusBg }}; color: {{ row.statusColor }};">{{ row.status }}</span>
+                    </div>
+                    <sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="7">
+                      <button onClick="{{ c.select }}" style="min-height: 88px; padding: 10px; text-align: left; cursor: pointer; font-family: inherit; display: flex; flex-direction: column; gap: 6px; border-radius: 6px; background: {{ c.bg }}; border: 1px solid {{ c.border }};" style-hover="background: rgba(255,255,255,0.07);">
+                        <sc-if value="{{ c.hasTour }}" hint-placeholder-val="{{ true }}">
+                          <span style="display: flex; flex-direction: column; gap: 6px;">
+                            <span style="font-size: 12px; font-weight: 600; color: var(--primary);">{{ c.tour }}</span>
+                            <span style="font-size: 11px; color: var(--fg-muted);">{{ c.stops }} Stopps · {{ c.window }}</span>
+                            <span style="height: 4px; border-radius: 3px; background: rgba(255,255,255,0.07); display: block; overflow: hidden;">
+                              <span style="display: block; height: 4px; border-radius: 3px; background: var(--primary); width: {{ c.load }}%;"></span>
+                            </span>
+                            <span style="font-size: 10.5px; color: var(--fg-dim);">{{ c.load }} %</span>
+                          </span>
+                        </sc-if>
+                        <sc-if value="{{ c.free }}" hint-placeholder-val="{{ false }}">
+                          <span style="font-size: 11.5px; color: var(--fg-dim);">{{ c.note }}</span>
+                        </sc-if>
+                      </button>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+            </section>
+
+            <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+                <h3 style="margin: 0; font-size: 15px; font-weight: 600;">Pool — nicht disponiert</h3>
+                <span style="font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 3px; background: rgba(240,185,94,0.14); color: var(--warning);">{{ unassignedCount }} Sendungen</span>
+                <button style="margin-left: auto; padding: 10px 18px; border-radius: 4px; border: 1px solid rgba(124,232,245,0.4); background: var(--primary); color: #0d0d0f; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="filter: brightness(1.08);">Automatisch zuordnen</button>
+              </div>
+              <div style="display: grid; grid-template-columns: 90px 1.2fr 2fr 1fr 0.7fr 0.7fr; gap: 0 12px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-dim); padding: 0 14px 10px; border-bottom: 1px solid var(--hairline);">
+                <span>Sendung</span><span>Kunde</span><span>Lieferadresse</span><span>Zeitfenster</span><span>Gewicht</span><span>Termin</span>
+              </div>
+              <sc-for list="{{ pool }}" as="p" hint-placeholder-count="6">
+                <div style="display: grid; grid-template-columns: 90px 1.2fr 2fr 1fr 0.7fr 0.7fr; gap: 0 12px; align-items: center; font-size: 13px; padding: 13px 14px; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                  <span style="font-weight: 600; color: var(--primary);">{{ p.id }}</span>
+                  <span>{{ p.customer }}</span>
+                  <span style="color: var(--fg-muted);">{{ p.address }}</span>
+                  <span style="color: var(--fg-muted);">{{ p.window }}</span>
+                  <span style="color: var(--fg-muted);">{{ p.kg }} kg</span>
+                  <span style="color: var(--fg-muted);">{{ p.date }}</span>
+                </div>
+              </sc-for>
+            </section>
+          </div>
+        </sc-if>
+      </main>
+    </sc-if>
+
+    <sc-if value="{{ isKontroll }}" hint-placeholder-val="{{ false }}">
+      <main style="display: flex; flex-direction: column; gap: 20px; padding-bottom: 8px;">
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--fg-muted); margin-bottom: 6px;">Lieferscheine</div>
+          <h2 style="margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.01em;">Kontrollzentrale</h2>
+        </div>
+
+        <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+          <h3 style="margin: 0 0 4px; font-size: 15px; font-weight: 600;">E-Mail-Zugang für Lieferscheine</h3>
+          <p style="margin: 0 0 14px; font-size: 13px; color: var(--fg-muted);">Eingehende Lieferschein-Mails werden automatisch verarbeitet und zu Sendungen &amp; Touren.</p>
+          <div style="display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 6px; background: rgba(255,255,255,0.025); border: 1px solid var(--hairline);">
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 13.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;">lieferscheine@dispatch.example.com</div>
+              <div style="font-size: 11.5px; color: var(--fg-dim); margin-top: 3px;">Platzhalter — IMAP-Integration wird konfiguriert (email_imap)</div>
+            </div>
+            <span style="font-size: 10.5px; font-weight: 600; padding: 4px 11px; border-radius: 3px; background: rgba(240,185,94,0.14); color: var(--warning);">Ausstehend</span>
+          </div>
+        </section>
+
+        <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+            <h3 style="margin: 0; font-size: 15px; font-weight: 600;">Lieferscheine</h3>
+            <span style="font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 3px; background: rgba(124,232,245,0.13); color: var(--primary);">{{ shipmentCount }} Einträge</span>
+          </div>
+          <p style="margin: 0 0 14px; font-size: 12.5px; color: var(--fg-muted);">Alle empfangenen Sendungen für {{ todayShort }} · Tabelle <span style="font-family: ui-monospace, monospace;">shipment</span></p>
+          <div style="display: grid; grid-template-columns: 110px 1.1fr 1.8fr 0.7fr 0.8fr 0.8fr; gap: 0 12px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-dim); padding: 0 12px 10px; border-bottom: 1px solid var(--hairline);">
+            <span>Sendung</span><span>Kunde</span><span>Adresse</span><span>Gewicht</span><span>Quelle</span><span>Status</span>
+          </div>
+          <sc-for list="{{ shipments }}" as="s" hint-placeholder-count="7">
+            <div style="display: grid; grid-template-columns: 110px 1.1fr 1.8fr 0.7fr 0.8fr 0.8fr; gap: 0 12px; align-items: center; font-size: 13px; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.04);">
+              <span style="font-weight: 600; color: var(--primary);">{{ s.id }}</span>
+              <span>{{ s.customer }}</span>
+              <span style="color: var(--fg-muted);">{{ s.address }}</span>
+              <span style="color: var(--fg-muted);">{{ s.kg }} kg</span>
+              <span style="font-size: 11px; color: var(--fg-muted);">{{ s.source }}</span>
+              <span style="font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 3px; justify-self: start; background: {{ s.statusBg }}; color: {{ s.statusColor }};">{{ s.status }}</span>
+            </div>
+          </sc-for>
+        </section>
+
+        <section style="background: var(--panel); border: 1px dashed var(--hairline); border-radius: 6px; padding: 18px;">
+          <h3 style="margin: 0 0 4px; font-size: 15px; font-weight: 600;">Demo &amp; Testdaten</h3>
+          <p style="margin: 0 0 16px; font-size: 13px; color: var(--fg-muted);">Testdaten manuell anlegen oder ein komplettes Szenario über die Edge Function laden.</p>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-dim);">Fahrer anlegen · driver</span>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" placeholder="Name" style="flex: 1; height: 36px; padding: 0 12px; font-family: inherit; font-size: 13px; color: var(--fg); background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); border-radius: 4px; outline: none;" style-focus="border-color: var(--primary);">
+                <input type="text" placeholder="Telefon" style="width: 140px; height: 36px; padding: 0 12px; font-family: inherit; font-size: 13px; color: var(--fg); background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); border-radius: 4px; outline: none;" style-focus="border-color: var(--primary);">
+                <button style="padding: 0 16px; height: 36px; border-radius: 4px; border: 1px solid var(--hairline); background: transparent; color: var(--fg-muted); font-family: inherit; font-size: 12.5px; cursor: pointer;" style-hover="border-color: var(--primary); color: var(--fg);">Hinzufügen</button>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-dim);">Fahrzeug anlegen · vehicle</span>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" placeholder="Name (z. B. LKW-03)" style="flex: 1; height: 36px; padding: 0 12px; font-family: inherit; font-size: 13px; color: var(--fg); background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); border-radius: 4px; outline: none;" style-focus="border-color: var(--primary);">
+                <input type="text" placeholder="Kapazität kg" style="width: 120px; height: 36px; padding: 0 12px; font-family: inherit; font-size: 13px; color: var(--fg); background: rgba(255,255,255,0.04); border: 1px solid var(--hairline); border-radius: 4px; outline: none;" style-focus="border-color: var(--primary);">
+                <button style="padding: 0 16px; height: 36px; border-radius: 4px; border: 1px solid var(--hairline); background: transparent; color: var(--fg-muted); font-family: inherit; font-size: 12.5px; cursor: pointer;" style-hover="border-color: var(--primary); color: var(--fg);">Hinzufügen</button>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--hairline);">
+            <button style="padding: 11px 18px; border-radius: 4px; border: 1px solid var(--hairline); background: transparent; color: var(--fg); font-family: inherit; font-size: 13px; cursor: pointer;" style-hover="border-color: var(--primary);">Demo-Szenario laden · demo-setup</button>
+            <button style="padding: 11px 18px; border-radius: 4px; border: 1px solid var(--primary); background: var(--primary); color: #0d0d0f; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;" style-hover="filter: brightness(1.08);">Planung starten · plan-tour</button>
+          </div>
+        </section>
+      </main>
+    </sc-if>
+
+    <sc-if value="{{ isFahrer }}" hint-placeholder-val="{{ false }}">
+      <main style="display: flex; flex-direction: column; gap: 20px; padding-bottom: 8px;">
+        <div style="display: flex; align-items: flex-end; gap: 20px;">
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--fg-muted); margin-bottom: 6px;">Fahrer &amp; Fahrzeuge</div>
+            <h2 style="margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.01em;">6 Fahrer · 5 Fahrzeuge</h2>
+          </div>
+          <button style="margin-left: auto; padding: 11px 18px; border-radius: 4px; border: 1px solid var(--primary); background: var(--primary); color: #0d0d0f; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;" style-hover="filter: brightness(1.08);">Fahrer hinzufügen</button>
+        </div>
+
+        <section style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+          <sc-for list="{{ ops }}" as="d" hint-placeholder-count="6">
+            <div style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="width: 40px; height: 40px; flex: none; border-radius: 4px; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: {{ d.statusBg }}; color: {{ d.statusColor }};">{{ d.initials }}</span>
+                <div style="min-width: 0;">
+                  <div style="font-size: 15px; font-weight: 600;">{{ d.name }}</div>
+                  <div style="font-size: 11.5px; color: var(--fg-dim);">{{ d.phone }}</div>
+                </div>
+                <span style="margin-left: auto; font-size: 10.5px; font-weight: 600; padding: 4px 11px; border-radius: 3px; background: {{ d.statusBg }}; color: {{ d.statusColor }};">{{ d.status }}</span>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 7px;">
+                <div style="display: flex; align-items: baseline; gap: 8px; font-size: 12.5px;">
+                  <span style="color: var(--primary); font-weight: 600;">{{ d.tour }}</span>
+                  <span style="margin-left: auto; color: var(--fg-muted);">{{ d.done }} / {{ d.stops }} Stopps</span>
+                </div>
+                <span style="height: 4px; background: rgba(255,255,255,0.07); display: block; overflow: hidden;">
+                  <span style="display: block; height: 4px; background: var(--primary); width: {{ d.pct }}%;"></span>
+                </span>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding-top: 12px; border-top: 1px solid var(--hairline);">
+                <div>
+                  <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-dim);">Schicht</div>
+                  <div style="font-size: 13px; margin-top: 3px;">{{ d.shift }}</div>
+                </div>
+                <div>
+                  <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-dim);">Auslastung</div>
+                  <div style="font-size: 13px; margin-top: 3px;">{{ d.kg }} / {{ d.cap }} kg</div>
+                </div>
+                <div style="grid-column: span 2;">
+                  <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-dim);">Fahrzeug</div>
+                  <div style="font-size: 13px; margin-top: 3px;">{{ d.vehicle }}</div>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </section>
+      </main>
+    </sc-if>
+
+    <sc-if value="{{ isProbleme }}" hint-placeholder-val="{{ false }}">
+      <main style="display: flex; flex-direction: column; gap: 20px; padding-bottom: 8px;">
+        <div style="display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap;">
+          <div>
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--fg-muted); margin-bottom: 6px;">Probleme</div>
+            <h2 style="margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.01em;">{{ problemCount }} offene Punkte · {{ todayShort }}</h2>
+          </div>
+          <div style="margin-left: auto; display: flex; gap: 8px;">
+            <sc-for list="{{ problemFilters }}" as="f" hint-placeholder-count="3">
+              <button onClick="{{ f.pick }}" style="display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 4px; font-family: inherit; font-size: 12.5px; cursor: pointer; background: {{ f.bg }}; border: 1px solid {{ f.border }}; color: {{ f.color }};">
+                {{ f.label }}<span style="font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 3px; background: {{ f.badgeBg }};">{{ f.count }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <sc-for list="{{ problems }}" as="p" hint-placeholder-count="3">
+            <section style="background: var(--panel); border: 1px solid var(--hairline); border-left: 3px solid {{ p.tone }}; border-radius: 6px; padding: 18px;">
+              <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 600;">{{ p.title }}</h3>
+                <span style="font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; padding: 3px 10px; border-radius: 3px; background: {{ p.badgeBg }}; color: {{ p.tone }};">{{ p.severity }}</span>
+                <span style="margin-left: auto; font-size: 11.5px; color: var(--fg-dim); font-family: ui-monospace, monospace;">{{ p.id }}</span>
+              </div>
+              <p style="margin: 0 0 16px; font-size: 13px; color: var(--fg-muted);">{{ p.detail }}</p>
+
+              <div style="border-radius: 6px; border: 1px solid rgba(124,232,245,0.28); background: rgba(124,232,245,0.05); padding: 16px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+                  <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--primary);">KI-Vorschlag</span>
+                  <span style="font-size: 11.5px; color: var(--fg-dim);">{{ p.engine }}</span>
+                  <span style="margin-left: auto; font-size: 11.5px; color: var(--fg-muted);">Konfidenz {{ p.confidence }} %</span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 28px 1fr; gap: 12px; align-items: stretch;">
+                  <div style="border-radius: 6px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.02); padding: 13px;">
+                    <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--fg-dim); margin-bottom: 9px;">Vorher</div>
+                    <sc-for list="{{ p.before }}" as="b" hint-placeholder-count="3">
+                      <div style="font-size: 12.5px; color: var(--fg-muted); padding: 4px 0;">{{ b }}</div>
+                    </sc-for>
+                  </div>
+                  <div style="display: grid; place-items: center; font-size: 18px; color: var(--primary);">→</div>
+                  <div style="border-radius: 6px; border: 1px solid rgba(124,232,245,0.3); background: rgba(124,232,245,0.05); padding: 13px;">
+                    <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--primary); margin-bottom: 9px;">Nachher</div>
+                    <sc-for list="{{ p.after }}" as="a" hint-placeholder-count="3">
+                      <div style="font-size: 12.5px; padding: 4px 0;">{{ a }}</div>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px; margin-top: 16px;">
+                  <span style="font-size: 12px; color: var(--fg-muted);">{{ p.effect }}</span>
+                  <button style="margin-left: auto; padding: 9px 16px; border-radius: 4px; border: 1px solid var(--hairline); background: transparent; color: var(--fg-muted); font-family: inherit; font-size: 12.5px; cursor: pointer;" style-hover="border-color: var(--primary); color: var(--fg);">Verwerfen</button>
+                  <button style="padding: 9px 18px; border-radius: 4px; border: 1px solid var(--primary); background: var(--primary); color: #0d0d0f; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="filter: brightness(1.08);">Übernehmen</button>
+                </div>
+              </div>
+            </section>
+          </sc-for>
+        </div>
+      </main>
+    </sc-if>
+
+    <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+      <main style="display: flex; flex-direction: column; gap: 20px; padding-bottom: 8px;">
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--fg-muted); margin-bottom: 6px;">Einstellungen</div>
+          <h2 style="margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.01em;">System, Integrationen &amp; Schlüssel</h2>
+        </div>
+
+        <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+          <h3 style="margin: 0 0 4px; font-size: 15px; font-weight: 600;">Umgebung</h3>
+          <p style="margin: 0 0 14px; font-size: 12.5px; color: var(--fg-muted);">Aktive Supabase-Instanz und Mandantenzuordnung.</p>
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+            <sc-for list="{{ envFacts }}" as="e" hint-placeholder-count="4">
+              <div style="padding: 13px 14px; border-radius: 6px; background: rgba(255,255,255,0.025); border: 1px solid var(--hairline);">
+                <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-dim);">{{ e.label }}</div>
+                <div style="font-size: 13px; margin-top: 5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all;">{{ e.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+            <h3 style="margin: 0; font-size: 15px; font-weight: 600;">API-Schlüssel</h3>
+            <span style="font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 3px; background: rgba(240,185,94,0.14); color: var(--warning);">Werte maskiert</span>
+          </div>
+          <p style="margin: 0 0 14px; font-size: 12.5px; color: var(--fg-muted);">Secrets liegen in <span style="font-family: ui-monospace, monospace;">.env</span> bzw. den Supabase Function Secrets — die Oberfläche zeigt nur die letzten Stellen.</p>
+          <div style="display: grid; grid-template-columns: 1.3fr 1.5fr 1.4fr 0.8fr 0.9fr; gap: 0 12px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-dim); padding: 0 12px 10px; border-bottom: 1px solid var(--hairline);">
+            <span>Dienst</span><span>Variable</span><span>Wert</span><span>Ablage</span><span>Status</span>
+          </div>
+          <sc-for list="{{ apiKeys }}" as="k" hint-placeholder-count="6">
+            <div style="display: grid; grid-template-columns: 1.3fr 1.5fr 1.4fr 0.8fr 0.9fr; gap: 0 12px; align-items: center; font-size: 13px; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.04);">
+              <span>{{ k.service }}</span>
+              <span style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--fg-muted);">{{ k.env }}</span>
+              <span style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--primary);">{{ k.masked }}</span>
+              <span style="font-size: 11.5px; color: var(--fg-muted);">{{ k.store }}</span>
+              <span style="font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 3px; justify-self: start; background: {{ k.bg }}; color: {{ k.color }};">{{ k.status }}</span>
+            </div>
+          </sc-for>
+        </section>
+
+        <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+            <h3 style="margin: 0; font-size: 15px; font-weight: 600;">System-Integrationen</h3>
+            <span style="font-size: 12px; color: var(--fg-dim);">Tabelle system_integrations · Credentials über upsert_integration</span>
+            <button style="margin-left: auto; padding: 9px 16px; border-radius: 4px; border: 1px solid var(--primary); background: var(--primary); color: #0d0d0f; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="filter: brightness(1.08);">Integration anlegen</button>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+            <sc-for list="{{ integrations }}" as="i" hint-placeholder-count="5">
+              <div style="border-radius: 6px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.025); padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; align-items: baseline; gap: 9px;">
+                  <span style="font-size: 14.5px; font-weight: 600;">{{ i.name }}</span>
+                  <span style="font-size: 11px; font-family: ui-monospace, monospace; color: var(--fg-dim);">{{ i.type }}</span>
+                  <span style="margin-left: auto; font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 3px; background: {{ i.bg }}; color: {{ i.color }};">{{ i.status }}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <sc-for list="{{ i.fields }}" as="f" hint-placeholder-count="3">
+                    <div style="display: flex; align-items: baseline; gap: 10px; font-size: 12.5px;">
+                      <span style="width: 130px; flex: none; color: var(--fg-dim); font-family: ui-monospace, monospace; font-size: 11.5px;">{{ f.key }}</span>
+                      <span style="font-family: ui-monospace, monospace; font-size: 12px; color: {{ f.color }}; word-break: break-all;">{{ f.value }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid var(--hairline);">
+                  <span style="font-size: 11.5px; color: var(--fg-dim);">Letzter Test {{ i.lastTest }}</span>
+                  <button style="margin-left: auto; padding: 7px 14px; border-radius: 4px; border: 1px solid var(--hairline); background: transparent; color: var(--fg-muted); font-family: inherit; font-size: 12px; cursor: pointer;" style-hover="border-color: var(--primary); color: var(--fg);">Verbindung testen</button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section style="background: var(--panel); border: 1px solid var(--hairline); border-radius: 6px; padding: 18px;">
+          <h3 style="margin: 0 0 14px; font-size: 15px; font-weight: 600;">Offene technische Punkte</h3>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <sc-for list="{{ debts }}" as="d" hint-placeholder-count="4">
+              <div style="display: flex; align-items: baseline; gap: 12px; padding: 12px 14px; border-radius: 6px; background: rgba(255,255,255,0.025); border: 1px solid var(--hairline); border-left: 2px solid {{ d.tone }};">
+                <span style="font-size: 13px; font-weight: 500; width: 210px; flex: none;">{{ d.title }}</span>
+                <span style="font-size: 12.5px; color: var(--fg-muted); flex: 1;">{{ d.detail }}</span>
+                <span style="font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: {{ d.tone }};">{{ d.phase }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </main>
+    </sc-if>
+
+    <sc-if value="{{ isOther }}" hint-placeholder-val="{{ false }}">
+      <main style="padding: 56px 8px; max-width: 560px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--fg-muted); margin-bottom: 8px;">{{ sectionLabel }}</div>
+        <h2 style="margin: 0 0 10px; font-size: 24px; font-weight: 600;">Noch nicht im Prototyp</h2>
+        <p style="color: var(--fg-muted); font-size: 14px; margin-bottom: 18px;">Diese Sektion kommt in einem der nächsten Blöcke. Aktuell stehen Tagesleitstelle und Kalender.</p>
+        <button onClick="{{ backToLeitstelle }}" style="padding: 11px 20px; border-radius: 4px; border: 1px solid var(--hairline); background: rgba(255,255,255,0.05); color: var(--fg); font-family: inherit; font-size: 13px; cursor: pointer;" style-hover="background: rgba(255,255,255,0.09);">Zur Tagesleitstelle</button>
+      </main>
+    </sc-if>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440},&quot;startCollapsed&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Shell&quot;},&quot;defaultView&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;A&quot;,&quot;B&quot;],&quot;default&quot;:&quot;A&quot;,&quot;tsType&quot;:&quot;'A'|'B'&quot;,&quot;section&quot;:&quot;Startseite&quot;}}">
+const WD = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+const MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+const C = { primary: '#7ce8f5', success: '#6ee7a5', warning: '#f0b95e', danger: '#ff7a7a', muted: '#9a9aa4', fg: '#f4f4f6', dim: '#6b6b74' };
+
+const DRIVERS = [
+  { name: 'Max Müller',   vehicle: 'MB Sprinter · B-DI 1001', cap: 1200, shift: '06:00–14:30', status: 'aktiv' },
+  { name: 'Lisa König',   vehicle: 'VW Crafter · B-DI 1002',  cap: 1400, shift: '06:30–15:00', status: 'aktiv' },
+  { name: 'Tom Berger',   vehicle: 'MB Sprinter · B-DI 1003', cap: 1200, shift: '07:00–15:30', status: 'aktiv' },
+  { name: 'Sarah Weber',  vehicle: 'Iveco Daily · B-DI 1004', cap: 1000, shift: '08:00–16:30', status: 'aktiv' },
+  { name: 'Anna Richter', vehicle: 'VW Crafter · B-DI 1005',  cap: 1400, shift: '06:00–14:30', status: 'verfügbar' },
+  { name: 'Jan Peters',   vehicle: '— nicht zugeordnet',      cap: 0,    shift: '—',           status: 'abwesend' },
+];
+
+const POOL = [
+  { id: 'S-20841', customer: 'Nordbau Handel GmbH', address: 'Sonnenallee 112, 12045 Berlin',      window: '08:00–12:00', kg: 340,  date: '06.08.' },
+  { id: 'S-20842', customer: 'Elektro Sander KG',   address: 'Kurfürstendamm 61, 10707 Berlin',    window: '09:00–13:00', kg: 120,  date: '06.08.' },
+  { id: 'S-20847', customer: 'Fliesen Wagner',      address: 'Landsberger Allee 204, 13055 Berlin',window: '13:00–17:00', kg: 880,  date: '06.08.' },
+  { id: 'S-20851', customer: 'Baustoffe Krüger',    address: 'Adlergestell 311, 12489 Berlin',     window: '07:00–11:00', kg: 1150, date: '07.08.' },
+  { id: 'S-20853', customer: 'Sanitär Bruns GmbH',  address: 'Müllerstraße 88, 13349 Berlin',      window: '10:00–14:00', kg: 210,  date: '07.08.' },
+  { id: 'S-20860', customer: 'Holzwerk Petersen',   address: 'Wolfener Straße 32, 12681 Berlin',   window: '12:00–16:00', kg: 470,  date: '08.08.' },
+];
+
+const SVG = (d) => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+
+const ICONS = {
+  home: SVG('<path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path><path d="M9 21v-6h6v6"></path>'),
+  calendar: SVG('<rect x="3" y="5" width="18" height="16"></rect><line x1="3" y1="10" x2="21" y2="10"></line><line x1="8" y1="3" x2="8" y2="6"></line><line x1="16" y1="3" x2="16" y2="6"></line>'),
+  package: SVG('<path d="M21 8v8a1 1 0 0 1-.5.87l-8 4.5a1 1 0 0 1-1 0l-8-4.5A1 1 0 0 1 3 16V8"></path><path d="m3.5 7.5 8.5 4.8 8.5-4.8-8.5-4.8z"></path><line x1="12" y1="12.3" x2="12" y2="21.5"></line>'),
+  users: SVG('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>'),
+  settings: SVG('<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>'),
+  alert: SVG('<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>'),
+};
+
+const SECTIONS = [
+  { id: 'startseite', label: 'Startseite', icon: ICONS.home },
+  { id: 'kalender', label: 'Kalender', icon: ICONS.calendar },
+  { id: 'kontrollzentrale', label: 'Lieferscheine', icon: ICONS.package },
+  { id: 'fahrer', label: 'Fahrer & Fahrzeuge', icon: ICONS.users },
+  { id: 'einstellungen', label: 'Einstellungen', icon: ICONS.settings },
+  { id: 'probleme', label: 'Probleme', icon: ICONS.alert },
+];
+
+const DEPOTS = ['Alle Depots', 'Depot Nord (BER-N)', 'Depot Süd (BER-S)', 'Depot Spandau (BER-W)'];
+
+const STATUS = {
+  'aktiv':     { bg: 'rgba(110,231,165,0.13)', color: '#6ee7a5' },
+  'verfügbar': { bg: 'rgba(124,232,245,0.13)', color: '#7ce8f5' },
+  'abwesend':  { bg: 'rgba(255,122,122,0.13)', color: '#ff7a7a' },
+};
+
+const MAP_POINTS = [
+  { lat: 52.4812, lng: 13.4402, label: 'Max Müller · T-1042' },
+  { lat: 52.5023, lng: 13.3286, label: 'Lisa König · T-1043' },
+  { lat: 52.5296, lng: 13.4712, label: 'Tom Berger · T-1044' },
+  { lat: 52.4401, lng: 13.5601, label: 'Sarah Weber · T-1045' },
+  { lat: 52.5619, lng: 13.3628, label: 'Depot Nord' },
+];
+
+const OPS = [
+  { name: 'Max Müller',   phone: '+49 171 1234567', vehicle: 'MB Sprinter · B-DI 1001', cap: 1200, shift: '06:00–14:30', status: 'aktiv',     tour: 'T-1042', done: 7, stops: 11, kg: 860 },
+  { name: 'Lisa König',   phone: '+49 171 2345678', vehicle: 'VW Crafter · B-DI 1002',  cap: 1400, shift: '06:30–15:00', status: 'aktiv',     tour: 'T-1043', done: 5, stops: 9,  kg: 1040 },
+  { name: 'Tom Berger',   phone: '+49 171 3456789', vehicle: 'MB Sprinter · B-DI 1003', cap: 1200, shift: '07:00–15:30', status: 'aktiv',     tour: 'T-1044', done: 9, stops: 12, kg: 720 },
+  { name: 'Sarah Weber',  phone: '+49 171 4567890', vehicle: 'Iveco Daily · B-DI 1004', cap: 1000, shift: '08:00–16:30', status: 'aktiv',     tour: 'T-1045', done: 3, stops: 8,  kg: 610 },
+  { name: 'Anna Richter', phone: '+49 171 6789012', vehicle: 'VW Crafter · B-DI 1005',  cap: 1400, shift: '06:00–14:30', status: 'verfügbar', tour: '— keine Tour', done: 0, stops: 0, kg: 0 },
+  { name: 'Jan Peters',   phone: '+49 171 5678901', vehicle: '— nicht zugeordnet',      cap: 0,    shift: '—',           status: 'abwesend',  tour: '— krank gemeldet', done: 0, stops: 0, kg: 0 },
+];
+
+const SHIP_STATUS = {
+  new:        { bg: 'rgba(124,232,245,0.13)', color: '#7ce8f5' },
+  processing: { bg: 'rgba(240,185,94,0.14)',  color: '#f0b95e' },
+  ready:      { bg: 'rgba(110,231,165,0.13)', color: '#6ee7a5' },
+  error:      { bg: 'rgba(255,122,122,0.13)', color: '#ff7a7a' },
+};
+
+const SHIPMENTS = [
+  { id: 'S-20838', customer: 'Metallbau Zerbst',    address: 'Prinzenallee 74, 13357 Berlin',      kg: 620,  source: 'email_imap', status: 'ready' },
+  { id: 'S-20839', customer: 'Dachdecker Lindner',  address: 'Bornholmer Straße 9, 10439 Berlin',  kg: 405,  source: 'email_imap', status: 'ready' },
+  { id: 'S-20841', customer: 'Nordbau Handel GmbH', address: 'Sonnenallee 112, 12045 Berlin',      kg: 340,  source: 'email_imap', status: 'new' },
+  { id: 'S-20842', customer: 'Elektro Sander KG',   address: 'Kurfürstendamm 61, 10707 Berlin',    kg: 120,  source: 'manual',     status: 'new' },
+  { id: 'S-20847', customer: 'Fliesen Wagner',      address: 'Landsberger Allee 204, 13055 Berlin',kg: 880,  source: 'csv_import', status: 'processing' },
+  { id: 'S-20851', customer: 'Baustoffe Krüger',    address: 'Adlergestell 311, 12489 Berlin',     kg: 1150, source: 'email_imap', status: 'error' },
+  { id: 'S-20853', customer: 'Sanitär Bruns GmbH',  address: 'Müllerstraße 88, 13349 Berlin',      kg: 210,  source: 'rest_api',   status: 'new' },
+];
+
+const PROBLEM_FILTERS = [
+  { key: 'conflict', label: 'Zeitkonflikt' },
+  { key: 'unassigned', label: 'Ohne Tour' },
+  { key: 'absent', label: 'Abwesend' },
+];
+
+const PROBLEMS = [
+  {
+    id: 'P-CF-8a41c2-3', type: 'conflict', severity: 'kritisch',
+    title: 'T-1043 — Zeitfenster überschritten',
+    detail: 'Stopp 4 (Kurfürstendamm 61): Ankunft 13:35, Fenster endet 13:00.',
+    engine: 'ai-resolve · Gemini', confidence: 87,
+    before: ['Stopp 3 · Prinzenallee 74 · ab 12:40', 'Stopp 4 · Kurfürstendamm 61 · an 13:35 ⚠', 'Stopp 5 · Müllerstraße 88 · an 14:20'],
+    after: ['Stopp 3 · Kurfürstendamm 61 · an 12:55 ✓', 'Stopp 4 · Prinzenallee 74 · an 13:30', 'Stopp 5 · Müllerstraße 88 · an 14:15'],
+    effect: 'Reihenfolge getauscht · +2,4 km Fahrstrecke · alle Zeitfenster eingehalten',
+  },
+  {
+    id: 'P-UA', type: 'unassigned', severity: 'warnung',
+    title: '6 Sendungen ohne Tour',
+    detail: 'Nordbau Handel GmbH, Elektro Sander KG, Fliesen Wagner, Baustoffe Krüger, Sanitär Bruns GmbH, Holzwerk Petersen',
+    engine: 'ai-resolve · Gemini', confidence: 74,
+    before: ['6 Sendungen im Pool · 3 070 kg', 'T-1044 Tom Berger · 720 / 1 200 kg', 'T-1045 Sarah Weber · 610 / 1 000 kg'],
+    after: ['1 Sendung bleibt im Pool · 1 150 kg', 'T-1044 Tom Berger · 1 130 / 1 200 kg', 'T-1045 Sarah Weber · 940 / 1 000 kg'],
+    effect: 'S-20851 (1 150 kg) übersteigt jede Restkapazität — Vorschlag: zusätzliche Tour mit Anna Richter',
+  },
+  {
+    id: 'P-ABS-4c19f0', type: 'absent', severity: 'kritisch',
+    title: 'Fahrer Jan Peters — abwesend',
+    detail: 'Krank gemeldet 06:10 · 4 Stopps nicht besetzt',
+    engine: 'ai-resolve · Gemini', confidence: 91,
+    before: ['Jan Peters · 4 Stopps offen', 'Anna Richter · verfügbar, keine Tour', 'Fahrzeug B-DI 1005 · frei'],
+    after: ['Anna Richter · übernimmt 4 Stopps', 'Neue Tour T-1047 · 08:15–13:40', 'Fahrzeug B-DI 1005 · zugewiesen'],
+    effect: 'Schichtbeginn Anna Richter 06:00, Übernahme ab 08:15 — keine Überstunden',
+  },
+];
+
+const API_KEYS = [
+  { service: 'Supabase · URL',        env: 'VITE_SUPABASE_URL',            masked: 'https://sxqbmxqnwtrgibfryvqf.supabase.co', store: '.env',            status: 'aktiv' },
+  { service: 'Supabase · Anon Key',   env: 'VITE_SUPABASE_PUBLISHABLE_KEY',masked: 'eyJhbGci••••••••••••8Qw4',                store: '.env',            status: 'aktiv' },
+  { service: 'Google Maps JS API',    env: 'VITE_GOOGLE_MAPS_API_KEY',     masked: 'AIzaSyD4••••••••••IMLhg',                 store: '.env',            status: 'zu prüfen' },
+  { service: 'Gemini API',            env: 'GEMINI_API_KEY',               masked: 'AIza••••••••••••••••',                    store: 'Function Secret', status: 'aktiv' },
+  { service: 'Supabase · Service Key',env: 'SUPABASE_SERVICE_ROLE_KEY',    masked: 'eyJhbGci••••••••••••kR2f',                store: 'Function Secret', status: 'aktiv' },
+  { service: 'Distance Matrix API',   env: 'GOOGLE_DISTANCE_MATRIX_KEY',   masked: '— nicht gesetzt',                         store: '—',               status: 'offen' },
+];
+
+const INTEGRATIONS = [
+  { name: 'Sage 100 Produktion', type: 'erp', status: 'aktiv', lastTest: 'heute 07:12',
+    fields: [['base_url', 'https://erp.intern.example.com/api', false], ['client_id', 'dispo-center-prod', false], ['mandant_nr', '001', false], ['client_secret', '••••••••••••', true]] },
+  { name: 'Telematik Flottenbox', type: 'telematics', status: 'aktiv', lastTest: 'heute 06:45',
+    fields: [['api_url', 'https://api.flottenbox.example/v2', false], ['vehicle_group', 'berlin-nord', false], ['api_key', '••••••••7f21', true]] },
+  { name: 'Lieferschein-Postfach', type: 'email_imap', status: 'ausstehend', lastTest: 'noch nicht getestet',
+    fields: [['host', 'imap.example.com', false], ['port', '993', false], ['folder', 'INBOX/Lieferscheine', false], ['username', 'lieferscheine@…', true], ['password', '••••••••••', true]] },
+  { name: 'Kunden-REST-Schnittstelle', type: 'rest_api', status: 'aktiv', lastTest: 'gestern 22:30',
+    fields: [['base_url', 'https://api.kunde.example/v1', false], ['timeout_ms', '8000', false], ['auth_header', 'Bearer ••••••••', true]] },
+  { name: 'SFTP Sendungsimport', type: 'csv_import', status: 'ausstehend', lastTest: 'vor 3 Tagen',
+    fields: [['sftp_host', 'sftp.partner.example', false], ['sftp_port', '22', false], ['remote_path', '/out/shipments/', false], ['sftp_username', 'dispo_import', true], ['sftp_password', '••••••••', true]] },
+];
+
+const DEBTS = [
+  { title: 'Google-Maps-Key rotieren', detail: 'Key liegt jetzt in .env (google-maps.ts), war aber im öffentlichen Repo — rotieren und per HTTP-Referrer einschränken.', phase: 'offen', tone: '#ff7a7a' },
+  { title: 'GRANT SELECT on users', detail: 'permission denied for table users — GRANT SELECT ON users TO authenticated fehlt.', phase: 'offen', tone: '#ff7a7a' },
+  { title: 'Vault-Verschlüsselung', detail: 'Credentials liegen interimsweise in credentials_enc (Text) — voller Vault-Weg über Edge Functions steht aus.', phase: 'Phase 3', tone: '#f0b95e' },
+  { title: 'Theme-Picker entfernen', detail: 'theme-presets.ts liefert weiter 6 Farbschemata — kollidiert mit dem monochromen Cyan-Theme.', phase: 'offen', tone: '#f0b95e' },
+  { title: 'Shell-Chrome flach ziehen', detail: 'DispatchDashboard.tsx trägt noch rounded-[24px], backdrop-filter und Gradient-Logo — index.css ist bereits flach.', phase: 'offen', tone: '#f0b95e' },
+  { title: 'Distance Matrix API', detail: 'GOOGLE_DISTANCE_MATRIX_KEY nicht gesetzt — automatische Depot-Auswahl steht aus.', phase: 'Phase 3', tone: '#f0b95e' },
+];
+
+function fmt(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function hash(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 100000;
+  return h;
+}
+function dayData(date) {
+  const dow = (date.getDay() + 6) % 7;
+  if (dow > 4) return { tours: 0, shipments: 0, load: 0, unassigned: 0, work: false };
+  const h = hash(fmt(date));
+  const tours = 3 + (h % 4);
+  return { tours, shipments: tours * (4 + (h % 5)), load: 48 + (h % 50), unassigned: h % 5 === 0 ? 0 : 1 + (h % 4), work: true };
+}
+
+class Component extends DCLogic {
+  state = { section: 'startseite', variant: this.props.defaultView ?? 'A', view: new Date(2026, 7, 6), selected: '2026-08-06', pFilter: null, sidebarOpen: !(this.props.startCollapsed ?? false), depotIdx: 0 };
+
+  go(id) { this.setState({ section: id }); }
+
+  mountMap = (node) => {
+    if (!node || node._dcMap || !window.L) return;
+    const map = window.L.map(node, { zoomControl: false, attributionControl: false, scrollWheelZoom: false })
+      .setView([52.516, 13.404], 11);
+    window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+    window.L.control.zoom({ position: 'bottomright' }).addTo(map);
+    for (const m of MAP_POINTS) {
+      window.L.marker([m.lat, m.lng], {
+        icon: window.L.divIcon({
+          className: '',
+          iconSize: [0, 0],
+          html: '<div style="display:flex;align-items:center;gap:7px;transform:translate(-6px,-6px);white-space:nowrap">'
+            + '<span style="width:12px;height:12px;flex:none;background:#7ce8f5;box-shadow:0 0 0 3px rgba(124,232,245,0.2)"></span>'
+            + '<span style="font-family:Inter,sans-serif;font-size:11.5px;color:#f4f4f6;background:rgba(21,21,23,0.92);border:1px solid #26262b;padding:3px 9px;border-radius:3px">' + m.label + '</span></div>',
+        }),
+      }).addTo(map);
+    }
+    node._dcMap = map;
+    setTimeout(() => map.invalidateSize(), 60);
+  };
+  shift(days) { this.setState(s => { const d = new Date(s.view); d.setDate(d.getDate() + days); return { view: d }; }); }
+  shiftMonth(n) { this.setState(s => { const d = new Date(s.view); d.setMonth(d.getMonth() + n); return { view: d }; }); }
+
+  renderVals() {
+    const { section, variant, view, selected, pFilter, sidebarOpen, depotIdx } = this.state;
+    const today = '2026-08-06';
+
+    const year = view.getFullYear(), month = view.getMonth();
+    const startDow = (new Date(year, month, 1).getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const prevDays = new Date(year, month, 0).getDate();
+    const raw = [];
+    for (let i = startDow - 1; i >= 0; i--) raw.push({ d: new Date(year, month - 1, prevDays - i), cur: false });
+    for (let d = 1; d <= daysInMonth; d++) raw.push({ d: new Date(year, month, d), cur: true });
+    while (raw.length % 7 !== 0) raw.push({ d: new Date(year, month + 1, raw.length - startDow - daysInMonth + 1), cur: false });
+
+    const cells = raw.map(c => {
+      const key = fmt(c.d);
+      const dd = dayData(c.d);
+      const isSel = key === selected;
+      return {
+        day: c.d.getDate(),
+        dayColor: c.cur ? (key === today ? C.primary : C.fg) : C.dim,
+        isToday: key === today,
+        bg: isSel ? 'rgba(124,232,245,0.10)' : 'rgba(255,255,255,0.025)',
+        border: isSel ? 'rgba(124,232,245,0.55)' : '#26262b',
+        hasWork: c.cur && dd.work,
+        hasUnassigned: c.cur && dd.work && dd.unassigned > 0,
+        tours: dd.tours, shipments: dd.shipments, load: dd.load,
+        select: () => this.setState({ selected: key }),
+      };
+    });
+
+    const selDate = new Date(selected + 'T00:00:00');
+    const sel = dayData(selDate);
+    const dayLabel = WD[(selDate.getDay() + 6) % 7] + ', ' + selDate.getDate() + '. ' + MONTHS[selDate.getMonth()] + ' ' + selDate.getFullYear();
+    const seed = hash(selected);
+
+    const dayDrivers = DRIVERS.map((d, i) => {
+      const active = d.status === 'aktiv' && sel.work;
+      const load = active ? Math.min(98, 40 + ((seed + i * 17) % 58)) : 0;
+      return {
+        name: d.name, shift: d.shift, vehicle: d.vehicle, status: d.status,
+        statusBg: STATUS[d.status].bg, statusColor: STATUS[d.status].color,
+        load, kg: Math.round(d.cap * load / 100), cap: d.cap,
+        stops: active ? 5 + ((seed + i * 7) % 8) : 0,
+      };
+    });
+
+    const monday = new Date(view);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const weekDays = [], weekDates = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday); d.setDate(monday.getDate() + i);
+      weekDates.push(d);
+      weekDays.push({ label: WD[i], sub: d.getDate() + '. ' + MONTHS[d.getMonth()].slice(0, 3) });
+    }
+    const sunday = weekDates[6];
+    const weekLabel = 'KW ' + Math.ceil(((monday - new Date(monday.getFullYear(), 0, 1)) / 86400000 + 1) / 7)
+      + ' · ' + monday.getDate() + '. ' + MONTHS[monday.getMonth()] + ' – ' + sunday.getDate() + '. ' + MONTHS[sunday.getMonth()];
+
+    const board = DRIVERS.map(d => ({
+      name: d.name, vehicle: d.vehicle, shift: d.shift, cap: d.cap, status: d.status,
+      statusBg: STATUS[d.status].bg, statusColor: STATUS[d.status].color,
+      cells: weekDates.map(wd => {
+        const dow = (wd.getDay() + 6) % 7;
+        const h = hash(fmt(wd) + d.name);
+        const has = d.status === 'aktiv' && dow < 5 && h % 9 !== 0;
+        return {
+          hasTour: has, free: !has,
+          bg: has ? 'rgba(255,255,255,0.025)' : 'transparent',
+          border: has ? '#26262b' : 'rgba(255,255,255,0.05)',
+          note: dow > 4 ? 'Wochenende' : d.status === 'abwesend' ? 'abwesend' : d.status === 'verfügbar' ? 'verfügbar' : 'frei',
+          tour: 'T-' + String(1000 + (h % 900)),
+          stops: 4 + (h % 9),
+          window: '0' + (6 + (h % 3)) + ':00–1' + (4 + (h % 4)) + ':30',
+          load: 45 + (h % 54),
+          select: () => this.setState({ selected: fmt(wd) }),
+        };
+      }),
+    }));
+
+    const timeline = DRIVERS.map(d => {
+      const h = hash('tl' + d.name);
+      const has = d.status === 'aktiv';
+      const start = 6 + (h % 3);
+      const end = start + 7 + (h % 3);
+      const stops = 6 + (h % 7);
+      const done = Math.min(stops, Math.round(stops * 0.55) + (h % 2));
+      return {
+        driver: d.name, vehicle: d.vehicle, hasTour: has, free: !has,
+        note: d.status === 'abwesend' ? 'abwesend — krank gemeldet' : 'verfügbar — keine Tour disponiert',
+        id: 'T-' + String(1000 + (h % 900)), stops, done,
+        left: ((start - 6) / 12 * 100).toFixed(1),
+        width: ((end - start) / 12 * 100).toFixed(1),
+        pct: Math.round(done / stops * 100),
+      };
+    });
+
+    const on = { bg: '#7ce8f5', border: '#7ce8f5', color: '#0d0d0f' };
+    const off = { bg: 'transparent', border: 'transparent', color: C.muted };
+    const a = variant === 'A' ? on : off, b = variant === 'B' ? on : off;
+
+    return {
+      tenant: DEPOTS[depotIdx],
+      todayLabel: 'Donnerstag, 6. August 2026',
+      todayShort: '06.08.2026',
+      clock: '11:40',
+      sections: SECTIONS.map(s => {
+        const active = s.id === section;
+        return {
+          id: s.id, label: s.label, active,
+          icon: { __html: s.icon },
+          iconColor: active ? C.primary : C.muted,
+          bg: active ? 'rgba(124,232,245,0.10)' : 'transparent',
+          border: active ? 'rgba(124,232,245,0.30)' : 'transparent',
+          color: active ? C.fg : C.muted,
+          weight: active ? '600' : '400',
+          justify: sidebarOpen ? 'flex-start' : 'center',
+          go: () => this.go(s.id),
+        };
+      }),
+      sidebarOpen,
+      sidebarWidth: sidebarOpen ? '224px' : '60px',
+      toggleSidebar: () => this.setState(s => ({ sidebarOpen: !s.sidebarOpen })),
+      depotLabel: DEPOTS[depotIdx],
+      cycleDepot: () => this.setState(s => ({ depotIdx: (s.depotIdx + 1) % DEPOTS.length })),
+      goSettings: () => this.go('einstellungen'),
+      isStart: section === 'startseite',
+      isKalender: section === 'kalender',
+      isKontroll: section === 'kontrollzentrale',
+      isFahrer: section === 'fahrer',
+      isProbleme: section === 'probleme',
+      isSettings: section === 'einstellungen',
+      isOther: false,
+      goFahrer: () => this.go('fahrer'),
+      ops: OPS.map(o => ({
+        ...o,
+        initials: o.name.split(' ').map(w => w[0]).join(''),
+        pct: o.stops ? Math.round(o.done / o.stops * 100) : 0,
+        statusBg: STATUS[o.status].bg, statusColor: STATUS[o.status].color,
+      })),
+      shipments: SHIPMENTS.map(s => ({ ...s, statusBg: SHIP_STATUS[s.status].bg, statusColor: SHIP_STATUS[s.status].color })),
+      shipmentCount: SHIPMENTS.length,
+      problems: PROBLEMS.filter(p => !pFilter || p.type === pFilter).map(p => ({
+        ...p,
+        tone: p.severity === 'kritisch' ? C.danger : C.warning,
+        badgeBg: p.severity === 'kritisch' ? 'rgba(255,122,122,0.14)' : 'rgba(240,185,94,0.14)',
+      })),
+      problemCount: PROBLEMS.length,
+      problemFilters: PROBLEM_FILTERS.map(f => {
+        const active = pFilter === f.key;
+        return {
+          label: f.label, count: PROBLEMS.filter(p => p.type === f.key).length,
+          bg: active ? '#7ce8f5' : 'transparent',
+          border: active ? '#7ce8f5' : '#26262b',
+          color: active ? '#0d0d0f' : C.muted,
+          badgeBg: active ? 'rgba(13,13,15,0.15)' : 'rgba(255,255,255,0.08)',
+          pick: () => this.setState({ pFilter: active ? null : f.key }),
+        };
+      }),
+      envFacts: [
+        { label: 'Supabase-Projekt', value: 'sxqbmxqnwtrgibfryvqf' },
+        { label: 'Region', value: 'eu-central-1' },
+        { label: 'Company-ID', value: 'd7da1c5a-7cba-4678-8003-bc8844510a87' },
+        { label: 'Depot', value: DEPOTS[depotIdx] },
+      ],
+      apiKeys: API_KEYS.map(k => ({
+        ...k,
+        bg: k.status === 'aktiv' ? 'rgba(110,231,165,0.13)' : k.status === 'zu prüfen' ? 'rgba(240,185,94,0.14)' : 'rgba(255,122,122,0.13)',
+        color: k.status === 'aktiv' ? C.success : k.status === 'zu prüfen' ? C.warning : C.danger,
+      })),
+      integrations: INTEGRATIONS.map(i => ({
+        ...i,
+        bg: i.status === 'aktiv' ? 'rgba(110,231,165,0.13)' : 'rgba(240,185,94,0.14)',
+        color: i.status === 'aktiv' ? C.success : C.warning,
+        fields: i.fields.map(f => ({ key: f[0], value: f[1], color: f[2] ? C.primary : C.fg })),
+      })),
+      debts: DEBTS,
+      sectionLabel: (SECTIONS.find(s => s.id === section) || {}).label,
+      backToLeitstelle: () => this.go('startseite'),
+      goProbleme: () => this.go('probleme'),
+
+      isA: variant === 'A', isB: variant === 'B',
+      pickA: () => this.setState({ variant: 'A' }),
+      pickB: () => this.setState({ variant: 'B' }),
+      aBg: a.bg, aBorder: a.border, aColor: a.color,
+      bBg: b.bg, bBorder: b.border, bColor: b.color,
+
+      kpis: [
+        { label: 'Aktive Touren', value: 5, sub: 'von 7', tone: C.primary },
+        { label: 'Fahrer aktiv', value: 4, sub: 'von 6', tone: C.primary },
+        { label: 'Stopps erledigt', value: 24, sub: 'von 46', tone: C.fg },
+        { label: 'Ø Auslastung', value: '71 %', sub: 'Kapazität', tone: C.success },
+        { label: 'Unzugeordnet', value: 6, sub: 'Sendungen', tone: C.warning },
+        { label: 'Probleme', value: 3, sub: 'offen', tone: C.danger },
+      ],
+      weather: {
+        city: 'Berlin, Deutschland', temp: 24, label: 'Bewölkt', wind: 12, rain: 20,
+        hours: [{ t: '12:00', v: 25 }, { t: '14:00', v: 26 }, { t: '16:00', v: 24 }, { t: '18:00', v: 21 }],
+      },
+      mapRef: this.mountMap,
+      markers: [
+        { x: 28, y: 24, label: 'Max Müller · T-1042' },
+        { x: 62, y: 38, label: 'Lisa König · T-1043' },
+        { x: 44, y: 66, label: 'Tom Berger · T-1044' },
+        { x: 74, y: 74, label: 'Sarah Weber · T-1045' },
+      ],
+      tours: [
+        { id: 'T-1042', driver: 'Max Müller', done: 7, stops: 11, pct: 64, next: 'Sonnenallee 112', eta: '12:05' },
+        { id: 'T-1043', driver: 'Lisa König', done: 5, stops: 9, pct: 56, next: 'Kurfürstendamm 61', eta: '12:20' },
+        { id: 'T-1044', driver: 'Tom Berger', done: 9, stops: 12, pct: 75, next: 'Landsberger Allee 204', eta: '11:55' },
+        { id: 'T-1045', driver: 'Sarah Weber', done: 3, stops: 8, pct: 38, next: 'Adlergestell 311', eta: '12:40' },
+        { id: 'T-1046', driver: 'Max Müller', done: 0, stops: 6, pct: 0, next: 'Start Depot Nord', eta: '14:30' },
+      ],
+      hours: ['06', '08', '10', '12', '14', '16', '18'],
+      nowPct: (((11 + 40 / 60) - 6) / 12 * 100).toFixed(1),
+      timeline,
+      issues: [
+        { title: '6 Sendungen ohne Tour', kind: 'Zuordnung', detail: 'Termin 06.08. — keine Kapazität in den aktiven Touren', tone: C.warning },
+        { title: 'Zeitfensterkonflikt T-1043', kind: 'Konflikt', detail: 'Stopp 4 (Kurfürstendamm 61) liegt 35 Min nach Fensterende 13:00', tone: C.danger },
+        { title: 'Jan Peters abwesend', kind: 'Personal', detail: 'Krank gemeldet 06:10 — 4 Stopps neu zu verteilen', tone: C.danger },
+      ],
+      issueCount: 3,
+
+      periodLabel: variant === 'A' ? MONTHS[month] + ' ' + year : weekLabel,
+      monthLabel: MONTHS[month] + ' ' + year,
+      weekLabel, weekdays: WD, cells,
+      prevMonth: () => this.shiftMonth(-1),
+      nextMonth: () => this.shiftMonth(1),
+      prevWeek: () => this.shift(-7),
+      nextWeek: () => this.shift(7),
+      today: () => this.setState({ view: new Date(2026, 7, 6), selected: today }),
+      dayLabel,
+      dayKpis: [
+        { value: sel.tours, label: 'Touren', tone: C.primary },
+        { value: sel.shipments, label: 'Sendungen', tone: C.fg },
+        { value: sel.unassigned, label: 'Offen', tone: C.warning },
+      ],
+      dayDrivers,
+      unassigned: POOL.slice(0, 3),
+      pool: POOL,
+      unassignedCount: POOL.length,
+      weekDays, board,
+    };
+  }
+}
+</script>
+</body>
+</html>

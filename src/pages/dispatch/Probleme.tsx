@@ -32,9 +32,9 @@ type AiSuggestion = {
 
 /* ── Filter config ── */
 const filterLabels: { key: ProblemType; label: string }[] = [
-  { key: 'conflict', label: 'conflict' },
-  { key: 'unassigned', label: 'unassigned' },
-  { key: 'absent', label: 'absent' },
+  { key: 'conflict', label: 'Zeitkonflikt' },
+  { key: 'unassigned', label: 'Ohne Tour' },
+  { key: 'absent', label: 'Abwesend' },
 ];
 
 const severityEdge: Record<SeverityLevel, string> = {

@@ -38,7 +38,7 @@ Falls `supabase link` nach einem Access Token fragt: über `supabase login` vorh
   ```bash
   supabase secrets set GEMINI_API_KEY=<Wert> --project-ref sxqbmxqnwtrgibfryvqf
   ```
-- **`SERPER_API_KEY`** bzw. **`TAVILY_API_KEY`** (optional, nur für `research-article`) — ohne diese läuft die Function laut eigenem Code-Kommentar mit niedrigerer Confidence über Gemini allein weiter. Kein Blocker, kann später nachgezogen werden.
+- **`SERPER_API_KEY`** bzw. **`TAVILY_API_KEY`** (für `research-article`) — ohne diese versucht die Function Google-Search-Grounding über den vorhandenen `GEMINI_API_KEY`. Ist dafür kein Suchkontingent verfügbar (HTTP 429), muss einer der externen Provider gesetzt werden; quelllose KI-Schätzungen werden bewusst nicht gespeichert.
 
 Alle gesetzten Secrets prüfen mit:
 ```bash
