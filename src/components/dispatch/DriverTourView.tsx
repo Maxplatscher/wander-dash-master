@@ -28,6 +28,8 @@ import {
   GOOGLE_MAPS_LOADER_ID,
 } from "@/lib/google-maps";
 import { shipmentCoordinates } from "@/lib/tour-position";
+import { formatGpsAge } from "@/lib/driver-gps";
+import { useDriverGpsShare } from "@/hooks/useDriverGpsShare";
 
 const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
 
@@ -210,6 +212,8 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
       toast.error(`Stop konnte nicht abgeschlossen werden: ${error.message}`);
     },
   });
+  const activeTour = tourQuery.data?.kind === "tour" ? tourQuery.data.tour : null;
+  const gpsShare = useDriverGpsShare(activeTour?.id ?? null, activeTour !== null);
 
   if (tourQuery.isLoading) {
     return (
@@ -287,13 +291,24 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
               {vehicleNames.length ? ` · ${vehicleNames.join(", ")}` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-3 meta-text">
-            <span className="flex items-center gap-1">
-              <Package className="h-3.5 w-3.5" /> {doneWeight}/{totalWeight} kg
-            </span>
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" /> {doneCount}/{stops.length} Stops
-            </span>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-3 meta-text">
+              <span className="flex items-center gap-1">
+                <Package className="h-3.5 w-3.5" /> {doneWeight}/{totalWeight} kg
+              </span>
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" /> {doneCount}/{stops.length} Stops
+              </span>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant={gpsShare.sharing ? "outline" : "default"}
+              className="h-7 rounded text-xs"
+              onClick={() => void (gpsShare.sharing ? gpsShare.stop() : gpsShare.start())}
+            >
+              {gpsShare.sharing ? "Standort stoppen" : "Standort teilen"}
+            </Button>
           </div>
         </div>
         <div className="progress-track">
@@ -302,6 +317,12 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
             style={{ width: `${stops.length ? (doneCount / stops.length) * 100 : 0}%` }}
           />
         </div>
+        <p className="meta-text mt-2">
+          {gpsShare.sharing
+            ? `GPS aktiv${gpsShare.lastAt ? ` · zuletzt ${formatGpsAge(gpsShare.lastAt)}` : ""}`
+            : "GPS aus — Disposition sieht nur Stop-Lagen, keine Live-Position."}
+          {gpsShare.error ? ` · ${gpsShare.error}` : ""}
+        </p>
       </div>
 
       {stops.length === 0 ? (

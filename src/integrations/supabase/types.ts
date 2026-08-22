@@ -213,6 +213,58 @@ export type Database = {
           },
         ]
       }
+      driver_position: {
+        Row: {
+          accuracy_m: number | null
+          company_id: string
+          driver_id: string
+          lat: number
+          lng: number
+          recorded_at: string
+          tour_id: string | null
+        }
+        Insert: {
+          accuracy_m?: number | null
+          company_id: string
+          driver_id: string
+          lat: number
+          lng: number
+          recorded_at?: string
+          tour_id?: string | null
+        }
+        Update: {
+          accuracy_m?: number | null
+          company_id?: string
+          driver_id?: string
+          lat?: number
+          lng?: number
+          recorded_at?: string
+          tour_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_position_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_position_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: true
+            referencedRelation: "driver"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_position_tour_id_fkey"
+            columns: ["tour_id"]
+            isOneToOne: false
+            referencedRelation: "tour"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_log: {
         Row: {
           body_preview: string | null
@@ -799,6 +851,23 @@ export type Database = {
         }[]
       }
       get_current_driver_id: { Args: never; Returns: string }
+      report_my_position: {
+        Args: {
+          p_lat: number
+          p_lng: number
+          p_accuracy_m?: number | null
+          p_tour_id?: string | null
+        }
+        Returns: {
+          accuracy_m: number | null
+          company_id: string
+          driver_id: string
+          lat: number
+          lng: number
+          recorded_at: string
+          tour_id: string | null
+        }
+      }
       get_my_role: { Args: never; Returns: string }
       get_user_company_id: { Args: never; Returns: string }
       has_role: {

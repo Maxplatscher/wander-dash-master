@@ -4,7 +4,7 @@
 
 ## A. Kernfunktionen, die noch nicht echt sind (Blocker)
 
-1. **Live-Standortkarte (`LiveMap.tsx`)** — Demo-Marker sind entfernt; die Karte heißt „Tourposition". Marker kommen aus geokodierten Stop-Adressen (`geocode-shipments`). Es gibt weiterhin **keine GPS-Quelle** — Details in `docs/KARTE_STANDORTQUELLE.md`.
+1. **Live-Standortkarte (`LiveMap.tsx`)** — Demo-Marker sind entfernt. Marker kommen aus Fahrer-GPS (`driver_position`, mit sichtbarem Alter, kein „Live-Standort"-Label) oder aus geokodierten Stop-Adressen. Details: `docs/KARTE_STANDORTQUELLE.md`.
 2. **„Meine Tour heute" für Fahrer-Rolle (`DriverTourView.tsx`)** — erledigt am 22.08.2026. Ein Fahrer sieht über `users.driver_id` → `tour.driver_id` seine aktive Tagestour, schließt Stops über die RPC `complete_my_tour_stop` ab, und der Status bleibt nach Reload in `tour_stop` gespeichert. Navigation zeigt nur „Meine Tour"; der Firmen-Wizard unter `/setup` wird für Fahrer übersprungen.
 3. **E-Mail/IMAP-Import für Lieferscheine** — Kontrollzentrale zeigt den fehlenden Abruf ehrlich („Import nicht angebunden"), ohne Fake-Adresse `lieferscheine@dispatch.example.com`. IMAP-Zugang kann unter Einstellungen hinterlegt werden, es werden aber noch keine Mails abgeholt und keine `shipment`-Zeilen daraus angelegt. Onboarding fragt die Berechtigung trotzdem schon ab.
 
@@ -35,7 +35,7 @@
 
 ## F. Versionsstand
 
-15. Samstag 22.08.2026: Fahrerbetrieb ohne Demo-Daten (Tour, Stop-Abschluss, ehrliche Karte, RLS, Fahrerfotos, Adress-Geokodierung). Wetter auf der Startseite kommt vom Depot-Standort, nicht mehr aus einem hartcodierten München. Branch `feat/samstag-fahrerbetrieb`. Offene Restpunkte: **Google-Server-Key für Geocoding** (Punkt 5), echtes Live-GPS, Passwort-Rotation, IMAP-Import.
+15. Samstag 22.08.2026: Fahrerbetrieb ohne Demo-Daten plus Fahrer-GPS (`driver_position`). Branch `feat/samstag-fahrerbetrieb`. Offene Restpunkte: **Google-Server-Key für Geocoding** (Punkt 5), Passwort-Rotation, IMAP-Import.
 
 ## G. Außerhalb meines Blickfelds — bitte selbst einordnen
 

@@ -1,23 +1,22 @@
 # Standortquelle der Karte
 
-Stand: 22.08.2026 (Block 2 Tagesplan Samstag)
+Stand: 22.08.2026 (nach Samstagsziel, Fahrer-GPS)
 
 ## Heute
 
-Es gibt **keine GPS-Ortung**. Die Karte (`src/components/dispatch/LiveMap.tsx`,
-`DriverDetailDialog.tsx`, `DriverTourView.tsx`) zeigt ausschließlich die Lage von Stops:
+Die Karte (`src/components/dispatch/LiveMap.tsx`, `DriverDetailDialog.tsx`,
+`DriverTourView.tsx`) zeigt, in dieser Reihenfolge:
 
-- Marker = letzter vom Fahrer bestätigter Stop (`tour_stop.driver_completed` /
-  `driver_completed_at`), sonst der nächste disponierte Stop.
-- Koordinaten kommen einzig aus `shipment.location_x` / `shipment.location_y`.
-  Projektkonvention: `location_x` = Breitengrad, `location_y` = Längengrad (so auch in den
-  Edge Functions `assign-depot` und `demo-setup`). Zentral geprüft in
-  `src/lib/tour-position.ts`.
-- Fehlt eine Koordinate, wird nichts geschätzt. Die Tour erscheint in der Liste
-  „Ohne Koordinaten" unter der Karte.
+1. **Fahrer-GPS**, wenn in `driver_position` ein Fix liegt, der höchstens 30 Minuten alt
+   und genauer als 250 m ist. Das Alter steht sichtbar auf dem Badge („GPS vor 2 Min").
+   Es gibt kein Label „Live-Standort".
+2. Sonst den letzten vom Fahrer bestätigten Stop, sonst den nächsten disponierten Stop
+   (`shipment.location_x` / `location_y`, Konvention lat/lng, `src/lib/tour-position.ts`).
+3. Fehlt beides, wird nichts geschätzt. Die Tour steht unter der Karte bei „Ohne Koordinaten".
 
-Deshalb ist die Karte als „Tourposition / letzter bestätigter Stop" beschriftet und trägt den
-Hinweis „Keine GPS-Ortung". Kein Element darf als Live-Standort gelesen werden.
+Fahrer teilen den Standort bewusst in „Meine Tour" (`Standort teilen`). Die RPC
+`report_my_position` schreibt nur die eigene Position; Disposition liest nur die eigene
+Company. Fixes älter als 24 Stunden werden beim nächsten Report gelöscht.
 
 ## Voraussetzung, damit die Karte überhaupt Marker zeigt
 
@@ -40,23 +39,10 @@ Kein Blocker für den Samstag, aber nicht vergessen (`docs/CHECKLISTE_VOR_VERKAU
 4. `npx supabase secrets set GOOGLE_MAPS_API_KEY=<server-key>` (Wert nicht loggen).
 5. In der Kontrollzentrale „Adressen geokodieren“ auslösen und prüfen, dass `provider` = `google` ist statt `nominatim`.
 
-## Echtes Live-GPS später
+## Echtes Live-GPS — umgesetzt 22.08.2026
 
-Quelle: Standortfreigabe im Browser des Fahrers auf der Fahreransicht
-(`navigator.geolocation`, Einwilligung liegt bereits vor: `src/lib/consent.ts`,
-`ConsentDialog`/`StepPermissions`). Kein Fremdanbieter, keine Telematikbox nötig.
+Quelle: `navigator.geolocation` auf der Fahreransicht, Tabelle `driver_position`, RPC
+`report_my_position`. Badge zeigt das Messalter. „Live" nur, wenn man das Alter liest —
+das Wort „Live-Standort" bleibt absichtlich aus.
 
-Dafür fehlt eine eigene Tabelle, z. B. `driver_position`:
-
-| Feld | Zweck |
-| --- | --- |
-| `driver_id` | FK auf `driver.id` |
-| `company_id` | Mandantentrennung, Pflicht für RLS |
-| `lat`, `lng` | Position |
-| `accuracy_m` | Genauigkeit, um unbrauchbare Fixes zu verwerfen |
-| `recorded_at` | Zeitpunkt der Messung (Basis für „Stand vor x Minuten") |
-| `tour_id` | optionaler Bezug zur laufenden Tour |
-
-Regeln, bevor daraus ein „Live"-Label werden darf: RLS (Fahrer schreibt nur eigene Position,
-Disposition liest nur die eigene Company), Aufbewahrungsfrist/Löschung, Anzeige des
-Messzeitpunkts und ein sichtbares Alter (veraltete Fixes nicht als aktuell darstellen).
+Offen bleiben: Aufbewahrung über 24 Stunden hinaus / Historie, Telematik-Fremdanbieter.
