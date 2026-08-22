@@ -1,6 +1,6 @@
 # Tagesplan Samstag, 22.08.2026 — Verkaufsblocker Fahrerbetrieb
 
-> Stand nach Restzeit: Fahrertour, Stop-Abschluss, ehrliche Karte, RLS, Fahrerfotos und Adress-Geokodierung (`geocode-shipments`) sind umgesetzt. Echtes Live-GPS und Passwort-Rotation bleiben Folgearbeit.
+> Stand nach Restzeit: Fahrertour, Stop-Abschluss, ehrliche Karte, RLS, Fahrerfotos und Adress-Geokodierung (`geocode-shipments`) sind umgesetzt. Folgearbeit: Google-Server-Key ohne HTTP-Referrer (`GOOGLE_MAPS_API_KEY`, Checkliste Punkt 5), echtes Live-GPS, Passwort-Rotation.
 
 ## Tagesziel
 

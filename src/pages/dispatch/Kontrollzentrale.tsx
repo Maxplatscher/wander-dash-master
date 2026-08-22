@@ -9,6 +9,7 @@ import { useDispatch } from '@/lib/dispatch-context';
 import { cn } from '@/lib/utils';
 import { ArticleReviewPanel } from '@/components/dispatch/ArticleReviewPanel';
 import { parseMissingFields } from '@/lib/article-research';
+import { useIntegrations } from '@/hooks/useIntegrations';
 
 const STATUS_BADGE: Record<string, string> = {
   new: 'bg-primary/15 text-primary',
@@ -25,9 +26,15 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 export function Kontrollzentrale() {
-  const { selectedDate, refreshKey, selectedDepotId, selectedDepotLabel, refreshAll } = useDispatch();
+  const { selectedDate, refreshKey, selectedDepotId, selectedDepotLabel, refreshAll, companyId, navigateTo } = useDispatch();
   const queryClient = useQueryClient();
   const dateStr = selectedDate.toISOString().split('T')[0];
+  const { integrations, loading: integrationsLoading } = useIntegrations(companyId);
+  const imap = integrations.find((item) => item.system_type === 'email_imap');
+  const imapHost =
+    imap && typeof imap.config?.host === 'string' && imap.config.host.trim()
+      ? imap.config.host.trim()
+      : null;
 
   const { data: shipments, isLoading: shipmentsLoading } = useQuery({
     queryKey: ['shipments', dateStr, selectedDepotId, refreshKey],
@@ -173,7 +180,7 @@ export function Kontrollzentrale() {
         </p>
       </div>
 
-      {/* 1. E-Mail-Zugang */}
+      {/* 1. E-Mail-Zugang — IMAP-Abruf ist noch nicht gebaut; nichts als Posteingang vortäuschen */}
       <div className="glass-card p-5 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -181,19 +188,39 @@ export function Kontrollzentrale() {
             <p className="card-title">E-Mail-Zugang</p>
           </div>
           <span className="shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm bg-warning/15 text-warning">
-            Ausstehend
+            Import nicht angebunden
           </span>
         </div>
-        <p className="meta-text">
-          Lieferscheine per IMAP empfangen — eingehende Mails werden über die System-Integration
-          verarbeitet und als Sendungen angelegt.
-        </p>
-        <div className="sub-card px-3 py-2.5 flex items-center gap-3">
-          <Mail className="w-3.5 h-3.5 text-dim shrink-0" />
-          <code className="font-mono text-sm text-foreground truncate">
-            lieferscheine@dispatch.example.com
-          </code>
-        </div>
+        {integrationsLoading ? (
+          <p className="meta-text">Integrationen werden geladen…</p>
+        ) : imap ? (
+          <>
+            <p className="meta-text">
+              IMAP-Zugang {imap.is_active ? 'ist hinterlegt' : 'ist deaktiviert'}, Mails werden
+              aber noch nicht abgeholt. Lieferscheine entstehen weiter manuell oder über
+              demo-setup.
+            </p>
+            <div className="sub-card px-3 py-2.5 flex items-center gap-3">
+              <Mail className="w-3.5 h-3.5 text-dim shrink-0" />
+              <code className="font-mono text-sm text-foreground truncate">
+                {imapHost ?? imap.name}
+              </code>
+            </div>
+          </>
+        ) : (
+          <p className="meta-text">
+            Kein IMAP-Konto eingerichtet, und der automatische Mail-Abruf ist noch nicht
+            gebaut. Es gibt kein Systempostfach.
+          </p>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded"
+          onClick={() => navigateTo('einstellungen')}
+        >
+          Einstellungen öffnen
+        </Button>
       </div>
 
       {/* 2. Lieferschein-Tabelle */}

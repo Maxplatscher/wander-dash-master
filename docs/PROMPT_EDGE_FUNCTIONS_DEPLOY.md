@@ -26,13 +26,13 @@ Falls `supabase link` nach einem Access Token fragt: über `supabase login` vorh
 
 ## Secrets prüfen — sonst deployt die Function, wirft aber zur Laufzeit Fehler
 
-**Update:** `GOOGLE_MAPS_API_KEY` und `GEMINI_API_KEY` sind bereits im Supabase-Dashboard gesetzt (18.08.2026, verifiziert unter Edge Functions → Secrets). Nicht nochmal setzen, nur mit `supabase secrets list` gegenprüfen, dass Cursor dieselben Namen sieht.
+**Update:** Die Secret-*Namen* `GOOGLE_MAPS_API_KEY` und `GEMINI_API_KEY` sind gesetzt. Der Maps-Wert ist aber der Browser-Key (HTTP-Referrer) — Google-Geocoding antwortet deshalb `REQUEST_DENIED`, `geocode-shipments` nutzt Nominatim. Vor Produktion einen eigenen Server-Key setzen, siehe Checkliste Punkt 5 / `docs/KARTE_STANDORTQUELLE.md`. Nicht den Vite-Key nochmal übernehmen.
 
 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY` sind bei Supabase automatisch für jede Function verfügbar, dafür ist nichts zu tun. Zusätzlich manuell nötig:
 
-- **`GOOGLE_MAPS_API_KEY`** (für `assign-depot`, Distanzberechnung) — denselben Wert verwenden, der schon in `.env` unter `VITE_GOOGLE_MAPS_API_KEY` steht:
+- **`GOOGLE_MAPS_API_KEY`** (für `assign-depot` / Distance Matrix und `geocode-shipments`) — **eigener Server-Key**, nicht `VITE_GOOGLE_MAPS_API_KEY` kopieren. Restriction: keine HTTP-Referrer. Fehlt er oder ist er der Browser-Key, fällt Geocoding auf Nominatim zurück:
   ```bash
-  supabase secrets set GOOGLE_MAPS_API_KEY=<Wert aus .env übernehmen>
+  supabase secrets set GOOGLE_MAPS_API_KEY=<server-key-ohne-http-referrer>
   ```
 - **`GEMINI_API_KEY`** (für `ai-resolve` und `research-article`, direkter Call an `generativelanguage.googleapis.com`) — Key aus Google AI Studio:
   ```bash

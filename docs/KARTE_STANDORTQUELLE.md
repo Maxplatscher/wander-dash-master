@@ -30,6 +30,16 @@ werden nur Treffer mit belastbarer Genauigkeit, niemals 0/0. Aufruf in der Kontr
 
 `plan-tour` überspringt Sendungen ohne Koordinaten statt sie nach 0/0 (Golf von Guinea) zu legen.
 
+## Offen vor Verkauf — Google-Server-Key
+
+Kein Blocker für den Samstag, aber nicht vergessen (`docs/CHECKLISTE_VOR_VERKAUF.md`, Punkt 5):
+
+1. In Google Cloud einen **zweiten** Key anlegen (nicht `VITE_GOOGLE_MAPS_API_KEY` kopieren).
+2. APIs: Geocoding API und Distance Matrix API.
+3. Restriction: keine HTTP-Referrer; optional IP, sonst unrestricted und nur als Edge Secret halten.
+4. `npx supabase secrets set GOOGLE_MAPS_API_KEY=<server-key>` (Wert nicht loggen).
+5. In der Kontrollzentrale „Adressen geokodieren“ auslösen und prüfen, dass `provider` = `google` ist statt `nominatim`.
+
 ## Echtes Live-GPS später
 
 Quelle: Standortfreigabe im Browser des Fahrers auf der Fahreransicht

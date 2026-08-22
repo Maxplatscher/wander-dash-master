@@ -27,6 +27,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useProblems } from '@/pages/dispatch/Probleme';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { openMeteoForecastUrl, resolveWeatherLocation } from '@/lib/weather-location';
 
 type ViewMode = 'leitstand' | 'zeitstrahl';
 
@@ -279,12 +280,17 @@ function weatherIcon(code: number) {
 }
 
 function CompactWeather() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['weather-inline'],
+  const { selectedDepot, depots, depotsLoading } = useDispatch();
+  const location = useMemo(
+    () => resolveWeatherLocation(selectedDepot, depots),
+    [selectedDepot, depots],
+  );
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['weather-inline', location?.lat, location?.lng],
+    enabled: location != null,
     queryFn: async () => {
-      const res = await fetch(
-        'https://api.open-meteo.com/v1/forecast?latitude=48.14&longitude=11.58&current_weather=true&hourly=temperature_2m,weathercode,precipitation_probability&timezone=Europe%2FBerlin',
-      );
+      const res = await fetch(openMeteoForecastUrl(location!));
+      if (!res.ok) throw new Error('Wetter nicht erreichbar');
       return res.json();
     },
     refetchInterval: 600_000,
@@ -314,8 +320,24 @@ function CompactWeather() {
     return rows;
   }, [data]);
 
+  if (depotsLoading) {
+    return <p className="meta-text">Wetter wird geladen…</p>;
+  }
+
+  if (!location) {
+    return (
+      <p className="meta-text">
+        Kein Depot-Standort hinterlegt — Wetter wird nicht geschätzt.
+      </p>
+    );
+  }
+
   if (isLoading) {
     return <p className="meta-text">Wetter wird geladen…</p>;
+  }
+
+  if (isError || !current) {
+    return <p className="meta-text">Wetter für {location.label} nicht verfügbar.</p>;
   }
 
   return (
@@ -328,7 +350,7 @@ function CompactWeather() {
           <p className="text-xl font-semibold text-foreground whitespace-nowrap">
             {Math.round(current?.temperature ?? 0)}°C
           </p>
-          <p className="meta-text">München · Wind {current?.windspeed ?? 0} km/h</p>
+          <p className="meta-text">{location.label} · Wind {current.windspeed ?? 0} km/h</p>
         </div>
       </div>
       <div className="grid grid-cols-4 gap-2">

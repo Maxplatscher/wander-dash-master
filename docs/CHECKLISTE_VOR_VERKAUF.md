@@ -6,12 +6,14 @@
 
 1. **Live-Standortkarte (`LiveMap.tsx`)** — Demo-Marker sind entfernt; die Karte heißt „Tourposition". Marker kommen aus geokodierten Stop-Adressen (`geocode-shipments`). Es gibt weiterhin **keine GPS-Quelle** — Details in `docs/KARTE_STANDORTQUELLE.md`.
 2. **„Meine Tour heute" für Fahrer-Rolle (`DriverTourView.tsx`)** — erledigt am 22.08.2026. Ein Fahrer sieht über `users.driver_id` → `tour.driver_id` seine aktive Tagestour, schließt Stops über die RPC `complete_my_tour_stop` ab, und der Status bleibt nach Reload in `tour_stop` gespeichert. Navigation zeigt nur „Meine Tour"; der Firmen-Wizard unter `/setup` wird für Fahrer übersprungen.
-3. **E-Mail/IMAP-Import für Lieferscheine** — in `Kontrollzentrale.tsx` nach wie vor nur ein Platzhalter („Ausstehend", feste Beispiel-Adresse `lieferscheine@dispatch.example.com`). Keine echte IMAP-Anbindung, kein automatisches Anlegen von `shipment`-Zeilen aus Mails. Das ist aber genau die Berechtigung, die im Onboarding-Wizard bereits abgefragt wird („Zugriff auf Lieferscheine erlauben") — Erwartung vs. Funktion klaffen auseinander.
+3. **E-Mail/IMAP-Import für Lieferscheine** — Kontrollzentrale zeigt den fehlenden Abruf ehrlich („Import nicht angebunden"), ohne Fake-Adresse `lieferscheine@dispatch.example.com`. IMAP-Zugang kann unter Einstellungen hinterlegt werden, es werden aber noch keine Mails abgeholt und keine `shipment`-Zeilen daraus angelegt. Onboarding fragt die Berechtigung trotzdem schon ab.
 
 ## B. Sicherheit
 
 4. Security-Advisor am 22.08.2026 erneut geprüft: `function_search_path_mutable` auf `set_updated_at` ist behoben; `anon` hat kein EXECUTE mehr auf `encrypt`/`decrypt_integration_secret`, `ensure_default_company` und `handle_new_user`. Fahrer können Stammdaten und Integrationen nicht mehr schreiben; `delete_integration_with_secret` prüft Admin/Dispatcher. Verbleibend (WARN, bewusst): `authenticated` darf die für RLS/App nötigen SECURITY-DEFINER-Funktionen (`get_my_role`, `get_user_company_id`, `has_role`, `complete_my_tour_stop`, `get_current_driver_id`, `delete_integration_with_secret`) ausführen. „Leaked Password Protection" ist in Supabase Auth deaktiviert — vor Live-Betrieb aktivieren. Das Passwort des Testaccounts liegt im Git-Verlauf (Commit `0df1dfd`) und muss vor Verkauf rotiert werden.
-5. Google Cloud: HTTP-Referrer-Einschränkung für den Maps-Key gilt bisher nur für `localhost`/LAN-IP — sobald eine Produktionsdomain feststeht, dort ergänzen (sonst blockt Places/Maps live).
+5. Google Cloud — **zwei getrennte Keys**, nicht denselben Wert zweimal verwenden:
+   - Frontend `VITE_GOOGLE_MAPS_API_KEY`: HTTP-Referrer. Bisher nur `localhost`/LAN-IP — sobald eine Produktionsdomain feststeht, dort ergänzen (sonst blockt Places/Maps live).
+   - Server-Secret `GOOGLE_MAPS_API_KEY` (**offen, kein Blocker heute**): eigener Key **ohne** HTTP-Referrer (IP-Restriction oder unrestricted), APIs **Geocoding** und Distance Matrix. Aktuell liegt der Browser-Key im Edge Secret → Google antwortet `REQUEST_DENIED`, `geocode-shipments` fällt auf Nominatim (OSM) zurück. Vor Verkauf/Produktion den Server-Key anlegen und als Edge Secret setzen, danach einmal Adressen geokodieren und prüfen, dass `results[].provider` = `google` ist. Siehe `docs/KARTE_STANDORTQUELLE.md`.
 
 ## C. Tourenplanung/KI — Tiefe fehlt noch
 
@@ -33,7 +35,7 @@
 
 ## F. Versionsstand
 
-15. Samstag 22.08.2026: Fahrerbetrieb ohne Demo-Daten (Tour, Stop-Abschluss, ehrliche Karte, RLS, Fahrerfotos). Branch `feat/samstag-fahrerbetrieb`. Offene Restpunkte: echtes Live-GPS, Passwort-Rotation, IMAP-Import.
+15. Samstag 22.08.2026: Fahrerbetrieb ohne Demo-Daten (Tour, Stop-Abschluss, ehrliche Karte, RLS, Fahrerfotos, Adress-Geokodierung). Wetter auf der Startseite kommt vom Depot-Standort, nicht mehr aus einem hartcodierten München. Branch `feat/samstag-fahrerbetrieb`. Offene Restpunkte: **Google-Server-Key für Geocoding** (Punkt 5), echtes Live-GPS, Passwort-Rotation, IMAP-Import.
 
 ## G. Außerhalb meines Blickfelds — bitte selbst einordnen
 
