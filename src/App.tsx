@@ -8,7 +8,7 @@ import DispatchDashboard from "./pages/DispatchDashboard";
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
 import NotFound from "./pages/NotFound.tsx";
-import { OnboardingRoute } from "@/components/setup/OnboardingRoute";
+import { CompanySetupRoute, OnboardingRoute } from "@/components/setup/OnboardingRoute";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -39,7 +39,9 @@ const App = () => (
               path="/setup"
               element={
                 <ProtectedRoute>
-                  <Setup />
+                  <CompanySetupRoute>
+                    <Setup />
+                  </CompanySetupRoute>
                 </ProtectedRoute>
               }
             />
