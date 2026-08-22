@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Package, Plus, Play, Loader2, Truck, User, Box } from 'lucide-react';
+import { Mail, Package, Plus, Play, Loader2, Truck, User, Box, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -51,6 +51,7 @@ export function Kontrollzentrale() {
   const [adding, setAdding] = useState<string | null>(null);
   const [demoLoading, setDemoLoading] = useState(false);
   const [planLoading, setPlanLoading] = useState(false);
+  const [geocodeLoading, setGeocodeLoading] = useState(false);
 
   const addDriver = async () => {
     if (!driverName.trim()) return;
@@ -110,9 +111,31 @@ export function Kontrollzentrale() {
     }
   };
 
+  const geocodeAddresses = async () => {
+    const { data, error } = await supabase.functions.invoke('geocode-shipments', {
+      body: { date: dateStr },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    return data as { updated?: number; scanned?: number };
+  };
+
   const startPlanning = async () => {
     setPlanLoading(true);
     try {
+      try {
+        const geocoded = await geocodeAddresses();
+        if ((geocoded.updated ?? 0) > 0) {
+          toast.success(`${geocoded.updated} Adresse(n) geokodiert`);
+        }
+      } catch (e: unknown) {
+        toast.warning(
+          e instanceof Error
+            ? `Geokodierung übersprungen: ${e.message}`
+            : 'Geokodierung übersprungen',
+        );
+      }
+
       const assignRes = await supabase.functions.invoke('assign-depot', {
         body: { date: dateStr, force: true },
       });
@@ -355,6 +378,35 @@ export function Kontrollzentrale() {
               <Box className="w-4 h-4 mr-1.5" />
             )}
             Demo-Szenario laden · demo-setup
+          </Button>
+          <Button
+            variant="outline"
+            className="rounded"
+            onClick={() => {
+              void (async () => {
+                setGeocodeLoading(true);
+                try {
+                  const geocoded = await geocodeAddresses();
+                  toast.success(
+                    `${geocoded.updated ?? 0} von ${geocoded.scanned ?? 0} Adressen geokodiert`,
+                  );
+                  refreshAll();
+                  queryClient.invalidateQueries();
+                } catch (e: unknown) {
+                  toast.error(e instanceof Error ? e.message : 'Geokodierung fehlgeschlagen');
+                } finally {
+                  setGeocodeLoading(false);
+                }
+              })();
+            }}
+            disabled={geocodeLoading || planLoading}
+          >
+            {geocodeLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+            ) : (
+              <MapPin className="w-4 h-4 mr-1.5" />
+            )}
+            Adressen geokodieren
           </Button>
           <Button
             className="rounded font-semibold"

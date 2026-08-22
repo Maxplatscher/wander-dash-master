@@ -509,7 +509,7 @@ export function Startseite() {
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            Live Status
+            Leitstand
           </button>
           <button
             type="button"

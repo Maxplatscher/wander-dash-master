@@ -21,17 +21,14 @@ Hinweis „Keine GPS-Ortung". Kein Element darf als Live-Standort gelesen werden
 
 ## Voraussetzung, damit die Karte überhaupt Marker zeigt
 
-`shipment.location_x` / `location_y` müssen befüllt sein. Aktuell sind sie bei echten
-Sendungen NULL, weil die Lieferadressen nirgends geokodiert werden. Vorhandene Bausteine für
-den nächsten Schritt:
+`shipment.location_x` / `location_y` müssen befüllt sein. Dafür gibt es die Edge Function
+`geocode-shipments`. Sie versucht zuerst Google (Secret `GOOGLE_MAPS_API_KEY`, eigener
+Server-Key ohne HTTP-Referrer). Ist der Key der Browser-Key oder fehlt er, fällt sie auf
+Nominatim (OpenStreetMap) zurück — echte Geokodierung, keine Platzhalter. Geschrieben
+werden nur Treffer mit belastbarer Genauigkeit, niemals 0/0. Aufruf in der Kontrollzentrale
+(„Adressen geokodieren“) und automatisch vor „Planung starten“.
 
-- Adresse → Koordinaten läuft im Frontend bereits sauber: `StepCompany.tsx` löst eine
-  Places-Auswahl per `PlacesService.getDetails` (`geometry`) in `lat`/`lng` auf. Dasselbe
-  Muster passt für die Adresseingabe einer Sendung.
-- Serverseitig existiert der Google-Key als `GOOGLE_MAPS_API_KEY` in den Edge Functions
-  (`assign-depot` nutzt ihn für die Distance Matrix). Eine Geokodierung gehört an dieselbe
-  Stelle: `delivery_address` → Geocoding API → `location_x`/`location_y` schreiben, danach
-  `assign-depot` und `plan-tour` rechnen ohne Änderung weiter.
+`plan-tour` überspringt Sendungen ohne Koordinaten statt sie nach 0/0 (Golf von Guinea) zu legen.
 
 ## Echtes Live-GPS später
 

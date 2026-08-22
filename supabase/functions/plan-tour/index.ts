@@ -42,16 +42,31 @@ function manhattan(a: { location_x: number; location_y: number }, b: { location_
   return Math.abs(a.location_x - b.location_x) * 111_000 + Math.abs(a.location_y - b.location_y) * 111_000 * Math.cos((a.location_x * Math.PI) / 180);
 }
 
-function normalizeShipments(rows: ShipmentRow[]): Shipment[] {
-  return rows.map((row) => ({
-    id: row.id,
-    load: Math.max(row.weight_kg ?? row.demand ?? 1, 0),
-    location_x: row.location_x ?? 0,
-    location_y: row.location_y ?? 0,
-    window_start: row.window_start,
-    window_end: row.window_end,
-    depot_id: row.depot_id,
-  }));
+function hasUsableCoords(row: ShipmentRow): boolean {
+  if (row.location_x == null || row.location_y == null) return false;
+  if (row.location_x === 0 && row.location_y === 0) return false;
+  return Number.isFinite(row.location_x) && Number.isFinite(row.location_y);
+}
+
+function normalizeShipments(rows: ShipmentRow[]): { shipments: Shipment[]; skipped: string[] } {
+  const skipped: string[] = [];
+  const shipments: Shipment[] = [];
+  for (const row of rows) {
+    if (!hasUsableCoords(row)) {
+      skipped.push(row.id);
+      continue;
+    }
+    shipments.push({
+      id: row.id,
+      load: Math.max(row.weight_kg ?? row.demand ?? 1, 0),
+      location_x: row.location_x as number,
+      location_y: row.location_y as number,
+      window_start: row.window_start,
+      window_end: row.window_end,
+      depot_id: row.depot_id,
+    });
+  }
+  return { shipments, skipped };
 }
 
 function resolveDepotPoint(
@@ -201,11 +216,18 @@ Deno.serve(async (req) => {
       shipmentRows = shipmentRows.filter((shipment) => !exclude_shipment_ids.includes(shipment.id));
     }
 
-    const shipments = normalizeShipments((shipmentRows ?? []) as ShipmentRow[]);
+    const { shipments, skipped: skippedNoCoordinates } = normalizeShipments(
+      (shipmentRows ?? []) as ShipmentRow[],
+    );
 
     if (shipments.length === 0) {
-      return new Response(JSON.stringify({ error: "No shipments for this date" }), {
-        status: 400,
+      return new Response(JSON.stringify({
+        error: skippedNoCoordinates.length > 0
+          ? "Keine Sendungen mit Koordinaten. Zuerst Adressen geokodieren."
+          : "No shipments for this date",
+        skipped_no_coordinates: skippedNoCoordinates,
+      }), {
+        status: skippedNoCoordinates.length > 0 ? 422 : 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -423,6 +445,7 @@ Deno.serve(async (req) => {
       depot_source: resolvedDepot.source,
       depot_id: resolvedDepot.depot_id,
       depot_groups: groups.size,
+      skipped_no_coordinates: skippedNoCoordinates,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -4,7 +4,7 @@
 
 ## A. Kernfunktionen, die noch nicht echt sind (Blocker)
 
-1. **Live-Standortkarte (`LiveMap.tsx`)** — Demo-Marker und das Label „Live-Standort" sind entfernt. Die Karte zeigt nur echte Stop-Koordinaten als „Tourposition / letzter bestätigter Stop" und sonst einen ehrlichen Leerzustand („Keine GPS-Ortung"). Es gibt weiterhin **keine GPS-Quelle**; Marker erscheinen erst, wenn `shipment.location_x`/`location_y` per Geokodierung befüllt sind. Nächster Schritt und spätere GPS-Tabelle: `docs/KARTE_STANDORTQUELLE.md`.
+1. **Live-Standortkarte (`LiveMap.tsx`)** — Demo-Marker sind entfernt; die Karte heißt „Tourposition". Marker kommen aus geokodierten Stop-Adressen (`geocode-shipments`). Es gibt weiterhin **keine GPS-Quelle** — Details in `docs/KARTE_STANDORTQUELLE.md`.
 2. **„Meine Tour heute" für Fahrer-Rolle (`DriverTourView.tsx`)** — erledigt am 22.08.2026. Ein Fahrer sieht über `users.driver_id` → `tour.driver_id` seine aktive Tagestour, schließt Stops über die RPC `complete_my_tour_stop` ab, und der Status bleibt nach Reload in `tour_stop` gespeichert. Navigation zeigt nur „Meine Tour"; der Firmen-Wizard unter `/setup` wird für Fahrer übersprungen.
 3. **E-Mail/IMAP-Import für Lieferscheine** — in `Kontrollzentrale.tsx` nach wie vor nur ein Platzhalter („Ausstehend", feste Beispiel-Adresse `lieferscheine@dispatch.example.com`). Keine echte IMAP-Anbindung, kein automatisches Anlegen von `shipment`-Zeilen aus Mails. Das ist aber genau die Berechtigung, die im Onboarding-Wizard bereits abgefragt wird („Zugriff auf Lieferscheine erlauben") — Erwartung vs. Funktion klaffen auseinander.
 
@@ -33,7 +33,7 @@
 
 ## F. Versionsstand
 
-15. Samstag 22.08.2026: Fahrerbetrieb ohne Demo-Daten (Tour, Stop-Abschluss, ehrliche Karte, RLS). Branch `feat/samstag-fahrerbetrieb`. Offene technische Restpunkte: Geokodierung der Lieferadressen, echtes Live-GPS, Passwort-Rotation, IMAP-Import.
+15. Samstag 22.08.2026: Fahrerbetrieb ohne Demo-Daten (Tour, Stop-Abschluss, ehrliche Karte, RLS, Fahrerfotos). Branch `feat/samstag-fahrerbetrieb`. Offene Restpunkte: echtes Live-GPS, Passwort-Rotation, IMAP-Import.
 
 ## G. Außerhalb meines Blickfelds — bitte selbst einordnen
 

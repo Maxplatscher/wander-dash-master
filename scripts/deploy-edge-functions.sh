@@ -15,6 +15,7 @@ FUNCTIONS=(
   create-admin
   demo-setup
   research-article
+  geocode-shipments
 )
 
 echo "==> Auth check"
