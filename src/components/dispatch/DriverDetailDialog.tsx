@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,17 @@ import {
   Route,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
+import { useDispatch } from "@/lib/dispatch-context";
+import { toast } from "sonner";
+import {
+  DriverPhotoAvatar,
+  DriverPhotoPicker,
+} from "@/components/dispatch/DriverPhoto";
+import {
+  isStoredDriverPhotoPath,
+  removeDriverPhoto,
+  uploadDriverPhoto,
+} from "@/lib/driver-photo";
 import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 import {
   getCyanSquareMarkerIcon,
@@ -31,7 +41,9 @@ import { pickTourAnchor, shipmentCoordinates } from "@/lib/tour-position";
 const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
 
 interface DriverInfo {
+  id?: string | null;
   name: string;
+  photoUrl?: string | null;
   tourId: string | null;
   tourDescription: string;
   /** @deprecated Wird nicht angezeigt — die Lage kommt aus dem letzten bestätigten Stop. */
@@ -98,6 +110,9 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES,
   });
+  const { role, companyId } = useDispatch();
+  const queryClient = useQueryClient();
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const completedStops = stops?.filter((s) => s.driver_completed) ?? [];
   const nextStop = stops?.find((s) => !s.driver_completed);
@@ -121,6 +136,60 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
 
   if (!driver) return null;
 
+  const canEditPhoto =
+    Boolean(driver.id && companyId) &&
+    (role === "admin" || role === "dispatcher");
+
+  async function savePhoto(file: File) {
+    if (!driver?.id || !companyId) return;
+    setPhotoBusy(true);
+    try {
+      const path = await uploadDriverPhoto({
+        companyId,
+        driverId: driver.id,
+        file,
+        previousPath: driver.photoUrl,
+      });
+      const { error } = await supabase
+        .from("driver")
+        .update({ photo_url: path })
+        .eq("id", driver.id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      await queryClient.invalidateQueries({ queryKey: ["active-drivers-tour"] });
+      toast.success("Fahrerfoto gespeichert");
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error ? error.message : "Foto konnte nicht gespeichert werden",
+      );
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function clearPhoto() {
+    if (!driver?.id) return;
+    setPhotoBusy(true);
+    try {
+      if (isStoredDriverPhotoPath(driver.photoUrl)) {
+        await removeDriverPhoto(driver.photoUrl!);
+      }
+      const { error } = await supabase
+        .from("driver")
+        .update({ photo_url: null })
+        .eq("id", driver.id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      await queryClient.invalidateQueries({ queryKey: ["active-drivers-tour"] });
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error ? error.message : "Foto konnte nicht entfernt werden",
+      );
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   const progressPercent =
     driver.totalStops > 0
       ? Math.round((driver.completedStops / driver.totalStops) * 100)
@@ -130,6 +199,24 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-0 border-hairline bg-panel sm:rounded">
         <div className="p-5 border-b border-hairline bg-primary/5">
+          <div className="flex items-start gap-3">
+            {canEditPhoto ? (
+              <DriverPhotoPicker
+                name={driver.name}
+                photoUrl={driver.photoUrl ?? null}
+                disabled={photoBusy}
+                sizeClassName="h-14 w-14"
+                onFile={(file) => void savePhoto(file)}
+                onClear={() => void clearPhoto()}
+              />
+            ) : (
+              <DriverPhotoAvatar
+                name={driver.name}
+                photoUrl={driver.photoUrl}
+                className="h-14 w-14 shrink-0"
+              />
+            )}
+            <div className="min-w-0 flex-1">
           <DialogHeader>
             <DialogTitle className="text-foreground text-lg flex items-center gap-2">
               <Truck className="w-5 h-5 text-primary" />
@@ -162,6 +249,8 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
                 className="progress-fill"
                 style={{ width: `${progressPercent}%` }}
               />
+            </div>
+          </div>
             </div>
           </div>
         </div>

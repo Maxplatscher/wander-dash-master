@@ -31,7 +31,9 @@ import { cn } from '@/lib/utils';
 type ViewMode = 'leitstand' | 'zeitstrahl';
 
 type DriverDayRow = {
+  id: string | null;
   name: string;
+  photoUrl: string | null;
   status: string;
   currentLocation: string;
   nextStop: string;
@@ -113,11 +115,11 @@ function useActiveDriversOnTour(date: string) {
     queryFn: async () => {
       const { data: drivers } = await supabase
         .from('driver')
-        .select('id, name, status, phone, shift_start, shift_end, assigned_vehicle_id');
+        .select('id, name, status, phone, shift_start, shift_end, assigned_vehicle_id, photo_url');
 
       const { data: tours } = await supabase
         .from('tour')
-        .select('id, description, is_active')
+        .select('id, description, is_active, driver_id')
         .eq('date', date)
         .eq('is_active', true);
 
@@ -148,8 +150,10 @@ function useActiveDriversOnTour(date: string) {
         .select('id, customer_name, delivery_address, weight_kg');
       const shipmentMap = new Map((shipments ?? []).map((s) => [s.id, s]));
 
+      const driverMap = new Map((drivers ?? []).map((driver) => [driver.id, driver]));
+
       const tourRows: DriverDayRow[] = [];
-      (tours ?? []).forEach((tour, idx) => {
+      (tours ?? []).forEach((tour) => {
         const tourStops = stops.filter((s) => s.tour_id === tour.id);
         if (tourStops.length === 0) return;
 
@@ -169,10 +173,12 @@ function useActiveDriversOnTour(date: string) {
 
         const vehicleId = tourStops.find((s) => s.vehicle_id)?.vehicle_id;
         const vehicle = vehicleId ? vehicleMap.get(vehicleId) : null;
-        const driver = (drivers ?? [])[idx];
+        const driver = tour.driver_id ? driverMap.get(tour.driver_id) : undefined;
 
         tourRows.push({
-          name: driver?.name ?? tour.description ?? `Tour ${idx + 1}`,
+          id: driver?.id ?? tour.driver_id ?? null,
+          name: driver?.name ?? tour.description ?? 'Tour',
+          photoUrl: driver?.photo_url ?? null,
           status: driver?.status ?? 'aktiv',
           currentLocation: currentShipment?.delivery_address ?? 'Depot',
           nextStop: nextShipment?.customer_name ?? 'Keine weiteren Stops',
@@ -188,15 +194,19 @@ function useActiveDriversOnTour(date: string) {
         });
       });
 
-      const onTourNames = new Set(tourRows.map((r) => r.name));
+      const onTourIds = new Set(
+        tourRows.map((row) => row.id).filter((id): id is string => Boolean(id)),
+      );
       const idleRows: DriverDayRow[] = (drivers ?? [])
-        .filter((d) => d.name && !onTourNames.has(d.name))
+        .filter((d) => !onTourIds.has(d.id))
         .map((d) => {
           const status = (d.status ?? 'verfügbar').toLowerCase();
           const isAbsent =
             status.includes('abwesend') || status.includes('krank') || status === 'inactive';
           return {
+            id: d.id,
             name: d.name ?? 'Fahrer',
+            photoUrl: d.photo_url ?? null,
             status: d.status ?? 'verfügbar',
             currentLocation: '—',
             nextStop: '—',
@@ -643,7 +653,9 @@ export function Startseite() {
         driver={
           selectedDriver?.tourId
             ? {
+                id: selectedDriver.id,
                 name: selectedDriver.name,
+                photoUrl: selectedDriver.photoUrl,
                 tourId: selectedDriver.tourId,
                 tourDescription: selectedDriver.tourDescription,
                 currentLocation: selectedDriver.currentLocation,

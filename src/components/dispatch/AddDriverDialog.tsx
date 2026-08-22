@@ -3,6 +3,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { DriverPhotoPicker } from "@/components/dispatch/DriverPhoto";
+import {
+  removeDriverPhoto,
+  uploadDriverPhoto,
+} from "@/lib/driver-photo";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,6 +48,7 @@ export function AddDriverDialog({
   const [newDriver, setNewDriver] = useState(EMPTY_DRIVER);
   const [selectedVehicleId, setSelectedVehicleId] = useState("new");
   const [saving, setSaving] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   const { data: existingVehicles } = useQuery({
     queryKey: ["vehicles-for-driver"],
@@ -80,18 +86,47 @@ export function AddDriverDialog({
         vehicleId = selectedVehicleId;
       }
 
-      const { error } = await supabase.from("driver").insert({
-        name: newDriver.name.trim(),
-        phone: newDriver.phone.trim() || null,
-        company_id: companyId,
-        status: "verfügbar",
-        assigned_vehicle_id: vehicleId,
-        notes: newDriver.hints.trim() || null,
-      });
+      const { data: driver, error } = await supabase
+        .from("driver")
+        .insert({
+          name: newDriver.name.trim(),
+          phone: newDriver.phone.trim() || null,
+          company_id: companyId,
+          status: "verfügbar",
+          assigned_vehicle_id: vehicleId,
+          notes: newDriver.hints.trim() || null,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+
+      if (photoFile && driver?.id) {
+        try {
+          const path = await uploadDriverPhoto({
+            companyId,
+            driverId: driver.id,
+            file: photoFile,
+          });
+          const { error: photoError } = await supabase
+            .from("driver")
+            .update({ photo_url: path })
+            .eq("id", driver.id);
+          if (photoError) {
+            await removeDriverPhoto(path);
+            throw photoError;
+          }
+        } catch (photoError: unknown) {
+          toast.error(
+            photoError instanceof Error
+              ? `Fahrer angelegt, Foto nicht gespeichert: ${photoError.message}`
+              : "Fahrer angelegt, Foto nicht gespeichert",
+          );
+        }
+      }
 
       toast.success("Fahrer & Fahrzeug hinzugefügt");
       setNewDriver(EMPTY_DRIVER);
+      setPhotoFile(null);
       setSelectedVehicleId("new");
       onOpenChange(false);
       await Promise.all([
@@ -117,6 +152,13 @@ export function AddDriverDialog({
           <DialogTitle>Neuen Fahrer hinzufügen</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
+          <DriverPhotoPicker
+            name={newDriver.name}
+            photoUrl={null}
+            disabled={saving}
+            onFile={setPhotoFile}
+            onClear={() => setPhotoFile(null)}
+          />
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">
               Name *

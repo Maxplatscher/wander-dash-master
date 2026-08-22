@@ -21,7 +21,7 @@
 
 ## D. Fehlende Infrastruktur
 
-9. Kein Storage-Bucket in Supabase vorhanden — die Fahrer-Visitenkarte hat ein `photo_url`-Feld, aber ohne Bucket kann kein Foto hochgeladen werden.
+9. Fahrerfoto-Storage: privater Bucket `driver-photos` (JPEG/PNG/WebP, max. 2 MB), RLS nach Company, Schreiben nur Disposition. Upload in „Fahrer hinzufügen“, Fahrer-Dialog und Onboarding; `photo_url` speichert den Storage-Pfad.
 10. Onboarding-Wizard fragt weiterhin ein Farbschema ab (`StepTheme.tsx`, `theme-presets.ts`), das feste Dark-Cyan-Design im Dashboard selbst berücksichtigt diese Wahl aber gar nicht mehr — Auswahl ohne Wirkung. Entweder Step entfernen oder als reine Akzentfarbe im festen Dark-Theme wieder einbauen.
 11. Supabase-Projekt pausiert bei Inaktivität (Free-Tier) — vor einem Kundentermin/Demo prüfen, ob das Projekt noch aktiv ist bzw. auf einen bezahlten Plan wechseln, sonst sind bei einem Neustart alle Tabellen leer.
 
