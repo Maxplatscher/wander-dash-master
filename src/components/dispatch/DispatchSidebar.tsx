@@ -2,27 +2,20 @@ import {
   LayoutDashboard, Activity, Calendar, Settings, AlertTriangle,
   Users, Package, ChevronLeft, ChevronRight, Truck
 } from 'lucide-react';
-import { useDispatch, UserRole } from '@/lib/dispatch-context';
-import { SectionId } from '@/lib/navigation';
+import { useDispatch } from '@/lib/dispatch-context';
+import { SectionId, getSectionsForRole } from '@/lib/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useProblems } from '@/pages/dispatch/Probleme';
 
-interface NavItem {
-  id: SectionId;
-  label: string;
-  icon: React.ElementType;
-  roles: UserRole[];
-}
-
-const navItems: NavItem[] = [
-  { id: 'startseite', label: 'Startseite', icon: LayoutDashboard, roles: ['admin', 'dispatcher', 'driver'] },
-  { id: 'kalender', label: 'Kalender', icon: Calendar, roles: ['admin', 'dispatcher'] },
-  { id: 'kontrollzentrale', label: 'Lieferscheine', icon: Package, roles: ['admin', 'dispatcher'] },
-  { id: 'fahrer', label: 'Fahrer & Fahrzeuge', icon: Users, roles: ['admin', 'dispatcher'] },
-  { id: 'probleme', label: 'Probleme', icon: AlertTriangle, roles: ['admin', 'dispatcher'] },
-  { id: 'einstellungen', label: 'Einstellungen', icon: Settings, roles: ['admin'] },
-];
+const sectionIcons: Record<SectionId, React.ElementType> = {
+  startseite: LayoutDashboard,
+  kalender: Calendar,
+  kontrollzentrale: Package,
+  fahrer: Users,
+  probleme: AlertTriangle,
+  einstellungen: Settings,
+};
 
 export function DispatchSidebar() {
   const { currentSection, navigateTo, role, selectedDepotLabel, selectedDate, selectedDepotId } = useDispatch();
@@ -31,7 +24,7 @@ export function DispatchSidebar() {
   const { data: problems } = useProblems(dateStr, selectedDepotId);
   const problemCount = problems?.length ?? 0;
 
-  const visibleItems = navItems.filter(item => item.roles.includes(role));
+  const visibleItems = getSectionsForRole(role);
 
   return (
     <aside className={cn(
@@ -58,6 +51,7 @@ export function DispatchSidebar() {
         {visibleItems.map(item => {
           const active = currentSection === item.id;
           const badge = item.id === 'probleme' ? problemCount : 0;
+          const Icon = sectionIcons[item.id] ?? LayoutDashboard;
 
           return (
             <button
@@ -71,7 +65,7 @@ export function DispatchSidebar() {
               )}
               title={collapsed ? item.label : undefined}
             >
-              <item.icon className={cn("w-4 h-4 shrink-0 transition-colors", active && "text-primary")} />
+              <Icon className={cn("w-4 h-4 shrink-0 transition-colors", active && "text-primary")} />
               {!collapsed && <span className="truncate">{item.label}</span>}
               {!collapsed && badge > 0 && (
                 <span className="ml-auto bg-destructive/90 text-destructive-foreground text-[10px] font-medium px-1.5 py-0.5 rounded-full shadow-sm">

@@ -216,6 +216,7 @@ export type Database = {
       email_log: {
         Row: {
           body_preview: string | null
+          company_id: string | null
           created_at: string
           error_detail: string | null
           from_addr: string | null
@@ -228,6 +229,7 @@ export type Database = {
         }
         Insert: {
           body_preview?: string | null
+          company_id?: string | null
           created_at?: string
           error_detail?: string | null
           from_addr?: string | null
@@ -240,6 +242,7 @@ export type Database = {
         }
         Update: {
           body_preview?: string | null
+          company_id?: string | null
           created_at?: string
           error_detail?: string | null
           from_addr?: string | null
@@ -251,6 +254,13 @@ export type Database = {
           subject?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "email_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "email_log_shipment_id_fkey"
             columns: ["shipment_id"]
@@ -500,6 +510,7 @@ export type Database = {
           created_at: string
           date: string | null
           description: string | null
+          driver_id: string | null
           id: string
           is_active: boolean | null
           plan_run_id: string | null
@@ -512,6 +523,7 @@ export type Database = {
           created_at?: string
           date?: string | null
           description?: string | null
+          driver_id?: string | null
           id?: string
           is_active?: boolean | null
           plan_run_id?: string | null
@@ -524,6 +536,7 @@ export type Database = {
           created_at?: string
           date?: string | null
           description?: string | null
+          driver_id?: string | null
           id?: string
           is_active?: boolean | null
           plan_run_id?: string | null
@@ -532,6 +545,13 @@ export type Database = {
           version?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "tour_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "driver"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tour_company_id_fkey"
             columns: ["company_id"]
@@ -770,6 +790,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_my_tour_stop: {
+        Args: { p_tour_stop_id: string }
+        Returns: {
+          driver_completed: boolean
+          driver_completed_at: string
+          id: string
+        }[]
+      }
+      get_current_driver_id: { Args: never; Returns: string }
       get_my_role: { Args: never; Returns: string }
       get_user_company_id: { Args: never; Returns: string }
       has_role: {

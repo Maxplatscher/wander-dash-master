@@ -7,6 +7,8 @@ interface AuthContextType {
   session: Session | null;
   role: string | null;
   loading: boolean;
+  /** true sobald get_my_role() beantwortet ist — auch bei Fehler oder Timeout. */
+  roleResolved: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -14,15 +16,40 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+/** Ohne Obergrenze würde ein hängender RPC rollenabhängige Routen dauerhaft blockieren. */
+const ROLE_FETCH_TIMEOUT_MS = 5000;
+
+type RoleFetch = { ok: true; role: string | null } | { ok: false };
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [roleResolved, setRoleResolved] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchRole = useCallback(async () => {
-    const { data } = await supabase.rpc('get_my_role');
-    setRole(data ?? 'dispatcher');
+    const timeout = new Promise<RoleFetch>((resolve) => {
+      setTimeout(() => resolve({ ok: false }), ROLE_FETCH_TIMEOUT_MS);
+    });
+
+    try {
+      const result = await Promise.race<RoleFetch>([
+        supabase
+          .rpc('get_my_role')
+          .then(({ data, error }) => (error ? { ok: false } : { ok: true, role: data ?? null })),
+        timeout,
+      ]);
+      // Ein fehlender user_roles-Eintrag ist eine gültige Antwort (frischer
+      // Account) und fällt wie bisher auf 'dispatcher'. Ein gescheiterter Abruf
+      // bleibt dagegen bewusst unbekannt, damit rollenabhängige Weiterleitungen
+      // nicht auf einer geratenen Rolle basieren.
+      setRole(result.ok ? (result.role ?? 'dispatcher') : null);
+    } catch {
+      setRole(null);
+    } finally {
+      setRoleResolved(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -31,10 +58,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        setRoleResolved(false);
         // Defer role fetch to avoid Supabase deadlock
         setTimeout(() => fetchRole(), 0);
       } else {
         setRole(null);
+        setRoleResolved(true);
       }
       setLoading(false);
     });
@@ -44,7 +73,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        setRoleResolved(false);
         fetchRole();
+      } else {
+        setRole(null);
+        setRoleResolved(true);
       }
       setLoading(false);
     });
@@ -71,10 +104,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSession(null);
     setRole(null);
+    setRoleResolved(true);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, loading, roleResolved, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

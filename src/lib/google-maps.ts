@@ -59,3 +59,15 @@ export function getCyanSquareMarkerIcon(): google.maps.Symbol {
     scale: 1,
   };
 }
+
+/** Konturvariante für disponierte, noch nicht bestätigte Stops. Nur nach Maps-Load aufrufen. */
+export function getOutlineSquareMarkerIcon(): google.maps.Symbol {
+  return {
+    path: 'M -6,-6 L 6,-6 L 6,6 L -6,6 Z',
+    fillColor: '#101012',
+    fillOpacity: 0.9,
+    strokeColor: '#7ce8f5',
+    strokeWeight: 1.5,
+    scale: 1,
+  };
+}

@@ -60,7 +60,10 @@ const STATUS_STYLE: Record<string, { badge: string; tile: string }> = {
 };
 
 function fmtDate(d: Date) {
-  return d.toISOString().split("T")[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function useFleetCards(companyId: string | null, date: string) {
@@ -83,7 +86,7 @@ function useFleetCards(companyId: string | null, date: string) {
           .eq("company_id", cid),
         supabase
           .from("tour")
-          .select("id, description, is_active")
+          .select("id, description, is_active, driver_id")
           .eq("date", date)
           .eq("is_active", true),
       ]);
@@ -122,22 +125,13 @@ function useFleetCards(companyId: string | null, date: string) {
         }
       }
 
-      const cards: FleetCard[] = drivers.map((driver, idx) => {
+      const cards: FleetCard[] = drivers.map((driver) => {
         const status = normalizeStatus(driver.status);
         const vehicle = driver.assigned_vehicle_id
           ? vehicleMap.get(driver.assigned_vehicle_id)
           : null;
 
-        // Tour-Zuordnung: Fahrzeug-Match, sonst Index-Fallback wie Startseite
-        let tour = tours.find((t) =>
-          stops.some(
-            (s) =>
-              s.tour_id === t.id &&
-              driver.assigned_vehicle_id &&
-              s.vehicle_id === driver.assigned_vehicle_id,
-          ),
-        );
-        if (!tour && idx < tours.length) tour = tours[idx];
+        const tour = tours.find((candidate) => candidate.driver_id === driver.id);
 
         const tourStops = tour
           ? stops.filter((s) => s.tour_id === tour!.id)
@@ -183,13 +177,17 @@ function useFleetCards(companyId: string | null, date: string) {
 export function Fahrer() {
   const { role, companyId, selectedDate } = useDispatch();
   const dateStr = fmtDate(selectedDate);
-  const { data: fleet, isLoading } = useFleetCards(companyId, dateStr);
+  // Fahrer sehen keine Flotte — die Flottenabfrage bleibt für sie ungenutzt.
+  const { data: fleet, isLoading } = useFleetCards(
+    role === "driver" ? null : companyId,
+    dateStr,
+  );
   const [showAddDriver, setShowAddDriver] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<FleetCard | null>(null);
   const cards = fleet?.cards;
 
   if (role === "driver") {
-    return <DriverTourView />;
+    return <DriverTourView selectedDate={selectedDate} />;
   }
 
   return (

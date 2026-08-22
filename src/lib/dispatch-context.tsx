@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { SectionId, getInitialSection, resolveSectionId } from './navigation';
+import {
+  SectionId,
+  UserRole,
+  getDefaultSection,
+  getInitialSection,
+  isSectionAllowed,
+  resolveSectionId,
+} from './navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -9,7 +16,7 @@ import {
   writeStoredDepotId,
 } from './depot';
 
-export type UserRole = 'admin' | 'dispatcher' | 'driver';
+export type { UserRole };
 
 interface DispatchContextType {
   currentSection: SectionId;
@@ -35,7 +42,7 @@ interface DispatchContextType {
 const DispatchContext = createContext<DispatchContextType | null>(null);
 
 export function DispatchProvider({ children }: { children: React.ReactNode }) {
-  const [currentSection, setCurrentSection] = useState<SectionId>(getInitialSection);
+  const [requestedSection, setRequestedSection] = useState<SectionId>(getInitialSection);
   const [selectedDepotId, setSelectedDepotIdState] = useState<string | null>(() => readStoredDepotId());
   const [depots, setDepots] = useState<DepotOption[]>([]);
   const [depotsLoading, setDepotsLoading] = useState(true);
@@ -45,6 +52,12 @@ export function DispatchProvider({ children }: { children: React.ReactNode }) {
   const { user, role: authRole } = useAuth();
 
   const role = (authRole as UserRole) ?? 'dispatcher';
+
+  // Ein Bereich, der für die Rolle nicht freigegeben ist (Deep-Link, Bookmark
+  // oder erst nachträglich geladene Rolle), fällt auf den Rollenstart zurück.
+  const currentSection = isSectionAllowed(requestedSection, role)
+    ? requestedSection
+    : getDefaultSection(role);
 
   const selectedDepot = depots.find((d) => d.id === selectedDepotId) ?? null;
   const selectedDepotLabel = depotLabel(selectedDepot);
@@ -65,9 +78,10 @@ export function DispatchProvider({ children }: { children: React.ReactNode }) {
   }, [depots, setSelectedDepotId]);
 
   const navigateTo = useCallback((sectionId: SectionId) => {
-    setCurrentSection(sectionId);
-    history.replaceState(null, '', `#${sectionId}`);
-  }, []);
+    const target = isSectionAllowed(sectionId, role) ? sectionId : getDefaultSection(role);
+    setRequestedSection(target);
+    history.replaceState(null, '', `#${target}`);
+  }, [role]);
 
   const refreshAll = useCallback(() => {
     setRefreshKey((k) => k + 1);
@@ -80,13 +94,19 @@ export function DispatchProvider({ children }: { children: React.ReactNode }) {
       if (raw !== section) {
         history.replaceState(null, '', `#${section}`);
       }
-      if (section !== currentSection) {
-        setCurrentSection(section);
-      }
+      setRequestedSection(section);
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
-  }, [currentSection]);
+  }, []);
+
+  // Hash an den tatsächlich angezeigten Bereich angleichen
+  useEffect(() => {
+    if (currentSection !== requestedSection) {
+      setRequestedSection(currentSection);
+      history.replaceState(null, '', `#${currentSection}`);
+    }
+  }, [currentSection, requestedSection]);
 
   useEffect(() => {
     let cancelled = false;

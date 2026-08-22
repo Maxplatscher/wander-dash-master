@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { DispatchProvider, useDispatch } from '@/lib/dispatch-context';
 import { useAuth } from '@/hooks/useAuth';
-import { SECTIONS, SectionId } from '@/lib/navigation';
+import { SectionId, getSectionsForRole, isSectionAllowed } from '@/lib/navigation';
 import { Startseite } from './dispatch/Startseite';
 import { Kalender } from './dispatch/Kalender';
 import { Kontrollzentrale } from './dispatch/Kontrollzentrale';
@@ -41,9 +41,17 @@ function PageContent() {
 }
 
 function DashboardLayout() {
-  const { selectedDate, setSelectedDate, selectedDepotLabel, currentSection, navigateTo } = useDispatch();
+  const {
+    selectedDate,
+    setSelectedDate,
+    selectedDepotLabel,
+    currentSection,
+    navigateTo,
+    role: navRole,
+  } = useDispatch();
   const { user, role, signOut } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const sections = getSectionsForRole(navRole);
 
   return (
     <div className="min-h-screen flex w-full bg-dashboard relative">
@@ -63,7 +71,7 @@ function DashboardLayout() {
         </div>
 
         <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-          {SECTIONS.map(section => {
+          {sections.map(section => {
             const Icon = sectionIcons[section.id] ?? LayoutDashboard;
             const active = currentSection === section.id;
             return (
@@ -126,14 +134,16 @@ function DashboardLayout() {
               />
             </div>
 
-            <DepotSwitcher />
+            {isSectionAllowed('startseite', navRole) && <DepotSwitcher />}
 
             <button className="w-8 h-8 rounded flex items-center justify-center hover:bg-white/10 transition-colors">
               <Bell className="w-4 h-4 text-muted-foreground" />
             </button>
-            <button className="w-8 h-8 rounded flex items-center justify-center hover:bg-white/10 transition-colors" onClick={() => navigateTo('einstellungen')}>
-              <SettingsIcon className="w-4 h-4 text-muted-foreground" />
-            </button>
+            {isSectionAllowed('einstellungen', navRole) && (
+              <button className="w-8 h-8 rounded flex items-center justify-center hover:bg-white/10 transition-colors" onClick={() => navigateTo('einstellungen')}>
+                <SettingsIcon className="w-4 h-4 text-muted-foreground" />
+              </button>
+            )}
 
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold">

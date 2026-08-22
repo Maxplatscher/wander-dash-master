@@ -2,26 +2,34 @@ import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { UserRole, canRunCompanySetup } from '@/lib/navigation';
+import { decideOnboardingTarget } from '@/lib/onboarding-redirect';
 import { Loader2 } from 'lucide-react';
 
-type Status = 'loading' | 'needed' | 'done';
+function RouteSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+    </div>
+  );
+}
 
-/** Nach Login: fehlendes Onboarding → /setup */
+/** Nach Login: fehlendes Firmen-Onboarding → /setup, Fahrer direkt in die App */
 export function OnboardingRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
-  const [status, setStatus] = useState<Status>('loading');
+  const { user, role, roleResolved, loading: authLoading } = useAuth();
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+
+  const userRole = (role as UserRole | null) ?? null;
+  // Ohne Stammdatenrechte ist der Wizard irrelevant — dann auch keine Abfrage.
+  const setupRelevant = userRole !== null && canRunCompanySetup(userRole);
 
   useEffect(() => {
     let cancelled = false;
 
     async function check() {
-      if (authLoading) return;
-      if (!user) {
-        setStatus('needed');
-        return;
-      }
+      if (authLoading || !user || !roleResolved || !setupRelevant) return;
 
-      setStatus('loading');
+      setOnboardingCompleted(null);
       const { data, error } = await supabase
         .from('users')
         .select('onboarding_completed_at')
@@ -43,33 +51,51 @@ export function OnboardingRoute({ children }: { children: React.ReactNode }) {
         if (retry.error) {
           // Migration vermutlich noch nicht da — Setup erzwingen, damit nichts „hängengeblieben“ wirkt
           console.warn('onboarding check failed:', retry.error.message);
-          setStatus('needed');
+          setOnboardingCompleted(false);
           return;
         }
 
-        setStatus(retry.data?.onboarding_completed_at ? 'done' : 'needed');
+        setOnboardingCompleted(Boolean(retry.data?.onboarding_completed_at));
         return;
       }
 
-      setStatus(data?.onboarding_completed_at ? 'done' : 'needed');
+      setOnboardingCompleted(Boolean(data?.onboarding_completed_at));
     }
 
     void check();
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading]);
+  }, [user, authLoading, roleResolved, setupRelevant]);
 
-  if (authLoading || status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const target = decideOnboardingTarget({
+    authLoading,
+    hasUser: Boolean(user),
+    role: userRole,
+    roleResolved,
+    onboardingCompleted,
+  });
 
-  if (status === 'needed') {
-    return <Navigate to="/setup" replace />;
+  if (target === 'loading') return <RouteSpinner />;
+  if (target === 'signin') return <Navigate to="/auth" replace />;
+  if (target === 'setup') return <Navigate to="/setup" replace />;
+
+  return <>{children}</>;
+}
+
+/**
+ * Schützt den Wizard selbst: Lesezeichen, der alte /setup-consent-Pfad oder ein
+ * manuell eingegebener Link dürfen einen Fahrer nicht in die Firmeneinrichtung
+ * lassen, für die ihm die Schreibrechte fehlen.
+ */
+export function CompanySetupRoute({ children }: { children: React.ReactNode }) {
+  const { role, roleResolved, loading: authLoading } = useAuth();
+
+  if (authLoading || !roleResolved) return <RouteSpinner />;
+
+  const userRole = (role as UserRole | null) ?? null;
+  if (userRole && !canRunCompanySetup(userRole)) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
