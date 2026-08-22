@@ -1,16 +1,16 @@
 # Checkliste vor Verkauf/Launch — DispoCenter
 
-> Stand: 19.08.2026, direkt im Code/DB geprüft (nicht nur aus alten Docs übernommen). `docs/CLAUDE_PROJECT_PROMPT.md` ist an mehreren Stellen veraltet — z. B. sind die dort gelisteten Alt-Komponenten und `Versionen.tsx` bereits entfernt, `Fahrer.tsx`/`Kalender.tsx` laufen bereits auf echten Daten. Diese Liste ersetzt den technischen Teil davon.
+> Stand: 22.08.2026, nach dem Samstags-Fahrerbetrieb. `docs/CLAUDE_PROJECT_PROMPT.md` ist an mehreren Stellen veraltet — z. B. sind die dort gelisteten Alt-Komponenten und `Versionen.tsx` bereits entfernt, `Fahrer.tsx`/`Kalender.tsx` laufen bereits auf echten Daten. Diese Liste ersetzt den technischen Teil davon.
 
 ## A. Kernfunktionen, die noch nicht echt sind (Blocker)
 
-1. **Live-Standortkarte (`LiveMap.tsx`)** — zeigt weiterhin 4 fest einprogrammierte Fahrer-Marker (`driverMarkers`), keine echten GPS-/Standortdaten. Das ist das Herzstück der Startseite („Live-Lage") — ohne echte Standortquelle (Fahrer-App mit Standortfreigabe, oder zumindest Stop-Check-in-Zeitpunkt als Näherung) zeigt die Karte im Verkaufsfall falsche Informationen an.
-2. **„Meine Tour heute" für Fahrer-Rolle (`DriverTourView.tsx`)** — komplett hardcodierte Demo-Stops in Berlin, Haken-Status nur lokal im Browser-State, nichts wird in `tour_stop` gespeichert. Ein echter Fahrer, der sich einloggt, sieht nicht seine eigene Tour. Muss auf echte `tour_stop`-Daten des eingeloggten Fahrers umgestellt werden.
+1. **Live-Standortkarte (`LiveMap.tsx`)** — Demo-Marker und das Label „Live-Standort" sind entfernt. Die Karte zeigt nur echte Stop-Koordinaten als „Tourposition / letzter bestätigter Stop" und sonst einen ehrlichen Leerzustand („Keine GPS-Ortung"). Es gibt weiterhin **keine GPS-Quelle**; Marker erscheinen erst, wenn `shipment.location_x`/`location_y` per Geokodierung befüllt sind. Nächster Schritt und spätere GPS-Tabelle: `docs/KARTE_STANDORTQUELLE.md`.
+2. **„Meine Tour heute" für Fahrer-Rolle (`DriverTourView.tsx`)** — erledigt am 22.08.2026. Ein Fahrer sieht über `users.driver_id` → `tour.driver_id` seine aktive Tagestour, schließt Stops über die RPC `complete_my_tour_stop` ab, und der Status bleibt nach Reload in `tour_stop` gespeichert. Navigation zeigt nur „Meine Tour"; der Firmen-Wizard unter `/setup` wird für Fahrer übersprungen.
 3. **E-Mail/IMAP-Import für Lieferscheine** — in `Kontrollzentrale.tsx` nach wie vor nur ein Platzhalter („Ausstehend", feste Beispiel-Adresse `lieferscheine@dispatch.example.com`). Keine echte IMAP-Anbindung, kein automatisches Anlegen von `shipment`-Zeilen aus Mails. Das ist aber genau die Berechtigung, die im Onboarding-Wizard bereits abgefragt wird („Zugriff auf Lieferscheine erlauben") — Erwartung vs. Funktion klaffen auseinander.
 
 ## B. Sicherheit
 
-4. Verbliebene Supabase-Security-Advisor-Warnungen (aktuell geprüft, keine neuen seit dem `companies`-Fix): `function_search_path_mutable` auf `set_updated_at`; mehrere `SECURITY DEFINER`-Funktionen von `anon`/`authenticated` aufrufbar (`decrypt_integration_secret`, `encrypt_integration_secret`, `ensure_default_company`, `get_my_role`, `get_user_company_id`, `handle_new_user`, `has_role`, neu dazugekommen: `delete_integration_with_secret`) — einzeln durchgehen, ob das gewollt ist oder `search_path`/Rechte enger gefasst werden sollten. „Leaked Password Protection" ist in Supabase Auth deaktiviert — vor Live-Betrieb aktivieren.
+4. Security-Advisor am 22.08.2026 erneut geprüft: `function_search_path_mutable` auf `set_updated_at` ist behoben; `anon` hat kein EXECUTE mehr auf `encrypt`/`decrypt_integration_secret`, `ensure_default_company` und `handle_new_user`. Fahrer können Stammdaten und Integrationen nicht mehr schreiben; `delete_integration_with_secret` prüft Admin/Dispatcher. Verbleibend (WARN, bewusst): `authenticated` darf die für RLS/App nötigen SECURITY-DEFINER-Funktionen (`get_my_role`, `get_user_company_id`, `has_role`, `complete_my_tour_stop`, `get_current_driver_id`, `delete_integration_with_secret`) ausführen. „Leaked Password Protection" ist in Supabase Auth deaktiviert — vor Live-Betrieb aktivieren. Das Passwort des Testaccounts liegt im Git-Verlauf (Commit `0df1dfd`) und muss vor Verkauf rotiert werden.
 5. Google Cloud: HTTP-Referrer-Einschränkung für den Maps-Key gilt bisher nur für `localhost`/LAN-IP — sobald eine Produktionsdomain feststeht, dort ergänzen (sonst blockt Places/Maps live).
 
 ## C. Tourenplanung/KI — Tiefe fehlt noch
@@ -27,13 +27,13 @@
 
 ## E. Tests/QA
 
-12. Vollständiger End-to-End-Test: Registrierung → Onboarding → Startseite → Lieferschein → Artikel-Erkennung → Tourenplanung — laut Tagesplan für Freitag vorgesehen, Stand unklar.
-13. RLS-Review der neueren Tabellen `artikel`/`packmittel` (Muster sieht korrekt aus, aber noch nicht gezielt gegengeprüft — vergleichbare Policy-Bugs haben diese Woche zweimal den Betrieb blockiert).
-14. Automatisierte Tests (Vitest/Playwright) sind im Projekt eingerichtet, aber laut letztem Stand nur mit einem Beispieltest — für ein Verkaufsprodukt sollte zumindest der kritische Pfad (Login → Tourenplanung) abgedeckt sein.
+12. Vollständiger End-to-End-Test: Registrierung → Onboarding → Startseite → Lieferschein → Artikel-Erkennung → Tourenplanung — laut Tagesplan für Freitag vorgesehen, Stand unklar. Der Fahrerpfad (Login → eigene Tour → Stop abschließen → Reload) ist am 22.08.2026 automatisiert (`npm run test:integration`) und im Browser geprüft.
+13. RLS für `artikel`/`packmittel` unter echter Fahreridentität geprüft: Lesen der eigenen Company ja, Schreiben nein; fremde Companies unsichtbar. Zusätzlich geschlossen: Mandantenleck in `email_log` ohne `company_id`, Fahrer-Schreibrechte auf Depot/Tourenplan/Firma/Integrationen, `TRUNCATE` für `anon`/`authenticated`.
+14. Automatisierte Tests: 25 Unit-Tests plus 9 Integrationstests für den Fahrer-Login und Stop-Abschluss. Playwright bleibt ungenutzt; der kritische Fahrerpfad läuft über Vitest gegen die Remote-DB.
 
 ## F. Versionsstand
 
-15. Shell-Chrome, Fahrer-Seite, Probleme-Labels, Schema-Angleichung `system_integrations` und die abgesicherte Artikelrecherche gehören zu diesem gemeinsamen Versionsstand. Nach dem Commit noch den Push-Status prüfen.
+15. Samstag 22.08.2026: Fahrerbetrieb ohne Demo-Daten (Tour, Stop-Abschluss, ehrliche Karte, RLS). Branch `feat/samstag-fahrerbetrieb`. Offene technische Restpunkte: Geokodierung der Lieferadressen, echtes Live-GPS, Passwort-Rotation, IMAP-Import.
 
 ## G. Außerhalb meines Blickfelds — bitte selbst einordnen
 
