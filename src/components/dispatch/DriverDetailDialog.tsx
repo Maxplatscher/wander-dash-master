@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
@@ -21,9 +22,11 @@ import {
   getCyanSquareMarkerIcon,
   getDarkMapOptions,
   getGoogleMapsApiKey,
+  getOutlineSquareMarkerIcon,
   GOOGLE_MAPS_LIBRARIES,
   GOOGLE_MAPS_LOADER_ID,
 } from "@/lib/google-maps";
+import { pickTourAnchor, shipmentCoordinates } from "@/lib/tour-position";
 
 const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
 
@@ -31,6 +34,7 @@ interface DriverInfo {
   name: string;
   tourId: string | null;
   tourDescription: string;
+  /** @deprecated Wird nicht angezeigt — die Lage kommt aus dem letzten bestätigten Stop. */
   currentLocation: string;
   completedStops: number;
   totalStops: number;
@@ -65,7 +69,7 @@ function useTourStops(tourId: string | null | undefined) {
       const { data: shipments } = await supabase
         .from("shipment")
         .select(
-          "id, customer_name, delivery_address, weight_kg, window_start, window_end",
+          "id, customer_name, delivery_address, weight_kg, window_start, window_end, location_x, location_y",
         )
         .in("id", shipmentIds);
 
@@ -78,8 +82,9 @@ function useTourStops(tourId: string | null | undefined) {
           customerName: shipment?.customer_name ?? "Unbekannt",
           address: shipment?.delivery_address ?? "–",
           weightKg: shipment?.weight_kg ?? 0,
-          lat: null as number | null,
-          lng: null as number | null,
+          coordinates: shipment
+            ? shipmentCoordinates(shipment.location_x, shipment.location_y)
+            : null,
         };
       });
     },
@@ -98,8 +103,21 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
   const nextStop = stops?.find((s) => !s.driver_completed);
   const upcomingStops = stops?.filter((s) => !s.driver_completed) ?? [];
 
-  // Demo-Fallback — echte Koordinaten eigener Block
-  const mapCenter = { lat: 52.52, lng: 13.405 };
+  const anchor = useMemo(
+    () =>
+      pickTourAnchor(
+        (stops ?? []).map((s, index) => ({
+          id: s.id,
+          stopNumber: s.stop_index ?? index + 1,
+          confirmed: s.driver_completed === true,
+          confirmedAt: s.driver_completed_at,
+          customer: s.customerName,
+          address: s.address,
+          coordinates: s.coordinates,
+        })),
+      ),
+    [stops],
+  );
 
   if (!driver) return null;
 
@@ -120,8 +138,13 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
           </DialogHeader>
           <p className="text-primary text-sm mt-1">{driver.tourDescription}</p>
           <div className="flex items-center gap-4 mt-3 meta-text">
-            <span className="flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5" /> {driver.currentLocation}
+            <span className="flex items-center gap-1.5 min-w-0">
+              <MapPin className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">
+                {completedStops.length > 0
+                  ? `Zuletzt bestätigt: ${completedStops[completedStops.length - 1].customerName}`
+                  : "Noch kein Stop bestätigt"}
+              </span>
             </span>
             <span className="flex items-center gap-1.5">
               <Package className="w-3.5 h-3.5" /> {driver.totalWeight} kg
@@ -146,24 +169,40 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
         <div className="p-5 space-y-5">
           {driver.tourId && (
             <div>
-              <h3 className="card-title flex items-center gap-2 mb-2">
-                <MapPin className="w-4 h-4 text-primary" /> Live-Standort
-              </h3>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <h3 className="card-title flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-primary" /> Tourposition
+                </h3>
+                <span className="rounded-sm border border-hairline px-1.5 py-0.5 meta-text text-dim">
+                  Keine GPS-Ortung
+                </span>
+              </div>
               <div
                 className="rounded-sm border border-hairline overflow-hidden bg-[#101012]"
                 style={{ height: 200 }}
               >
-                {isLoaded ? (
+                {!anchor ? (
+                  <div className="h-full flex items-center justify-center p-6 text-center">
+                    <p className="meta-text max-w-[42ch]">
+                      Zu den Lieferadressen dieser Tour sind keine Koordinaten hinterlegt — die
+                      Adressen wurden noch nicht geokodiert.
+                    </p>
+                  </div>
+                ) : isLoaded ? (
                   <GoogleMap
                     mapContainerStyle={{ width: "100%", height: "100%" }}
-                    center={mapCenter}
+                    center={anchor.coordinates}
                     zoom={12}
                     options={getDarkMapOptions()}
                   >
                     <Marker
-                      position={mapCenter}
-                      icon={getCyanSquareMarkerIcon()}
-                      title={driver.name}
+                      position={anchor.coordinates}
+                      icon={
+                        anchor.kind === "confirmed"
+                          ? getCyanSquareMarkerIcon()
+                          : getOutlineSquareMarkerIcon()
+                      }
+                      title={`${driver.name} · Stop ${anchor.stop.stopNumber}`}
                     />
                   </GoogleMap>
                 ) : (
@@ -172,6 +211,22 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
                   </div>
                 )}
               </div>
+              <p className="meta-text mt-1.5">
+                {anchor
+                  ? anchor.kind === "confirmed"
+                    ? `Stop ${anchor.stop.stopNumber} bestätigt${
+                        anchor.stop.confirmedAt
+                          ? ` um ${new Date(anchor.stop.confirmedAt).toLocaleTimeString("de-DE", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}`
+                          : ""
+                      } · ${anchor.stop.address ?? anchor.stop.customer}`
+                    : `Stop ${anchor.stop.stopNumber} disponiert, noch nicht bestätigt · ${
+                        anchor.stop.address ?? anchor.stop.customer
+                      }`
+                  : "Position aus bestätigten Stops nicht ableitbar"}
+              </p>
             </div>
           )}
 
