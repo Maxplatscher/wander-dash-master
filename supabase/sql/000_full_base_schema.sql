@@ -81,6 +81,7 @@ CREATE TABLE public.email_log (
   from_addr VARCHAR(500),
   status VARCHAR(80) NOT NULL,
   error_detail TEXT,
+  company_id UUID REFERENCES public.company(id) ON DELETE CASCADE,
   shipment_id UUID REFERENCES public.shipment(id),
   body_preview TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -104,6 +105,7 @@ ALTER TABLE public.touren_plan ENABLE ROW LEVEL SECURITY;
 CREATE TABLE public.tour (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES public.company(id) ON DELETE CASCADE,
+  driver_id UUID REFERENCES public.driver(id) ON DELETE SET NULL,
   plan_version_id UUID REFERENCES public.touren_plan(id),
   date DATE,
   version INTEGER,
@@ -226,6 +228,78 @@ AS $$
   WHERE email = (SELECT email FROM auth.users WHERE id = auth.uid())
 $$;
 
+CREATE OR REPLACE FUNCTION public.get_current_driver_id()
+RETURNS UUID
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+  SELECT u.driver_id
+  FROM public.users AS u
+  WHERE u.id = auth.uid()
+    AND u.is_active IS TRUE
+  LIMIT 1
+$$;
+
+REVOKE ALL ON FUNCTION public.get_current_driver_id() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_current_driver_id() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.complete_my_tour_stop(p_tour_stop_id UUID)
+RETURNS TABLE (
+  id UUID,
+  driver_completed BOOLEAN,
+  driver_completed_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  v_user_company_id UUID;
+  v_driver_id UUID;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.has_role(auth.uid(), 'driver') THEN
+    RAISE EXCEPTION 'Nur angemeldete Fahrer dürfen Stops abschließen'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT u.company_id, u.driver_id
+  INTO v_user_company_id, v_driver_id
+  FROM public.users AS u
+  WHERE u.id = auth.uid()
+    AND u.is_active IS TRUE;
+
+  IF v_user_company_id IS NULL OR v_driver_id IS NULL THEN
+    RAISE EXCEPTION 'Dem Benutzer ist kein aktiver Fahrer zugeordnet'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  UPDATE public.tour_stop AS ts
+  SET
+    driver_completed = TRUE,
+    driver_completed_at = COALESCE(ts.driver_completed_at, statement_timestamp())
+  FROM public.tour AS t
+  JOIN public.driver AS d ON d.id = t.driver_id
+  WHERE ts.id = p_tour_stop_id
+    AND ts.tour_id = t.id
+    AND t.driver_id = v_driver_id
+    AND t.company_id = v_user_company_id
+    AND d.company_id = v_user_company_id
+    AND t.is_active IS TRUE
+  RETURNING ts.id, ts.driver_completed, ts.driver_completed_at;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Stop gehört nicht zu einer aktiven eigenen Tour'
+      USING ERRCODE = '42501';
+  END IF;
+END
+$$;
+
+REVOKE ALL ON FUNCTION public.complete_my_tour_stop(UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.complete_my_tour_stop(UUID) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.ensure_default_company()
 RETURNS UUID
 LANGUAGE sql
@@ -319,6 +393,11 @@ AS $$
   END;
 $$;
 
+REVOKE ALL ON FUNCTION public.encrypt_integration_secret(text)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.decrypt_integration_secret(text)
+  FROM PUBLIC, anon, authenticated;
+
 CREATE TABLE public.depot (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL,
@@ -367,12 +446,15 @@ ALTER TABLE public.system_integrations ENABLE ROW LEVEL SECURITY;
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS trigger
 LANGUAGE plpgsql
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
   NEW.updated_at := now();
   RETURN NEW;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.set_updated_at() FROM PUBLIC, anon, authenticated;
 
 DROP TRIGGER IF EXISTS trg_depot_updated_at ON public.depot;
 CREATE TRIGGER trg_depot_updated_at
@@ -400,43 +482,111 @@ USING (company_id = public.get_user_company_id());
 
 CREATE POLICY "Users can insert own plan_runs"
 ON public.plan_run FOR INSERT TO authenticated
-WITH CHECK (company_id = public.get_user_company_id());
+WITH CHECK (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+);
 
-CREATE POLICY "Users can view own vehicles"
+CREATE POLICY "Dispatch staff can update own company"
+ON public.company FOR UPDATE TO authenticated
+USING (
+  id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+)
+WITH CHECK (
+  id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+);
+
+CREATE POLICY "Users can view permitted vehicles"
 ON public.vehicle FOR SELECT TO authenticated
-USING (company_id = public.get_user_company_id());
+USING (
+  company_id = public.get_user_company_id()
+  AND (
+    public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'dispatcher')
+    OR id IN (
+      SELECT ts.vehicle_id
+      FROM public.tour_stop AS ts
+      JOIN public.tour AS t ON t.id = ts.tour_id
+      WHERE t.driver_id = public.get_current_driver_id()
+        AND ts.vehicle_id IS NOT NULL
+    )
+  )
+);
 
-CREATE POLICY "Users can manage own vehicles"
+CREATE POLICY "Dispatch staff can manage own vehicles"
 ON public.vehicle FOR ALL TO authenticated
-USING (company_id = public.get_user_company_id())
-WITH CHECK (company_id = public.get_user_company_id());
+USING (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+)
+WITH CHECK (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+);
 
-CREATE POLICY "Users can view own drivers"
+CREATE POLICY "Users can view permitted drivers"
 ON public.driver FOR SELECT TO authenticated
-USING (company_id = public.get_user_company_id());
+USING (
+  company_id = public.get_user_company_id()
+  AND (
+    public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'dispatcher')
+    OR id = public.get_current_driver_id()
+  )
+);
 
-CREATE POLICY "Users can manage own drivers"
+CREATE POLICY "Dispatch staff can manage own drivers"
 ON public.driver FOR ALL TO authenticated
-USING (company_id = public.get_user_company_id())
-WITH CHECK (company_id = public.get_user_company_id());
+USING (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+)
+WITH CHECK (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+);
 
-CREATE POLICY "Users can view own shipments"
+CREATE POLICY "Users can view permitted shipments"
 ON public.shipment FOR SELECT TO authenticated
-USING (company_id = public.get_user_company_id());
+USING (
+  company_id = public.get_user_company_id()
+  AND (
+    public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'dispatcher')
+    OR id IN (
+      SELECT ts.shipment_id
+      FROM public.tour_stop AS ts
+      JOIN public.tour AS t ON t.id = ts.tour_id
+      WHERE t.driver_id = public.get_current_driver_id()
+        AND ts.shipment_id IS NOT NULL
+    )
+  )
+);
 
-CREATE POLICY "Users can manage own shipments"
+CREATE POLICY "Dispatch staff can manage own shipments"
 ON public.shipment FOR ALL TO authenticated
-USING (company_id = public.get_user_company_id())
-WITH CHECK (company_id = public.get_user_company_id());
+USING (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+)
+WITH CHECK (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+);
 
-CREATE POLICY "Users can view own email_logs"
+CREATE POLICY "Dispatch staff can view own email_logs"
 ON public.email_log FOR SELECT TO authenticated
 USING (
-  shipment_id IS NULL
-  OR shipment_id IN (
-    SELECT id
-    FROM public.shipment
-    WHERE company_id = public.get_user_company_id()
+  (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+  AND (
+    company_id = public.get_user_company_id()
+    OR shipment_id IN (
+      SELECT s.id
+      FROM public.shipment AS s
+      WHERE s.company_id = public.get_user_company_id()
+    )
   )
 );
 
@@ -444,54 +594,86 @@ CREATE POLICY "Users can view own touren_plans"
 ON public.touren_plan FOR SELECT TO authenticated
 USING (company_id = public.get_user_company_id());
 
-CREATE POLICY "Users can manage own touren_plans"
+CREATE POLICY "Dispatch staff can manage own touren_plans"
 ON public.touren_plan FOR ALL TO authenticated
-USING (company_id = public.get_user_company_id())
-WITH CHECK (company_id = public.get_user_company_id());
-
-CREATE POLICY "Users can view own tours"
-ON public.tour FOR SELECT TO authenticated
-USING (company_id = public.get_user_company_id());
-
-CREATE POLICY "Users can manage own tours"
-ON public.tour FOR ALL TO authenticated
-USING (company_id = public.get_user_company_id())
-WITH CHECK (company_id = public.get_user_company_id());
-
-CREATE POLICY "Users can view own tour_stops"
-ON public.tour_stop FOR SELECT TO authenticated
 USING (
-  tour_id IN (
-    SELECT id
-    FROM public.tour
-    WHERE company_id = public.get_user_company_id()
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+)
+WITH CHECK (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+);
+
+CREATE POLICY "Users can view permitted tours"
+ON public.tour FOR SELECT TO authenticated
+USING (
+  company_id = public.get_user_company_id()
+  AND (
+    public.has_role(auth.uid(), 'admin')
+    OR public.has_role(auth.uid(), 'dispatcher')
+    OR driver_id = public.get_current_driver_id()
   )
 );
 
-CREATE POLICY "Users can manage own tour_stops"
+CREATE POLICY "Dispatch staff can manage own tours"
+ON public.tour FOR ALL TO authenticated
+USING (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+)
+WITH CHECK (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+);
+
+CREATE POLICY "Users can view permitted tour stops"
+ON public.tour_stop FOR SELECT TO authenticated
+USING (
+  tour_id IN (
+    SELECT t.id
+    FROM public.tour AS t
+    WHERE t.company_id = public.get_user_company_id()
+      AND (
+        public.has_role(auth.uid(), 'admin')
+        OR public.has_role(auth.uid(), 'dispatcher')
+        OR t.driver_id = public.get_current_driver_id()
+      )
+  )
+);
+
+CREATE POLICY "Dispatch staff can manage own tour stops"
 ON public.tour_stop FOR ALL TO authenticated
 USING (
   tour_id IN (
-    SELECT id
-    FROM public.tour
-    WHERE company_id = public.get_user_company_id()
+    SELECT t.id
+    FROM public.tour AS t
+    WHERE t.company_id = public.get_user_company_id()
+      AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
   )
 )
 WITH CHECK (
   tour_id IN (
-    SELECT id
-    FROM public.tour
-    WHERE company_id = public.get_user_company_id()
+    SELECT t.id
+    FROM public.tour AS t
+    WHERE t.company_id = public.get_user_company_id()
+      AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
   )
 );
 
 CREATE POLICY "Users can view own profile"
 ON public.users FOR SELECT TO authenticated
-USING (email = (SELECT email FROM auth.users WHERE id = auth.uid()));
+USING (id = auth.uid());
 
 CREATE POLICY "Users can update own profile"
 ON public.users FOR UPDATE TO authenticated
-USING (email = (SELECT email FROM auth.users WHERE id = auth.uid()));
+USING (id = auth.uid())
+WITH CHECK (
+  id = auth.uid()
+  AND company_id IS NOT DISTINCT FROM public.get_user_company_id()
+  AND driver_id IS NOT DISTINCT FROM public.get_current_driver_id()
+  AND email = (auth.jwt() ->> 'email')
+);
 
 CREATE POLICY "Users can insert own record"
 ON public.users FOR INSERT TO authenticated
@@ -513,37 +695,64 @@ CREATE POLICY "Users can view own depots"
 ON public.depot FOR SELECT TO authenticated
 USING (company_id = public.get_user_company_id());
 
-CREATE POLICY "Users can manage own depots"
+CREATE POLICY "Dispatch staff can manage own depots"
 ON public.depot FOR ALL TO authenticated
-USING (company_id = public.get_user_company_id())
-WITH CHECK (company_id = public.get_user_company_id());
+USING (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+)
+WITH CHECK (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+);
 
-CREATE POLICY "Users can view own system integrations"
+CREATE POLICY "Dispatch staff can view own system integrations"
 ON public.system_integrations FOR SELECT TO authenticated
-USING (company_id = public.get_user_company_id());
+USING (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+);
 
-CREATE POLICY "Users can manage own system integrations"
+CREATE POLICY "Dispatch staff can manage own system integrations"
 ON public.system_integrations FOR ALL TO authenticated
-USING (company_id = public.get_user_company_id())
-WITH CHECK (company_id = public.get_user_company_id());
+USING (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+)
+WITH CHECK (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+);
 
 CREATE POLICY "Users can view own packmittel"
 ON public.packmittel FOR SELECT TO authenticated
 USING (company_id = public.get_user_company_id());
 
-CREATE POLICY "Users can manage own packmittel"
+CREATE POLICY "Dispatch staff can manage own packmittel"
 ON public.packmittel FOR ALL TO authenticated
-USING (company_id = public.get_user_company_id())
-WITH CHECK (company_id = public.get_user_company_id());
+USING (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+)
+WITH CHECK (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+);
 
 CREATE POLICY "Users can view own artikel"
 ON public.artikel FOR SELECT TO authenticated
 USING (company_id = public.get_user_company_id());
 
-CREATE POLICY "Users can manage own artikel"
+CREATE POLICY "Dispatch staff can manage own artikel"
 ON public.artikel FOR ALL TO authenticated
-USING (company_id = public.get_user_company_id())
-WITH CHECK (company_id = public.get_user_company_id());
+USING (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+)
+WITH CHECK (
+  company_id = public.get_user_company_id()
+  AND (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'dispatcher'))
+);
 
 -- =========================================================
 -- PERFORMANCE INDEXES
@@ -554,9 +763,14 @@ CREATE INDEX idx_shipment_intake_status ON public.shipment(intake_status);
 CREATE INDEX idx_shipment_company_id ON public.shipment(company_id);
 CREATE INDEX idx_tour_date ON public.tour(date);
 CREATE INDEX idx_tour_company_id ON public.tour(company_id);
+CREATE INDEX idx_tour_driver_id ON public.tour(driver_id);
+CREATE UNIQUE INDEX idx_tour_one_active_per_driver_date
+  ON public.tour(driver_id, date)
+  WHERE driver_id IS NOT NULL AND date IS NOT NULL AND is_active IS TRUE;
 CREATE INDEX idx_tour_stop_shipment_id ON public.tour_stop(shipment_id);
 CREATE INDEX idx_email_log_created_at ON public.email_log(created_at);
 CREATE INDEX idx_email_log_status ON public.email_log(status);
+CREATE INDEX idx_email_log_company_id ON public.email_log(company_id);
 CREATE INDEX idx_depot_company_id ON public.depot(company_id);
 CREATE INDEX idx_depot_active ON public.depot(company_id, is_active);
 CREATE INDEX idx_system_integrations_company_id ON public.system_integrations(company_id);
