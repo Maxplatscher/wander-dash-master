@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Package, Plus, Play, Loader2, Truck, User, Box, MapPin } from 'lucide-react';
+import { Mail, Package, Plus, Play, Loader2, Truck, User, Box, MapPin, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -59,6 +59,7 @@ export function Kontrollzentrale() {
   const [demoLoading, setDemoLoading] = useState(false);
   const [planLoading, setPlanLoading] = useState(false);
   const [geocodeLoading, setGeocodeLoading] = useState(false);
+  const [fetchImapLoading, setFetchImapLoading] = useState(false);
 
   const addDriver = async () => {
     if (!driverName.trim()) return;
@@ -127,6 +128,35 @@ export function Kontrollzentrale() {
     return data as { updated?: number; scanned?: number };
   };
 
+  const fetchImapMails = async () => {
+    setFetchImapLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-imap', {
+        body: { date: dateStr, depot_id: selectedDepotId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const imported = Number(data?.imported ?? 0);
+      const skipped = Number(data?.skipped ?? 0);
+      const failed = Number(data?.failed ?? 0);
+      if (imported === 0 && skipped === 0 && failed === 0) {
+        toast.info('Keine ungelesenen Mails im Postfach');
+      } else {
+        toast.success(
+          `${imported} Sendung(en) angelegt` +
+            (skipped ? `, ${skipped} übersprungen` : '') +
+            (failed ? `, ${failed} fehlgeschlagen` : ''),
+        );
+      }
+      refreshAll();
+      queryClient.invalidateQueries({ queryKey: ['shipments'] });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Mails konnten nicht abgerufen werden');
+    } finally {
+      setFetchImapLoading(false);
+    }
+  };
+
   const startPlanning = async () => {
     setPlanLoading(true);
     try {
@@ -180,25 +210,32 @@ export function Kontrollzentrale() {
         </p>
       </div>
 
-      {/* 1. E-Mail-Zugang — IMAP-Abruf ist noch nicht gebaut; nichts als Posteingang vortäuschen */}
+      {/* 1. E-Mail-Zugang — manueller IMAP-Abruf, kein Dauerabruf, keine erfundenen Adressen */}
       <div className="glass-card p-5 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <Mail className="w-4 h-4 text-primary" />
             <p className="card-title">E-Mail-Zugang</p>
           </div>
-          <span className="shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm bg-warning/15 text-warning">
-            Import nicht angebunden
-          </span>
+          {imap?.is_active ? (
+            <span className="shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm bg-success/15 text-success">
+              IMAP aktiv
+            </span>
+          ) : (
+            <span className="shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm bg-warning/15 text-warning">
+              {imap ? 'IMAP deaktiviert' : 'Kein IMAP-Konto'}
+            </span>
+          )}
         </div>
         {integrationsLoading ? (
           <p className="meta-text">Integrationen werden geladen…</p>
         ) : imap ? (
           <>
             <p className="meta-text">
-              IMAP-Zugang {imap.is_active ? 'ist hinterlegt' : 'ist deaktiviert'}, Mails werden
-              aber noch nicht abgeholt. Lieferscheine entstehen weiter manuell oder über
-              demo-setup.
+              Ungelesene Mails werden auf Knopfdruck geholt und als Sendung ohne
+              erfundene Adresse angelegt. Es gibt noch keinen Dauerabruf. Einen
+              Verkäuferordner legt ihr selbst an und verbindet ihn später unter
+              Einstellungen.
             </p>
             <div className="sub-card px-3 py-2.5 flex items-center gap-3">
               <Mail className="w-3.5 h-3.5 text-dim shrink-0" />
@@ -209,18 +246,35 @@ export function Kontrollzentrale() {
           </>
         ) : (
           <p className="meta-text">
-            Kein IMAP-Konto eingerichtet, und der automatische Mail-Abruf ist noch nicht
-            gebaut. Es gibt kein Systempostfach.
+            Noch kein IMAP-Konto. Unter Einstellungen Host, Ordner und Zugangsdaten
+            hinterlegen, danach hier Mails abrufen. Es gibt kein Systempostfach.
           </p>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded"
-          onClick={() => navigateTo('einstellungen')}
-        >
-          Einstellungen öffnen
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {imap?.is_active && (
+            <Button
+              size="sm"
+              className="rounded font-semibold"
+              onClick={() => void fetchImapMails()}
+              disabled={fetchImapLoading}
+            >
+              {fetchImapLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+              ) : (
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              Mails abrufen
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded"
+            onClick={() => navigateTo('einstellungen')}
+          >
+            Einstellungen öffnen
+          </Button>
+        </div>
       </div>
 
       {/* 2. Lieferschein-Tabelle */}

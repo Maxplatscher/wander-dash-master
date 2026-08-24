@@ -28,6 +28,19 @@ export const CONFIG_FIELDS: Record<SystemType, string[]> = {
   research_source: ['base_url', 'notiz'],
 };
 
+export const CONFIG_PLACEHOLDERS: Partial<Record<SystemType, Record<string, string>>> = {
+  email_imap: {
+    host: 'imap.gmail.com',
+    port: '993',
+    folder: 'INBOX',
+  },
+  csv_import: {
+    sftp_host: 'sftp.anbieter.example',
+    sftp_port: '22',
+    remote_path: '/lieferscheine',
+  },
+};
+
 export const CREDENTIAL_FIELDS: Record<SystemType, string[]> = {
   erp: ['client_secret'],
   telematics: ['api_key'],

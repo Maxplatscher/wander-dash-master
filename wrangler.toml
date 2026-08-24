@@ -1,0 +1,5 @@
+# Cloudflare Pages (CLI-Deploy und Git-Build).
+# Preview zuerst unter *.pages.dev — Custom Domain dispocenter.com erst nach Nameserver-Transfer.
+name = "dispocenter"
+compatibility_date = "2026-08-24"
+pages_build_output_dir = "./dist"

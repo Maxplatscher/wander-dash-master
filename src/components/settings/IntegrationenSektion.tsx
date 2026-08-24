@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useIntegrations } from '@/hooks/useIntegrations';
 import {
   CONFIG_FIELDS,
+  CONFIG_PLACEHOLDERS,
   CREDENTIAL_FIELDS,
   SystemIntegration,
   SystemType,
@@ -241,7 +242,9 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="meta-text">
-          Verbinde externe Systeme pro Standort oder global für alle Standorte.
+          Zuerst E-Mail (IMAP) anbinden und in der Kontrollzentrale Mails abrufen.
+          Einen gemeinsamen Verkäuferordner legt ihr selbst an und verbindet ihn
+          später hier — der Ordnerimport ist noch nicht gebaut.
         </p>
         <Button size="sm" className="rounded font-semibold" onClick={openCreateDialog} disabled={!companyId}>
           <Plus className="w-4 h-4 mr-1.5" />
@@ -363,6 +366,22 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
             </DialogTitle>
             <DialogDescription>
               Sensible Zugangsdaten werden serverseitig im Vault abgelegt.
+              {form.system_type === 'email_imap' && (
+                <>
+                  {' '}
+                  Gmail braucht ein App-Passwort, Microsoft 365 muss IMAP in der Mailbox
+                  erlauben. Port 993 mit TLS. Der Verkäuferordner kommt später als eigene
+                  Integration, nicht über IMAP.
+                </>
+              )}
+              {form.system_type === 'csv_import' && (
+                <>
+                  {' '}
+                  Für einen gemeinsamen Verkäuferordner: den Ordner selbst anlegen, danach
+                  hier verbinden. Der Import aus dem Ordner ist noch nicht angebunden —
+                  zuerst E-Mail (IMAP) nutzen.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
 
@@ -380,7 +399,17 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
               <Label>Systemtyp</Label>
               <Select
                 value={form.system_type}
-                onValueChange={(value) => setForm(prev => ({ ...prev, system_type: value as SystemType }))}
+                onValueChange={(value) => {
+                  const nextType = value as SystemType;
+                  setForm((prev) => {
+                    const config = { ...prev.config };
+                    if (nextType === 'email_imap') {
+                      if (!config.port) config.port = '993';
+                      if (!config.folder) config.folder = 'INBOX';
+                    }
+                    return { ...prev, system_type: nextType, config };
+                  });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -421,7 +450,7 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
                 <Input
                   value={form.config[field] ?? ''}
                   onChange={(e) => updateConfigValue(field, e.target.value)}
-                  placeholder={field}
+                  placeholder={CONFIG_PLACEHOLDERS[form.system_type]?.[field] ?? field}
                 />
               </div>
             ))}

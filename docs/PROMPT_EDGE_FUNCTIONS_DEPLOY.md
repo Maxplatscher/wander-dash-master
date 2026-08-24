@@ -8,7 +8,7 @@ Geprüft über die Supabase-Verwaltung: **Im Projekt ist aktuell keine einzige E
 
 ## Auftrag
 
-Alle acht Functions deployen:
+Alle Functions deployen (`fetch-imap` und `geocode-shipments` mit dabei):
 
 ```bash
 supabase link --project-ref sxqbmxqnwtrgibfryvqf
@@ -17,9 +17,11 @@ supabase functions deploy plan-tour
 supabase functions deploy ai-resolve
 supabase functions deploy upsert-integration
 supabase functions deploy test-integration
+supabase functions deploy fetch-imap
 supabase functions deploy create-admin
 supabase functions deploy demo-setup
 supabase functions deploy research-article
+supabase functions deploy geocode-shipments
 ```
 
 Falls `supabase link` nach einem Access Token fragt: über `supabase login` vorher einloggen (interaktiv im Terminal, kein API-Key im Code hinterlegen).
@@ -53,7 +55,8 @@ Nicht nur "deployed ohne Fehler" prüfen, sondern jede Function einmal real ausl
 - `assign-depot` — über die App eine Sendung anlegen/Depot zuordnen lassen
 - `plan-tour` — Tourenplanung für ein Testdatum anstoßen
 - `ai-resolve` — auf der Probleme-Seite eine offene Kapazitätswarnung lösen lassen
-- `upsert-integration` / `test-integration` — in den Einstellungen eine Integration anlegen und testen (auch der neue Typ `research_source`)
+- `upsert-integration` / `test-integration` — in den Einstellungen eine Integration anlegen und testen (IMAP prüft Login+Ordner, nicht nur „gespeichert“)
+- `fetch-imap` — Kontrollzentrale „Mails abrufen“ mit aktivem IMAP-Konto; ungelesene Mails werden zu Sendungen ohne erfundene Adresse
 - `create-admin` / `demo-setup` — nur bei Bedarf, nicht kritisch für den Live-Betrieb
 - `research-article` — einen Lieferschein mit unbekanntem Artikel durchlaufen lassen, Vorschlag im `ArticleReviewPanel` prüfen
 

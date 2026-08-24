@@ -1,12 +1,12 @@
 # Checkliste vor Verkauf/Launch — DispoCenter
 
-> Stand: 22.08.2026, nach dem Samstags-Fahrerbetrieb. `docs/CLAUDE_PROJECT_PROMPT.md` ist an mehreren Stellen veraltet — z. B. sind die dort gelisteten Alt-Komponenten und `Versionen.tsx` bereits entfernt, `Fahrer.tsx`/`Kalender.tsx` laufen bereits auf echten Daten. Diese Liste ersetzt den technischen Teil davon.
+> Stand: 22.08.2026, nach Fahrerbetrieb + GPS. Offene Punkte **bis zum ersten Testkunden** stehen in `docs/CHECKLISTE_TESTKUNDE.md`. Diese Datei bleibt die technische Langfassung.
 
 ## A. Kernfunktionen, die noch nicht echt sind (Blocker)
 
 1. **Live-Standortkarte (`LiveMap.tsx`)** — Demo-Marker sind entfernt. Marker kommen aus Fahrer-GPS (`driver_position`, mit sichtbarem Alter, kein „Live-Standort"-Label) oder aus geokodierten Stop-Adressen. Details: `docs/KARTE_STANDORTQUELLE.md`.
 2. **„Meine Tour heute" für Fahrer-Rolle (`DriverTourView.tsx`)** — erledigt am 22.08.2026. Ein Fahrer sieht über `users.driver_id` → `tour.driver_id` seine aktive Tagestour, schließt Stops über die RPC `complete_my_tour_stop` ab, und der Status bleibt nach Reload in `tour_stop` gespeichert. Navigation zeigt nur „Meine Tour"; der Firmen-Wizard unter `/setup` wird für Fahrer übersprungen.
-3. **E-Mail/IMAP-Import für Lieferscheine** — Kontrollzentrale zeigt den fehlenden Abruf ehrlich („Import nicht angebunden"), ohne Fake-Adresse `lieferscheine@dispatch.example.com`. IMAP-Zugang kann unter Einstellungen hinterlegt werden, es werden aber noch keine Mails abgeholt und keine `shipment`-Zeilen daraus angelegt. Onboarding fragt die Berechtigung trotzdem schon ab.
+3. **E-Mail/IMAP-Import für Lieferscheine** — Unter Einstellungen IMAP hinterlegen, Verbindung testen, in der Kontrollzentrale ungelesene Mails abrufen (`fetch-imap` → `shipment` + `email_log`). Adressen werden nicht aus der Mail erfunden. Kein Dauerabruf, kein Verkäuferordner-Import (kommt später unter Einstellungen). Onboarding fragt die Ordner-Berechtigung trotzdem schon ab.
 
 ## B. Sicherheit
 
