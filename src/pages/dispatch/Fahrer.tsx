@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDispatch } from "@/lib/dispatch-context";
+import { formatDateLabel, toDateInputValue } from "@/lib/date-input";
 import { AddDriverDialog } from "@/components/dispatch/AddDriverDialog";
 import { DriverDetailDialog } from "@/components/dispatch/DriverDetailDialog";
 import { DriverPhotoAvatar } from "@/components/dispatch/DriverPhoto";
@@ -55,10 +56,7 @@ const STATUS_STYLE: Record<string, { badge: string; tile: string }> = {
 };
 
 function fmtDate(d: Date) {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return toDateInputValue(d);
 }
 
 function useFleetCards(companyId: string | null, date: string) {
@@ -195,7 +193,7 @@ export function Fahrer() {
             {cards?.length ?? 0} Fahrer · {fleet?.vehicleCount ?? 0} Fahrzeuge
           </h2>
           <p className="meta-text mt-1">
-            {selectedDate.toLocaleDateString("de-DE", {
+            {formatDateLabel(selectedDate, {
               weekday: "long",
               day: "2-digit",
               month: "long",

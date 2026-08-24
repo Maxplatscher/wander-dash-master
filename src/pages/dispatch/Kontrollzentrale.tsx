@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useDispatch } from '@/lib/dispatch-context';
+import { formatDateLabel, toDateInputValue } from '@/lib/date-input';
 import { cn } from '@/lib/utils';
 import { ArticleReviewPanel } from '@/components/dispatch/ArticleReviewPanel';
 import { parseMissingFields } from '@/lib/article-research';
@@ -28,7 +29,7 @@ const SOURCE_LABEL: Record<string, string> = {
 export function Kontrollzentrale() {
   const { selectedDate, refreshKey, selectedDepotId, selectedDepotLabel, refreshAll, companyId, navigateTo } = useDispatch();
   const queryClient = useQueryClient();
-  const dateStr = selectedDate.toISOString().split('T')[0];
+  const dateStr = toDateInputValue(selectedDate);
   const { integrations, loading: integrationsLoading } = useIntegrations(companyId);
   const imap = integrations.find((item) => item.system_type === 'email_imap');
   const imapHost =
@@ -205,7 +206,7 @@ export function Kontrollzentrale() {
         <p className="section-title">Lieferscheine</p>
         <h2 className="page-title mt-1">Eingang & Disposition</h2>
         <p className="meta-text mt-1">
-          {selectedDate.toLocaleDateString('de-DE')}
+          {formatDateLabel(selectedDate)}
           {selectedDepotId ? ` · ${selectedDepotLabel}` : ' · alle Depots'}
         </p>
       </div>

@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ParticleBackground } from '@/components/dispatch/ParticleBackground';
 import { DepotSwitcher } from '@/components/dispatch/DepotSwitcher';
+import { parseDateInputValue, toDateInputValue } from '@/lib/date-input';
 
 const sectionIcons: Record<SectionId, React.ElementType> = {
   startseite: Home,
@@ -128,8 +129,11 @@ function DashboardLayout() {
               <CalendarDays className="w-3.5 h-3.5" />
               <input
                 type="date"
-                value={selectedDate.toISOString().split('T')[0]}
-                onChange={e => setSelectedDate(new Date(e.target.value))}
+                value={toDateInputValue(selectedDate)}
+                onChange={(e) => {
+                  const next = parseDateInputValue(e.target.value);
+                  if (next) setSelectedDate(next);
+                }}
                 className="bg-white/5 text-xs text-foreground border border-white/10 rounded px-2.5 py-1.5 transition-colors focus:border-primary/50 focus:ring-1 focus:ring-primary/30 outline-none [color-scheme:dark]"
               />
             </div>

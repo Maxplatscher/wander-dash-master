@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useDispatch } from '@/lib/dispatch-context';
+import { formatDateLabel, toDateInputValue } from '@/lib/date-input';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -580,7 +581,7 @@ function ProblemCard({
 /* ── Main Component ── */
 export function Probleme() {
   const { selectedDate, selectedDepotId } = useDispatch();
-  const dateStr = selectedDate.toISOString().split('T')[0];
+  const dateStr = toDateInputValue(selectedDate);
   const { data: problems, isLoading } = useProblems(dateStr, selectedDepotId);
   const [filter, setFilter] = useState<ProblemType | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
@@ -619,7 +620,7 @@ export function Probleme() {
   };
 
   const formatDate = (d: Date) =>
-    d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    formatDateLabel(d, { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   return (
     <div className="space-y-5">

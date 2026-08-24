@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Loader2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDispatch } from '@/lib/dispatch-context';
+import { toDateInputValue } from '@/lib/date-input';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -58,7 +59,7 @@ const MONTHS = [
 ];
 
 function fmt(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return toDateInputValue(d);
 }
 
 function startOfWeek(d: Date) {

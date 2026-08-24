@@ -22,6 +22,7 @@ import { LiveMap } from '@/components/dispatch/LiveMap';
 import { DriverDetailDialog } from '@/components/dispatch/DriverDetailDialog';
 import { AddDriverDialog } from '@/components/dispatch/AddDriverDialog';
 import { useDispatch } from '@/lib/dispatch-context';
+import { formatDateLabel, toDateInputValue } from '@/lib/date-input';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useProblems } from '@/pages/dispatch/Probleme';
@@ -473,7 +474,7 @@ function TimelineView({
 export function Startseite() {
   const { selectedDate, selectedDepotId, selectedDepotLabel } = useDispatch();
   const { user } = useAuth();
-  const dateStr = selectedDate.toISOString().split('T')[0];
+  const dateStr = toDateInputValue(selectedDate);
   const { data: kpis } = useKpis(dateStr, selectedDepotId);
   const { data: driverRows } = useActiveDriversOnTour(dateStr);
   const { data: problems } = useProblems(dateStr, selectedDepotId);
@@ -493,7 +494,7 @@ export function Startseite() {
   const problemCount = problems?.length ?? kpis?.problems ?? 0;
   const firstName = firstNameFromUser(user);
   const greet = greetingForHour(new Date().getHours());
-  const dateLabel = selectedDate.toLocaleDateString('de-DE', {
+  const dateLabel = formatDateLabel(selectedDate, {
     weekday: 'long',
     day: '2-digit',
     month: 'long',

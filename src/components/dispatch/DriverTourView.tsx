@@ -29,6 +29,7 @@ import {
 } from "@/lib/google-maps";
 import { shipmentCoordinates } from "@/lib/tour-position";
 import { formatGpsAge } from "@/lib/driver-gps";
+import { formatDateLabel } from "@/lib/date-input";
 import { useDriverGpsShare } from "@/hooks/useDriverGpsShare";
 
 const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
@@ -254,7 +255,7 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
       <div className="glass-card p-8 text-center">
         <p className="card-title">Keine aktive Tour</p>
         <p className="meta-text mt-1">
-          Für den {selectedDate.toLocaleDateString("de-DE")} ist dir keine aktive Tour zugeordnet.
+          Für den {formatDateLabel(selectedDate)} ist dir keine aktive Tour zugeordnet.
         </p>
       </div>
     );
@@ -280,7 +281,7 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
           <div>
             <p className="section-title">Meine Tour</p>
             <h3 className="card-title mt-1">
-              {selectedDate.toLocaleDateString("de-DE", {
+              {formatDateLabel(selectedDate, {
                 weekday: "long",
                 day: "2-digit",
                 month: "long",

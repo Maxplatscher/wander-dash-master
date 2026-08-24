@@ -3,6 +3,7 @@ import { GoogleMap, Marker, OverlayView, useJsApiLoader } from '@react-google-ma
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useDispatch } from '@/lib/dispatch-context';
+import { formatDateLabel } from '@/lib/date-input';
 import {
   getCyanSquareMarkerIcon,
   getDarkMapOptions,
@@ -219,7 +220,7 @@ export function LiveMap({ fill = false }: LiveMapProps = {}) {
     ? 'flex h-full w-full flex-col overflow-hidden rounded-sm border border-hairline bg-[#101012]'
     : 'flex min-h-[420px] w-full flex-col overflow-hidden rounded-sm border border-hairline bg-[#101012]';
 
-  const dateLabel = selectedDate.toLocaleDateString('de-DE', {
+  const dateLabel = formatDateLabel(selectedDate, {
     weekday: 'short',
     day: '2-digit',
     month: '2-digit',
