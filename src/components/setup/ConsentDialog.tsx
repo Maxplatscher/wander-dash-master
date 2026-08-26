@@ -9,6 +9,7 @@ import {
   requestDeviceLocation,
   writeConsent,
 } from '@/lib/consent';
+import { LOCATION_CONSENT_LEGAL_TEXT } from '@/lib/gps-consent';
 
 type PermissionChoice = 'undecided' | 'allowed' | 'denied';
 
@@ -93,9 +94,7 @@ export function ConsentDialog({ onComplete, className }: ConsentDialogProps) {
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-2 text-left">
           <p className="text-xs font-medium text-foreground">Rechtsgrundlage</p>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Die Verarbeitung erfolgt auf Grundlage Ihrer Einwilligung gemäß DSGVO Art. 6 Abs. 1
-            lit. a. Sie können die Einwilligung jederzeit in den Einstellungen widerrufen.
-            Ohne Standort bleibt DispoCenter nutzbar (manuelle Depot-/Adresseingabe).
+            {LOCATION_CONSENT_LEGAL_TEXT}
           </p>
         </div>
 
