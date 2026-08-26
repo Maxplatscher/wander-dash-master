@@ -35,6 +35,79 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+const SETTINGS_CHAT_SYSTEM = `Du bist die Dispositions-KI von DispoCenter.
+Der Disponent spricht mit dir, damit du dazulernt: was du falsch geplant hast, welche Kunden oder Fahrer besondere Regeln brauchen, was in der Praxis anders läuft als auf dem Lieferschein.
+Antworte auf Deutsch, knapp (2–5 Sätze). Bestätige, was du verstanden hast, und formuliere es als konkrete Arbeitsregel. Bei Unklarheit eine kurze Rückfrage. Keine Floskeln, kein Englisch, keine Platzhalter.`;
+
+type ChatTurn = { role?: unknown; text?: unknown };
+
+function geminiChatContents(raw: unknown) {
+  if (!Array.isArray(raw)) return [];
+  const contents: { role: "user" | "model"; parts: { text: string }[] }[] = [];
+  for (const item of (raw as ChatTurn[]).slice(-16)) {
+    const text = typeof item?.text === "string" ? item.text.trim() : "";
+    if (!text) continue;
+    const role = item.role === "ki" || item.role === "model" ? "model" : "user";
+    const last = contents.at(-1);
+    if (last && last.role === role) {
+      last.parts[0].text = `${last.parts[0].text}\n${text}`;
+    } else {
+      contents.push({ role, parts: [{ text }] });
+    }
+  }
+  return contents;
+}
+
+async function replySettingsChat(apiKey: string, model: string, context: Record<string, unknown>) {
+  const contents = geminiChatContents(context.messages);
+  if (contents.length === 0) {
+    return jsonResponse({ error: "messages required" }, 400);
+  }
+  if (contents.at(-1)?.role !== "user") {
+    return jsonResponse({ error: "Letzte Nachricht muss vom Disponenten kommen." }, 400);
+  }
+
+  const aiResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "x-goog-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: SETTINGS_CHAT_SYSTEM }] },
+        contents,
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 512,
+        },
+      }),
+    },
+  );
+
+  if (!aiResponse.ok) {
+    const errBody = await aiResponse.json().catch(() => null);
+    if (aiResponse.status === 429 || errBody?.error?.status === "RESOURCE_EXHAUSTED") {
+      return jsonResponse({
+        error: "KI-Ratenlimit erreicht. Bitte versuchen Sie es in einer Minute erneut.",
+      }, 429);
+    }
+    const providerMessage =
+      typeof errBody?.error?.message === "string" ? errBody.error.message : "Unbekannter Provider-Fehler";
+    throw new Error(`Gemini API error ${aiResponse.status}: ${providerMessage}`);
+  }
+
+  const aiResult = await aiResponse.json();
+  const parts = aiResult.candidates?.[0]?.content?.parts ?? [];
+  const textPart = parts.find((part: { text?: string }) => typeof part.text === "string")?.text;
+  const message = typeof textPart === "string" ? textPart.trim() : "";
+  if (!message) {
+    return jsonResponse({ error: "Die KI hat keine lesbare Antwort geliefert." }, 502);
+  }
+  return jsonResponse({ message });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -56,6 +129,10 @@ Deno.serve(async (req) => {
 
     if (!type) {
       return jsonResponse({ error: "type required" }, 400);
+    }
+
+    if (type === "settings_chat") {
+      return await replySettingsChat(GEMINI_API_KEY, GEMINI_MODEL, context);
     }
 
     let systemPrompt = "Du bist ein KI-Disponent für eine Spedition. Analysiere das Problem und gib eine strukturierte Lösung.";

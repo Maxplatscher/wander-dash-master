@@ -29,6 +29,57 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_hint: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          parsed: Json
+          role: string
+          source: string
+          text: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          parsed?: Json
+          role: string
+          source?: string
+          text: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          parsed?: Json
+          role?: string
+          source?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_hint_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_hint_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artikel: {
         Row: {
           artikelnummer: string | null
@@ -414,6 +465,7 @@ export type Database = {
           id: string
           intake_source: string | null
           intake_status: string | null
+          integration_id: string | null
           location_x: number | null
           location_y: number | null
           missing_fields: Json | null
@@ -440,6 +492,7 @@ export type Database = {
           id?: string
           intake_source?: string | null
           intake_status?: string | null
+          integration_id?: string | null
           location_x?: number | null
           location_y?: number | null
           missing_fields?: Json | null
@@ -466,6 +519,7 @@ export type Database = {
           id?: string
           intake_source?: string | null
           intake_status?: string | null
+          integration_id?: string | null
           location_x?: number | null
           location_y?: number | null
           missing_fields?: Json | null
@@ -493,6 +547,13 @@ export type Database = {
             columns: ["depot_id"]
             isOneToOne: false
             referencedRelation: "depot"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipment_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "system_integrations"
             referencedColumns: ["id"]
           },
         ]

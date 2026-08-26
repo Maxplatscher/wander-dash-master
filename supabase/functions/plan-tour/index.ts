@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  applyHintConstraints,
+  hintAdjustedDistance,
+  parseHintConstraints,
+} from "../_shared/ai-hint-constraints.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +19,9 @@ interface ShipmentRow {
   window_start: string | null;
   window_end: string | null;
   depot_id: string | null;
+  customer_name: string | null;
+  name: string | null;
+  delivery_address: string | null;
 }
 
 interface Shipment {
@@ -24,6 +32,12 @@ interface Shipment {
   window_start: string | null;
   window_end: string | null;
   depot_id: string | null;
+  customer_name: string | null;
+  name: string | null;
+  delivery_address: string | null;
+  preferEarly: boolean;
+  deferEarly: boolean;
+  preferLate: boolean;
 }
 
 interface Vehicle {
@@ -64,6 +78,12 @@ function normalizeShipments(rows: ShipmentRow[]): { shipments: Shipment[]; skipp
       window_start: row.window_start,
       window_end: row.window_end,
       depot_id: row.depot_id,
+      customer_name: row.customer_name,
+      name: row.name,
+      delivery_address: row.delivery_address,
+      preferEarly: false,
+      deferEarly: false,
+      preferLate: false,
     });
   }
   return { shipments, skipped };
@@ -130,7 +150,13 @@ function greedyPlan(
 
       for (let i = 0; i < unassigned.length; i++) {
         const shipment = unassigned[i];
-        const distance = manhattan(current, shipment);
+        const distance = hintAdjustedDistance(
+          manhattan(current, shipment),
+          shipment.preferEarly,
+          shipment.deferEarly,
+          stops.length,
+          shipment.preferLate,
+        );
         if (shipment.load <= remaining && distance < bestDist) {
           bestDist = distance;
           bestIdx = i;
@@ -200,7 +226,7 @@ Deno.serve(async (req) => {
 
     let shipmentQuery = supabase
       .from("shipment")
-      .select("id, weight_kg, demand, location_x, location_y, window_start, window_end, depot_id")
+      .select("id, weight_kg, demand, location_x, location_y, window_start, window_end, depot_id, customer_name, name, delivery_address")
       .eq("company_id", company_id)
       .eq("service_date", date);
 
@@ -216,7 +242,7 @@ Deno.serve(async (req) => {
       shipmentRows = shipmentRows.filter((shipment) => !exclude_shipment_ids.includes(shipment.id));
     }
 
-    const { shipments, skipped: skippedNoCoordinates } = normalizeShipments(
+    let { shipments, skipped: skippedNoCoordinates } = normalizeShipments(
       (shipmentRows ?? []) as ShipmentRow[],
     );
 
@@ -262,7 +288,7 @@ Deno.serve(async (req) => {
 
     if (vehicleError) throw vehicleError;
 
-    const vehicles: Vehicle[] = (vehicleRows ?? [])
+    let vehicles: Vehicle[] = (vehicleRows ?? [])
       .map((vehicle) => ({
         id: vehicle.id,
         capacity: vehicle.capacity ?? 0,
@@ -273,6 +299,35 @@ Deno.serve(async (req) => {
 
     if (vehicles.length === 0) {
       return new Response(JSON.stringify({ error: "No vehicles with capacity available", manual_required: true }), {
+        status: 422,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    let appliedHints: ReturnType<typeof applyHintConstraints>["applied"] = [];
+    const { data: hintRows, error: hintError } = await supabase
+      .from("ai_hint")
+      .select("id, role, source, text, parsed")
+      .eq("company_id", company_id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true });
+
+    if (hintError) {
+      console.warn("ai_hint konnte nicht geladen werden:", hintError.message);
+    } else if (hintRows?.length) {
+      const constraints = parseHintConstraints(hintRows.map((row) => row.text));
+      const applied = applyHintConstraints(shipments, vehicles, constraints, date);
+      shipments = applied.shipments;
+      vehicles = applied.vehicles.filter((vehicle) => vehicle.capacity > 0);
+      appliedHints = applied.applied;
+    }
+
+    if (vehicles.length === 0) {
+      return new Response(JSON.stringify({
+        error: "Nach KI-Hinweisen bleibt kein Fahrzeug mit Kapazität. Manuelle Disposition erforderlich.",
+        manual_required: true,
+        hints_applied: appliedHints,
+      }), {
         status: 422,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -351,6 +406,14 @@ Deno.serve(async (req) => {
           depot_id: resolvedDepot.depot_id,
           filter_depot_id: filter_depot_id ?? null,
           depot_groups: groups.size,
+          hints_applied: appliedHints,
+          hints_context: (hintRows ?? []).map((row) => ({
+            id: row.id,
+            role: row.role,
+            source: row.source,
+            text: row.text,
+            parsed: row.parsed,
+          })),
         },
         result_snapshot: { tour_count: planned.length, total_cost: totalCost },
       })
@@ -446,6 +509,8 @@ Deno.serve(async (req) => {
       depot_id: resolvedDepot.depot_id,
       depot_groups: groups.size,
       skipped_no_coordinates: skippedNoCoordinates,
+      hints_applied: appliedHints,
+      hints_count: (hintRows ?? []).length,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
