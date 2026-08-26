@@ -1,6 +1,6 @@
 # Checkliste bis zum ersten Testkunden
 
-Stand: 24.08.2026. Quelle: aktueller Code auf `feat/samstag-fahrerbetrieb`, `docs/CHECKLISTE_VOR_VERKAUF.md` und der Samstagsarbeit. Das **Fahrer-Tagesziel** (echte Tour, persistenter Stop, ehrliche Karte, RLS, GPS mit Alter) ist erledigt. Diese Liste sind die offenen Punkte **bis ein erster externer Testkunde** DispoCenter nutzen kann.
+Stand: 26.08.2026. Quelle: aktueller Code auf `feat/samstag-fahrerbetrieb`, `docs/CHECKLISTE_VOR_VERKAUF.md` und der Samstagsarbeit. Das **Fahrer-Tagesziel** (echte Tour, persistenter Stop, ehrliche Karte, RLS, GPS mit Alter) ist erledigt. Diese Liste sind die offenen Punkte **bis ein erster externer Testkunde** DispoCenter nutzen kann.
 
 Erledigt-Markierung: `- [ ]` offen, nicht „schon fast“.
 
@@ -31,7 +31,8 @@ Erledigt-Markierung: `- [ ]` offen, nicht „schon fast“.
 
 ### Produkt, das der Kunde am ersten Tag braucht
 
-- [ ] **Dispatcher-Pfad einmal echt durchspielen** (nicht nur Fahrer-Login): Registrierung oder angelegter Mandant → Onboarding → Depot mit Koordinaten → Sendung mit Adresse → Geokodieren → Planung starten → Fahrer sieht Tour → Stop abschließen → Startseite zeigt Fortschritt und ggf. GPS.
+- [x] **Dispatcher-Pfad einmal echt durchspielen** (nicht nur Fahrer-Login): bestehender Mandant Eisenvater → Depot HQ Schwülper mit `lat`/`lng` → manuelle Sendung Steinweg 1, Braunschweig → Geokodieren (`location_x`/`y` gesetzt) → `plan-tour` (Tour Sprinter HQ, Fahrer Max Testfahrer) → Meine Tour zeigt echte Stops → Stop dauerhaft erledigt → Startseite 1/1 Stopps, 100 %. Bestätigt lokal und auf `https://dispocenter.pages.dev` (26.08.2026). GPS war aus — Badge „Keine GPS-Ortung“, kein Live-Anspruch.
+  Unterwegs gefixt: manuelles Sendungsformular in der Kontrollzentrale (IMAP legt keine Adresse an); `plan-tour` setzt `tour.driver_id` (sonst bleibt Meine Tour leer); einzelnes Fahrzeug ohne Zuordnung wird dem freien Fahrer zugeordnet; Geocode-Toast nennt den Provider.
 - [ ] **Fahrer-GPS auf dem Handy** prüfen (HTTPS nötig für Geolocation außer localhost). Button „Standort teilen“ in Meine Tour; Dispatcher sieht Badge mit Alter, kein „Live-Standort“.
 - [ ] **Wetter/Depot:** gewähltes Depot braucht `lat`/`lng`, sonst bleibt Wetter ehrlich leer (kein München-Fake mehr).
 - [x] **IMAP-Abruf (manuell).** Unter Einstellungen IMAP hinterlegen, Verbindung testen, in der Kontrollzentrale „Mails abrufen“. Ungelesene Mails werden zu `shipment` + `email_log` (ohne erfundene Adresse). Kein Dauerabruf, kein Verkäuferordner-Import.
