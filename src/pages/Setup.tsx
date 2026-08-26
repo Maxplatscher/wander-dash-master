@@ -5,11 +5,9 @@ import { ParticleBackground } from '@/components/dispatch/ParticleBackground';
 import { StepCompany } from '@/components/setup/steps/StepCompany';
 import { StepFleet } from '@/components/setup/steps/StepFleet';
 import { StepPersonal } from '@/components/setup/steps/StepPersonal';
-import { StepTheme } from '@/components/setup/steps/StepTheme';
 import { StepPermissions } from '@/components/setup/steps/StepPermissions';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
-import { DEFAULT_THEME_NAME, loadSavedThemeName } from '@/lib/theme-presets';
 import {
   CompanyStepData,
   FleetStepData,
@@ -25,8 +23,7 @@ const STEPS = [
   { id: 1, label: 'Unternehmen' },
   { id: 2, label: 'Fahrer & Fahrzeuge' },
   { id: 3, label: 'Persönlich' },
-  { id: 4, label: 'Design' },
-  { id: 5, label: 'Berechtigungen' },
+  { id: 4, label: 'Berechtigungen' },
 ] as const;
 
 export default function Setup() {
@@ -39,23 +36,18 @@ export default function Setup() {
   const [personal, setPersonal] = useState<PersonalStepData>(
     initial?.personal ?? emptyPersonalStep(user?.email ?? ''),
   );
-  const [themeName, setThemeName] = useState(
-    initial?.themeName ?? loadSavedThemeName() ?? DEFAULT_THEME_NAME,
-  );
 
   const persist = (
     nextStep: number,
     nextCompany: CompanyStepData,
     nextFleet: FleetStepData,
     nextPersonal: PersonalStepData,
-    nextTheme: string,
   ) => {
     writeOnboardingDraft({
       step: nextStep,
       company: nextCompany,
       fleet: nextFleet,
       personal: nextPersonal,
-      themeName: nextTheme,
     });
   };
 
@@ -92,12 +84,12 @@ export default function Setup() {
               value={company}
               onChange={(next) => {
                 setCompany(next);
-                persist(1, next, fleet, personal, themeName);
+                persist(1, next, fleet, personal);
               }}
               onContinue={(saved) => {
                 setCompany(saved);
                 setStep(2);
-                persist(2, saved, fleet, personal, themeName);
+                persist(2, saved, fleet, personal);
               }}
             />
           )}
@@ -108,16 +100,16 @@ export default function Setup() {
               value={fleet}
               onChange={(next) => {
                 setFleet(next);
-                persist(2, company, next, personal, themeName);
+                persist(2, company, next, personal);
               }}
               onBack={() => {
                 setStep(1);
-                persist(1, company, fleet, personal, themeName);
+                persist(1, company, fleet, personal);
               }}
               onContinue={(saved) => {
                 setFleet(saved);
                 setStep(3);
-                persist(3, company, saved, personal, themeName);
+                persist(3, company, saved, personal);
               }}
             />
           )}
@@ -127,44 +119,25 @@ export default function Setup() {
               value={personal}
               onChange={(next) => {
                 setPersonal(next);
-                persist(3, company, fleet, next, themeName);
+                persist(3, company, fleet, next);
               }}
               onBack={() => {
                 setStep(2);
-                persist(2, company, fleet, personal, themeName);
+                persist(2, company, fleet, personal);
               }}
               onContinue={(saved) => {
                 setPersonal(saved);
                 setStep(4);
-                persist(4, company, fleet, saved, themeName);
+                persist(4, company, fleet, saved);
               }}
             />
           )}
 
           {step === 4 && (
-            <StepTheme
-              value={themeName}
-              onChange={(next) => {
-                setThemeName(next);
-                persist(4, company, fleet, personal, next);
-              }}
-              onBack={() => {
-                setStep(3);
-                persist(3, company, fleet, personal, themeName);
-              }}
-              onContinue={(saved) => {
-                setThemeName(saved);
-                setStep(5);
-                persist(5, company, fleet, personal, saved);
-              }}
-            />
-          )}
-
-          {step === 5 && (
             <StepPermissions
               onBack={() => {
-                setStep(4);
-                persist(4, company, fleet, personal, themeName);
+                setStep(3);
+                persist(3, company, fleet, personal);
               }}
               onComplete={() => navigate('/', { replace: true })}
             />

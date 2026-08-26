@@ -114,6 +114,7 @@ export function StepPermissions({ onBack, onComplete }: StepPermissionsProps) {
         <p className="text-sm text-muted-foreground leading-relaxed">
           Einzelne Einwilligungen nach DSGVO Art. 6 Abs. 1 lit. a. Ablehnen ist möglich —
           DispoCenter bleibt nutzbar. Widerruf später in den Einstellungen.
+          Design und Akzentfarbe stellst du nach dem Abschluss unter Einstellungen ein.
         </p>
       </div>
 
