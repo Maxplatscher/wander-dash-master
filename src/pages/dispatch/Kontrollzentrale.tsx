@@ -56,6 +56,10 @@ export function Kontrollzentrale() {
   const [driverPhone, setDriverPhone] = useState('');
   const [vehicleName, setVehicleName] = useState('');
   const [vehicleCap, setVehicleCap] = useState('');
+  const [shipCustomer, setShipCustomer] = useState('');
+  const [shipAddress, setShipAddress] = useState('');
+  const [shipWeight, setShipWeight] = useState('');
+  const [shipName, setShipName] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
   const [demoLoading, setDemoLoading] = useState(false);
   const [planLoading, setPlanLoading] = useState(false);
@@ -88,18 +92,79 @@ export function Kontrollzentrale() {
     if (!vehicleName.trim()) return;
     setAdding('vehicle');
     try {
-      const { error } = await supabase.from('vehicle').insert({
-        name: vehicleName.trim(),
-        capacity: vehicleCap ? parseInt(vehicleCap, 10) : null,
-        company_id: (await supabase.rpc('get_user_company_id')).data!,
-      });
+      const companyId = (await supabase.rpc('get_user_company_id')).data!;
+      const { data: inserted, error } = await supabase
+        .from('vehicle')
+        .insert({
+          name: vehicleName.trim(),
+          capacity: vehicleCap ? parseInt(vehicleCap, 10) : null,
+          company_id: companyId,
+        })
+        .select('id')
+        .single();
       if (error) throw error;
-      toast.success(`Fahrzeug "${vehicleName}" hinzugefügt`);
+
+      const { data: freeDrivers } = await supabase
+        .from('driver')
+        .select('id, name')
+        .eq('company_id', companyId)
+        .is('assigned_vehicle_id', null)
+        .limit(2);
+
+      if (inserted?.id && freeDrivers?.length === 1) {
+        const { error: assignError } = await supabase
+          .from('driver')
+          .update({ assigned_vehicle_id: inserted.id })
+          .eq('id', freeDrivers[0].id);
+        if (assignError) throw assignError;
+        toast.success(
+          `Fahrzeug "${vehicleName}" hinzugefügt und ${freeDrivers[0].name ?? 'Fahrer'} zugeordnet`,
+        );
+      } else {
+        toast.success(`Fahrzeug "${vehicleName}" hinzugefügt`);
+      }
       setVehicleName('');
       setVehicleCap('');
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Fehler');
+    } finally {
+      setAdding(null);
+    }
+  };
+
+  const addShipment = async () => {
+    if (!shipCustomer.trim() || !shipAddress.trim()) return;
+    setAdding('shipment');
+    try {
+      const { data: cid, error: cidError } = await supabase.rpc('get_user_company_id');
+      if (cidError || !cid) throw new Error('Kein Unternehmen zugeordnet');
+      const weight = shipWeight.trim() ? Number(shipWeight.replace(',', '.')) : null;
+      if (shipWeight.trim() && (weight == null || !Number.isFinite(weight) || weight < 0)) {
+        throw new Error('Gewicht muss eine Zahl sein');
+      }
+      const { error } = await supabase.from('shipment').insert({
+        company_id: cid,
+        customer_name: shipCustomer.trim(),
+        delivery_address: shipAddress.trim(),
+        name: shipName.trim() || null,
+        weight_kg: weight,
+        service_date: dateStr,
+        depot_id: selectedDepotId,
+        intake_source: 'manual',
+        intake_status: 'new',
+      });
+      if (error) throw error;
+      toast.success(`Sendung für ${shipCustomer.trim()} angelegt`);
+      setShipCustomer('');
+      setShipAddress('');
+      setShipWeight('');
+      setShipName('');
+      refreshAll();
+      queryClient.invalidateQueries({ queryKey: ['shipments'] });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Sendung konnte nicht angelegt werden');
     } finally {
       setAdding(null);
     }
@@ -126,7 +191,7 @@ export function Kontrollzentrale() {
     });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    return data as { updated?: number; scanned?: number };
+    return data as { updated?: number; scanned?: number; provider?: string };
   };
 
   const fetchImapMails = async () => {
@@ -164,7 +229,10 @@ export function Kontrollzentrale() {
       try {
         const geocoded = await geocodeAddresses();
         if ((geocoded.updated ?? 0) > 0) {
-          toast.success(`${geocoded.updated} Adresse(n) geokodiert`);
+          toast.success(
+            `${geocoded.updated} Adresse(n) geokodiert` +
+              (geocoded.provider ? ` · ${geocoded.provider}` : ''),
+          );
         }
       } catch (e: unknown) {
         toast.warning(
@@ -278,7 +346,62 @@ export function Kontrollzentrale() {
         </div>
       </div>
 
-      {/* 2. Lieferschein-Tabelle */}
+      {/* 2. Manuelle Sendung — IMAP legt noch keine Adresse an */}
+      <div className="glass-card p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Package className="w-4 h-4 text-primary" />
+          <p className="card-title">Sendung manuell anlegen</p>
+        </div>
+        <p className="meta-text">
+          Kunde und Lieferadresse reichen, damit Geokodierung und Planung greifen. IMAP
+          legt Sendungen ohne Adresse an — die Adresse gehört deshalb hierher, nicht in
+          den Demo-Bereich.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <Input
+            placeholder="Kunde"
+            value={shipCustomer}
+            onChange={(e) => setShipCustomer(e.target.value)}
+            className="h-8 text-sm rounded bg-white/[0.03] border-hairline"
+          />
+          <Input
+            placeholder="Lieferschein-Nr. (optional)"
+            value={shipName}
+            onChange={(e) => setShipName(e.target.value)}
+            className="h-8 text-sm rounded bg-white/[0.03] border-hairline"
+          />
+          <Input
+            placeholder="Lieferadresse, z. B. Steinweg 1, 38100 Braunschweig"
+            value={shipAddress}
+            onChange={(e) => setShipAddress(e.target.value)}
+            className="h-8 text-sm rounded bg-white/[0.03] border-hairline md:col-span-2"
+          />
+          <div className="flex gap-2 md:col-span-2">
+            <Input
+              placeholder="Gewicht kg (optional)"
+              type="number"
+              value={shipWeight}
+              onChange={(e) => setShipWeight(e.target.value)}
+              className="h-8 text-sm rounded w-40 bg-white/[0.03] border-hairline"
+            />
+            <Button
+              size="sm"
+              className="h-8 rounded font-semibold"
+              onClick={() => void addShipment()}
+              disabled={adding === 'shipment' || !shipCustomer.trim() || !shipAddress.trim()}
+            >
+              {adding === 'shipment' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+              ) : (
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              Anlegen
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Lieferschein-Tabelle */}
       <div className="glass-card overflow-hidden">
         <div className="px-5 py-4 flex items-center justify-between gap-3 border-b border-hairline">
           <div className="flex items-center gap-2">
@@ -366,7 +489,7 @@ export function Kontrollzentrale() {
         <ArticleReviewPanel shipments={shipments} dateStr={dateStr} />
       )}
 
-      {/* 3. Demo & Testdaten */}
+      {/* 4. Demo & Testdaten */}
       <div className="rounded-sm border border-dashed border-hairline bg-panel/60 p-5 space-y-4">
         <div>
           <div className="flex items-center gap-2">
@@ -470,7 +593,8 @@ export function Kontrollzentrale() {
                 try {
                   const geocoded = await geocodeAddresses();
                   toast.success(
-                    `${geocoded.updated ?? 0} von ${geocoded.scanned ?? 0} Adressen geokodiert`,
+                    `${geocoded.updated ?? 0} von ${geocoded.scanned ?? 0} Adressen geokodiert` +
+                      (geocoded.provider ? ` · ${geocoded.provider}` : ''),
                   );
                   refreshAll();
                   queryClient.invalidateQueries();
