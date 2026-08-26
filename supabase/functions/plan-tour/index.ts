@@ -4,6 +4,7 @@ import {
   hintAdjustedDistance,
   parseHintConstraints,
 } from "../_shared/ai-hint-constraints.ts";
+import { resolveTourDriverId } from "../_shared/tour-driver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -465,8 +466,27 @@ Deno.serve(async (req) => {
 
     if (planError) throw planError;
 
+    const { data: driverRows, error: driverError } = await supabase
+      .from("driver")
+      .select("id, assigned_vehicle_id")
+      .eq("company_id", company_id);
+
+    if (driverError) throw driverError;
+
+    const usedDriverIds = new Set<string>();
+    const assignedDrivers: { tour_vehicle_id: string; driver_id: string }[] = [];
+
     for (const plannedTour of planned) {
       const vehicle = vehicles.find((item) => item.id === plannedTour.vehicleId);
+      const driverId = resolveTourDriverId(
+        plannedTour.vehicleId,
+        driverRows ?? [],
+        usedDriverIds,
+      );
+      if (driverId) {
+        usedDriverIds.add(driverId);
+        assignedDrivers.push({ tour_vehicle_id: plannedTour.vehicleId, driver_id: driverId });
+      }
       const { data: tour, error: tourError } = await supabase
         .from("tour")
         .insert({
@@ -477,6 +497,7 @@ Deno.serve(async (req) => {
           is_active: auto_activate,
           plan_run_id: planRun.id,
           total_cost: plannedTour.cost,
+          driver_id: driverId,
           description: `Tour ${vehicle?.name ?? "?"} – ${plannedTour.stops.length} Stops`,
         })
         .select("id")
@@ -511,6 +532,7 @@ Deno.serve(async (req) => {
       skipped_no_coordinates: skippedNoCoordinates,
       hints_applied: appliedHints,
       hints_count: (hintRows ?? []).length,
+      assigned_drivers: assignedDrivers,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
