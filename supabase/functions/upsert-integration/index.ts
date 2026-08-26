@@ -12,6 +12,7 @@ const ALLOWED_TYPES = new Set([
   "rest_api",
   "csv_import",
   "research_source",
+  "unc_share",
 ]);
 
 function jsonResponse(body: unknown, status = 200) {

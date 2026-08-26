@@ -110,6 +110,7 @@ describe("DriverTourView", () => {
     mocks.stops = [];
     mocks.shipments = [];
     mocks.vehicles = [];
+    localStorage.clear();
   });
 
   it("lädt die eigene Tour für das lokale Datum und zeigt den Leerzustand", async () => {
@@ -171,5 +172,37 @@ describe("DriverTourView", () => {
     });
     expect(await screen.findByText("Tour vollständig erledigt")).toBeInTheDocument();
     expect(screen.getByTitle("Dauerhaft erledigt")).toBeDisabled();
+  });
+
+  it("zeigt den DSGVO-Text und fragt vor dem ersten Teilen nach Einwilligung", async () => {
+    mocks.stops = [
+      {
+        id: "stop-1",
+        stop_index: 1,
+        shipment_id: "shipment-1",
+        vehicle_id: "vehicle-1",
+        driver_completed: false,
+        driver_completed_at: null,
+      },
+    ];
+    mocks.shipments = [
+      {
+        id: "shipment-1",
+        customer_name: "Testkunde",
+        name: null,
+        delivery_address: "Teststraße 1",
+        weight_kg: 125,
+        window_start: "2026-08-22T08:00:00Z",
+        window_end: "2026-08-22T09:00:00Z",
+        location_x: null,
+        location_y: null,
+      },
+    ];
+    mocks.vehicles = [{ id: "vehicle-1", name: "Sprinter" }];
+    localStorage.clear();
+    renderView();
+    expect(await screen.findByText(/DSGVO Art\. 6 Abs\. 1 lit\. a/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Standort teilen" }));
+    expect(await screen.findByRole("button", { name: "Einwilligen und teilen" })).toBeInTheDocument();
   });
 });

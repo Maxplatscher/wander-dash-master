@@ -3,8 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDispatch } from "@/lib/dispatch-context";
+import { formatDateLabel, toDateInputValue } from "@/lib/date-input";
 import { AddDriverDialog } from "@/components/dispatch/AddDriverDialog";
 import { DriverDetailDialog } from "@/components/dispatch/DriverDetailDialog";
+import { DriverPhotoAvatar } from "@/components/dispatch/DriverPhoto";
 import { DriverTourView } from "@/components/dispatch/DriverTourView";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface FleetCard {
   id: string;
   name: string;
+  photoUrl: string | null;
   phone: string;
   status: "aktiv" | "verfügbar" | "abwesend";
   shiftStart: string;
@@ -25,13 +28,6 @@ interface FleetCard {
   stopsDone: number;
   stopsTotal: number;
   progress: number;
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
 }
 
 function normalizeStatus(
@@ -60,10 +56,7 @@ const STATUS_STYLE: Record<string, { badge: string; tile: string }> = {
 };
 
 function fmtDate(d: Date) {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return toDateInputValue(d);
 }
 
 function useFleetCards(companyId: string | null, date: string) {
@@ -76,7 +69,7 @@ function useFleetCards(companyId: string | null, date: string) {
         supabase
           .from("driver")
           .select(
-            "id, name, phone, status, shift_start, shift_end, assigned_vehicle_id",
+            "id, name, phone, status, shift_start, shift_end, assigned_vehicle_id, photo_url",
           )
           .eq("company_id", cid)
           .order("name"),
@@ -153,6 +146,7 @@ function useFleetCards(companyId: string | null, date: string) {
         return {
           id: driver.id,
           name: driver.name ?? "Fahrer",
+          photoUrl: driver.photo_url,
           phone: driver.phone || "—",
           status,
           shiftStart: driver.shift_start?.slice(0, 5) || "—",
@@ -199,7 +193,7 @@ export function Fahrer() {
             {cards?.length ?? 0} Fahrer · {fleet?.vehicleCount ?? 0} Fahrzeuge
           </h2>
           <p className="meta-text mt-1">
-            {selectedDate.toLocaleDateString("de-DE", {
+            {formatDateLabel(selectedDate, {
               weekday: "long",
               day: "2-digit",
               month: "long",
@@ -236,14 +230,11 @@ export function Fahrer() {
                 className="glass-card p-4 flex flex-col text-left transition-colors hover:bg-panel-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               >
                 <div className="flex items-start gap-3">
-                  <div
-                    className={cn(
-                      "w-10 h-10 shrink-0 rounded flex items-center justify-center text-sm font-semibold",
-                      style.tile,
-                    )}
-                  >
-                    {initials(d.name)}
-                  </div>
+                  <DriverPhotoAvatar
+                    name={d.name}
+                    photoUrl={d.photoUrl}
+                    className={cn("w-10 h-10 shrink-0", style.tile)}
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-semibold text-foreground truncate">
                       {d.name}
@@ -321,7 +312,9 @@ export function Fahrer() {
         driver={
           selectedDriver
             ? {
+                id: selectedDriver.id,
                 name: selectedDriver.name,
+                photoUrl: selectedDriver.photoUrl,
                 tourId: selectedDriver.tourId,
                 tourDescription:
                   selectedDriver.tourLabel ?? "Keine aktive Tour",

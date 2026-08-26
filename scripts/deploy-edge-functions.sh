@@ -12,9 +12,11 @@ FUNCTIONS=(
   ai-resolve
   upsert-integration
   test-integration
+  fetch-imap
   create-admin
   demo-setup
   research-article
+  geocode-shipments
 )
 
 echo "==> Auth check"
@@ -75,4 +77,5 @@ echo "==> Fertig. Smoke-Tests bitte in der App:"
 echo "  assign-depot / plan-tour → Kontrollzentrale"
 echo "  ai-resolve → Probleme"
 echo "  upsert/test-integration → Einstellungen"
+echo "  fetch-imap → Kontrollzentrale „Mails abrufen“"
 echo "  research-article → ArticleReviewPanel"

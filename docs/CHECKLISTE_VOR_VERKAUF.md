@@ -1,17 +1,19 @@
 # Checkliste vor Verkauf/Launch — DispoCenter
 
-> Stand: 22.08.2026, nach dem Samstags-Fahrerbetrieb. `docs/CLAUDE_PROJECT_PROMPT.md` ist an mehreren Stellen veraltet — z. B. sind die dort gelisteten Alt-Komponenten und `Versionen.tsx` bereits entfernt, `Fahrer.tsx`/`Kalender.tsx` laufen bereits auf echten Daten. Diese Liste ersetzt den technischen Teil davon.
+> Stand: 22.08.2026, nach Fahrerbetrieb + GPS. Offene Punkte **bis zum ersten Testkunden** stehen in `docs/CHECKLISTE_TESTKUNDE.md`. Diese Datei bleibt die technische Langfassung.
 
 ## A. Kernfunktionen, die noch nicht echt sind (Blocker)
 
-1. **Live-Standortkarte (`LiveMap.tsx`)** — Demo-Marker und das Label „Live-Standort" sind entfernt. Die Karte zeigt nur echte Stop-Koordinaten als „Tourposition / letzter bestätigter Stop" und sonst einen ehrlichen Leerzustand („Keine GPS-Ortung"). Es gibt weiterhin **keine GPS-Quelle**; Marker erscheinen erst, wenn `shipment.location_x`/`location_y` per Geokodierung befüllt sind. Nächster Schritt und spätere GPS-Tabelle: `docs/KARTE_STANDORTQUELLE.md`.
+1. **Live-Standortkarte (`LiveMap.tsx`)** — Demo-Marker sind entfernt. Marker kommen aus Fahrer-GPS (`driver_position`, mit sichtbarem Alter, kein „Live-Standort"-Label) oder aus geokodierten Stop-Adressen. Details: `docs/KARTE_STANDORTQUELLE.md`.
 2. **„Meine Tour heute" für Fahrer-Rolle (`DriverTourView.tsx`)** — erledigt am 22.08.2026. Ein Fahrer sieht über `users.driver_id` → `tour.driver_id` seine aktive Tagestour, schließt Stops über die RPC `complete_my_tour_stop` ab, und der Status bleibt nach Reload in `tour_stop` gespeichert. Navigation zeigt nur „Meine Tour"; der Firmen-Wizard unter `/setup` wird für Fahrer übersprungen.
-3. **E-Mail/IMAP-Import für Lieferscheine** — in `Kontrollzentrale.tsx` nach wie vor nur ein Platzhalter („Ausstehend", feste Beispiel-Adresse `lieferscheine@dispatch.example.com`). Keine echte IMAP-Anbindung, kein automatisches Anlegen von `shipment`-Zeilen aus Mails. Das ist aber genau die Berechtigung, die im Onboarding-Wizard bereits abgefragt wird („Zugriff auf Lieferscheine erlauben") — Erwartung vs. Funktion klaffen auseinander.
+3. **E-Mail/IMAP-Import für Lieferscheine** — Unter Einstellungen IMAP hinterlegen, Verbindung testen, in der Kontrollzentrale ungelesene Mails abrufen (`fetch-imap` → `shipment` + `email_log`). Adressen werden nicht aus der Mail erfunden. Kein Dauerabruf, kein Verkäuferordner-Import (kommt später unter Einstellungen). Onboarding fragt die Ordner-Berechtigung trotzdem schon ab.
 
 ## B. Sicherheit
 
 4. Security-Advisor am 22.08.2026 erneut geprüft: `function_search_path_mutable` auf `set_updated_at` ist behoben; `anon` hat kein EXECUTE mehr auf `encrypt`/`decrypt_integration_secret`, `ensure_default_company` und `handle_new_user`. Fahrer können Stammdaten und Integrationen nicht mehr schreiben; `delete_integration_with_secret` prüft Admin/Dispatcher. Verbleibend (WARN, bewusst): `authenticated` darf die für RLS/App nötigen SECURITY-DEFINER-Funktionen (`get_my_role`, `get_user_company_id`, `has_role`, `complete_my_tour_stop`, `get_current_driver_id`, `delete_integration_with_secret`) ausführen. „Leaked Password Protection" ist in Supabase Auth deaktiviert — vor Live-Betrieb aktivieren. Das Passwort des Testaccounts liegt im Git-Verlauf (Commit `0df1dfd`) und muss vor Verkauf rotiert werden.
-5. Google Cloud: HTTP-Referrer-Einschränkung für den Maps-Key gilt bisher nur für `localhost`/LAN-IP — sobald eine Produktionsdomain feststeht, dort ergänzen (sonst blockt Places/Maps live).
+5. Google Cloud — **zwei getrennte Keys**, nicht denselben Wert zweimal verwenden:
+   - Frontend `VITE_GOOGLE_MAPS_API_KEY`: HTTP-Referrer. Bisher nur `localhost`/LAN-IP — sobald eine Produktionsdomain feststeht, dort ergänzen (sonst blockt Places/Maps live).
+   - Server-Secret `GOOGLE_MAPS_API_KEY` (**offen, kein Blocker heute**): eigener Key **ohne** HTTP-Referrer (IP-Restriction oder unrestricted), APIs **Geocoding** und Distance Matrix. Aktuell liegt der Browser-Key im Edge Secret → Google antwortet `REQUEST_DENIED`, `geocode-shipments` fällt auf Nominatim (OSM) zurück. Vor Verkauf/Produktion den Server-Key anlegen und als Edge Secret setzen, danach einmal Adressen geokodieren und prüfen, dass `results[].provider` = `google` ist. Siehe `docs/KARTE_STANDORTQUELLE.md`.
 
 ## C. Tourenplanung/KI — Tiefe fehlt noch
 
@@ -21,9 +23,10 @@
 
 ## D. Fehlende Infrastruktur
 
-9. Kein Storage-Bucket in Supabase vorhanden — die Fahrer-Visitenkarte hat ein `photo_url`-Feld, aber ohne Bucket kann kein Foto hochgeladen werden.
+9. Fahrerfoto-Storage: privater Bucket `driver-photos` (JPEG/PNG/WebP, max. 2 MB), RLS nach Company, Schreiben nur Disposition. Upload in „Fahrer hinzufügen“, Fahrer-Dialog und Onboarding; `photo_url` speichert den Storage-Pfad.
 10. Onboarding-Wizard fragt weiterhin ein Farbschema ab (`StepTheme.tsx`, `theme-presets.ts`), das feste Dark-Cyan-Design im Dashboard selbst berücksichtigt diese Wahl aber gar nicht mehr — Auswahl ohne Wirkung. Entweder Step entfernen oder als reine Akzentfarbe im festen Dark-Theme wieder einbauen.
 11. Supabase-Projekt pausiert bei Inaktivität (Free-Tier) — vor einem Kundentermin/Demo prüfen, ob das Projekt noch aktiv ist bzw. auf einen bezahlten Plan wechseln, sonst sind bei einem Neustart alle Tabellen leer.
+11a. **PWA:** Fahrer können die App über „Zum Homescreen hinzufügen“ installieren (Manifest + Service Worker, App-Shell). Kein Store. API-Daten werden nicht offline gecacht. GPS in der installierten PWA noch auf dem Gerät prüfen.
 
 ## E. Tests/QA
 
@@ -33,7 +36,7 @@
 
 ## F. Versionsstand
 
-15. Samstag 22.08.2026: Fahrerbetrieb ohne Demo-Daten (Tour, Stop-Abschluss, ehrliche Karte, RLS). Branch `feat/samstag-fahrerbetrieb`. Offene technische Restpunkte: Geokodierung der Lieferadressen, echtes Live-GPS, Passwort-Rotation, IMAP-Import.
+15. Samstag 22.08.2026: Fahrerbetrieb ohne Demo-Daten plus Fahrer-GPS (`driver_position`). Branch `feat/samstag-fahrerbetrieb`. Offene Restpunkte: **Google-Server-Key für Geocoding** (Punkt 5), Passwort-Rotation, IMAP-Import.
 
 ## G. Außerhalb meines Blickfelds — bitte selbst einordnen
 

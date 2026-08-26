@@ -22,16 +22,20 @@ import { LiveMap } from '@/components/dispatch/LiveMap';
 import { DriverDetailDialog } from '@/components/dispatch/DriverDetailDialog';
 import { AddDriverDialog } from '@/components/dispatch/AddDriverDialog';
 import { useDispatch } from '@/lib/dispatch-context';
+import { formatDateLabel, toDateInputValue } from '@/lib/date-input';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useProblems } from '@/pages/dispatch/Probleme';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { openMeteoForecastUrl, resolveWeatherLocation } from '@/lib/weather-location';
 
 type ViewMode = 'leitstand' | 'zeitstrahl';
 
 type DriverDayRow = {
+  id: string | null;
   name: string;
+  photoUrl: string | null;
   status: string;
   currentLocation: string;
   nextStop: string;
@@ -113,11 +117,11 @@ function useActiveDriversOnTour(date: string) {
     queryFn: async () => {
       const { data: drivers } = await supabase
         .from('driver')
-        .select('id, name, status, phone, shift_start, shift_end, assigned_vehicle_id');
+        .select('id, name, status, phone, shift_start, shift_end, assigned_vehicle_id, photo_url');
 
       const { data: tours } = await supabase
         .from('tour')
-        .select('id, description, is_active')
+        .select('id, description, is_active, driver_id')
         .eq('date', date)
         .eq('is_active', true);
 
@@ -148,8 +152,10 @@ function useActiveDriversOnTour(date: string) {
         .select('id, customer_name, delivery_address, weight_kg');
       const shipmentMap = new Map((shipments ?? []).map((s) => [s.id, s]));
 
+      const driverMap = new Map((drivers ?? []).map((driver) => [driver.id, driver]));
+
       const tourRows: DriverDayRow[] = [];
-      (tours ?? []).forEach((tour, idx) => {
+      (tours ?? []).forEach((tour) => {
         const tourStops = stops.filter((s) => s.tour_id === tour.id);
         if (tourStops.length === 0) return;
 
@@ -169,10 +175,12 @@ function useActiveDriversOnTour(date: string) {
 
         const vehicleId = tourStops.find((s) => s.vehicle_id)?.vehicle_id;
         const vehicle = vehicleId ? vehicleMap.get(vehicleId) : null;
-        const driver = (drivers ?? [])[idx];
+        const driver = tour.driver_id ? driverMap.get(tour.driver_id) : undefined;
 
         tourRows.push({
-          name: driver?.name ?? tour.description ?? `Tour ${idx + 1}`,
+          id: driver?.id ?? tour.driver_id ?? null,
+          name: driver?.name ?? tour.description ?? 'Tour',
+          photoUrl: driver?.photo_url ?? null,
           status: driver?.status ?? 'aktiv',
           currentLocation: currentShipment?.delivery_address ?? 'Depot',
           nextStop: nextShipment?.customer_name ?? 'Keine weiteren Stops',
@@ -188,15 +196,19 @@ function useActiveDriversOnTour(date: string) {
         });
       });
 
-      const onTourNames = new Set(tourRows.map((r) => r.name));
+      const onTourIds = new Set(
+        tourRows.map((row) => row.id).filter((id): id is string => Boolean(id)),
+      );
       const idleRows: DriverDayRow[] = (drivers ?? [])
-        .filter((d) => d.name && !onTourNames.has(d.name))
+        .filter((d) => !onTourIds.has(d.id))
         .map((d) => {
           const status = (d.status ?? 'verfügbar').toLowerCase();
           const isAbsent =
             status.includes('abwesend') || status.includes('krank') || status === 'inactive';
           return {
+            id: d.id,
             name: d.name ?? 'Fahrer',
+            photoUrl: d.photo_url ?? null,
             status: d.status ?? 'verfügbar',
             currentLocation: '—',
             nextStop: '—',
@@ -269,12 +281,17 @@ function weatherIcon(code: number) {
 }
 
 function CompactWeather() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['weather-inline'],
+  const { selectedDepot, depots, depotsLoading } = useDispatch();
+  const location = useMemo(
+    () => resolveWeatherLocation(selectedDepot, depots),
+    [selectedDepot, depots],
+  );
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['weather-inline', location?.lat, location?.lng],
+    enabled: location != null,
     queryFn: async () => {
-      const res = await fetch(
-        'https://api.open-meteo.com/v1/forecast?latitude=48.14&longitude=11.58&current_weather=true&hourly=temperature_2m,weathercode,precipitation_probability&timezone=Europe%2FBerlin',
-      );
+      const res = await fetch(openMeteoForecastUrl(location!));
+      if (!res.ok) throw new Error('Wetter nicht erreichbar');
       return res.json();
     },
     refetchInterval: 600_000,
@@ -304,8 +321,24 @@ function CompactWeather() {
     return rows;
   }, [data]);
 
+  if (depotsLoading) {
+    return <p className="meta-text">Wetter wird geladen…</p>;
+  }
+
+  if (!location) {
+    return (
+      <p className="meta-text">
+        Kein Depot-Standort hinterlegt — Wetter wird nicht geschätzt.
+      </p>
+    );
+  }
+
   if (isLoading) {
     return <p className="meta-text">Wetter wird geladen…</p>;
+  }
+
+  if (isError || !current) {
+    return <p className="meta-text">Wetter für {location.label} nicht verfügbar.</p>;
   }
 
   return (
@@ -318,7 +351,7 @@ function CompactWeather() {
           <p className="text-xl font-semibold text-foreground whitespace-nowrap">
             {Math.round(current?.temperature ?? 0)}°C
           </p>
-          <p className="meta-text">München · Wind {current?.windspeed ?? 0} km/h</p>
+          <p className="meta-text">{location.label} · Wind {current.windspeed ?? 0} km/h</p>
         </div>
       </div>
       <div className="grid grid-cols-4 gap-2">
@@ -441,7 +474,7 @@ function TimelineView({
 export function Startseite() {
   const { selectedDate, selectedDepotId, selectedDepotLabel } = useDispatch();
   const { user } = useAuth();
-  const dateStr = selectedDate.toISOString().split('T')[0];
+  const dateStr = toDateInputValue(selectedDate);
   const { data: kpis } = useKpis(dateStr, selectedDepotId);
   const { data: driverRows } = useActiveDriversOnTour(dateStr);
   const { data: problems } = useProblems(dateStr, selectedDepotId);
@@ -461,7 +494,7 @@ export function Startseite() {
   const problemCount = problems?.length ?? kpis?.problems ?? 0;
   const firstName = firstNameFromUser(user);
   const greet = greetingForHour(new Date().getHours());
-  const dateLabel = selectedDate.toLocaleDateString('de-DE', {
+  const dateLabel = formatDateLabel(selectedDate, {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
@@ -499,7 +532,7 @@ export function Startseite() {
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            Live Status
+            Leitstand
           </button>
           <button
             type="button"
@@ -643,7 +676,9 @@ export function Startseite() {
         driver={
           selectedDriver?.tourId
             ? {
+                id: selectedDriver.id,
                 name: selectedDriver.name,
+                photoUrl: selectedDriver.photoUrl,
                 tourId: selectedDriver.tourId,
                 tourDescription: selectedDriver.tourDescription,
                 currentLocation: selectedDriver.currentLocation,

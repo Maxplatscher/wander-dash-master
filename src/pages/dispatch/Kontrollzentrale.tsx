@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { Mail, Package, Plus, Play, Loader2, Truck, User, Box } from 'lucide-react';
+import { Mail, Package, Plus, Play, Loader2, Truck, User, Box, MapPin, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useDispatch } from '@/lib/dispatch-context';
+import { formatDateLabel, toDateInputValue } from '@/lib/date-input';
 import { cn } from '@/lib/utils';
 import { ArticleReviewPanel } from '@/components/dispatch/ArticleReviewPanel';
 import { parseMissingFields } from '@/lib/article-research';
+import { useIntegrations } from '@/hooks/useIntegrations';
+import { shouldShowDemoSetup } from '@/lib/demo-setup-access';
 
 const STATUS_BADGE: Record<string, string> = {
   new: 'bg-primary/15 text-primary',
@@ -25,9 +28,29 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 export function Kontrollzentrale() {
-  const { selectedDate, refreshKey, selectedDepotId, selectedDepotLabel, refreshAll } = useDispatch();
+  const { selectedDate, refreshKey, selectedDepotId, selectedDepotLabel, refreshAll, companyId, navigateTo } = useDispatch();
   const queryClient = useQueryClient();
-  const dateStr = selectedDate.toISOString().split('T')[0];
+  const dateStr = toDateInputValue(selectedDate);
+  const { integrations, loading: integrationsLoading } = useIntegrations(companyId);
+  const { data: companyName } = useQuery({
+    queryKey: ['company-name', companyId],
+    enabled: Boolean(companyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company')
+        .select('name')
+        .eq('id', companyId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.name ?? null;
+    },
+  });
+  const showDemoSetup = shouldShowDemoSetup(companyName);
+  const imap = integrations.find((item) => item.system_type === 'email_imap');
+  const imapHost =
+    imap && typeof imap.config?.host === 'string' && imap.config.host.trim()
+      ? imap.config.host.trim()
+      : null;
 
   const { data: shipments, isLoading: shipmentsLoading } = useQuery({
     queryKey: ['shipments', dateStr, selectedDepotId, refreshKey],
@@ -48,9 +71,15 @@ export function Kontrollzentrale() {
   const [driverPhone, setDriverPhone] = useState('');
   const [vehicleName, setVehicleName] = useState('');
   const [vehicleCap, setVehicleCap] = useState('');
+  const [shipCustomer, setShipCustomer] = useState('');
+  const [shipAddress, setShipAddress] = useState('');
+  const [shipWeight, setShipWeight] = useState('');
+  const [shipName, setShipName] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
   const [demoLoading, setDemoLoading] = useState(false);
   const [planLoading, setPlanLoading] = useState(false);
+  const [geocodeLoading, setGeocodeLoading] = useState(false);
+  const [fetchImapLoading, setFetchImapLoading] = useState(false);
 
   const addDriver = async () => {
     if (!driverName.trim()) return;
@@ -78,18 +107,79 @@ export function Kontrollzentrale() {
     if (!vehicleName.trim()) return;
     setAdding('vehicle');
     try {
-      const { error } = await supabase.from('vehicle').insert({
-        name: vehicleName.trim(),
-        capacity: vehicleCap ? parseInt(vehicleCap, 10) : null,
-        company_id: (await supabase.rpc('get_user_company_id')).data!,
-      });
+      const companyId = (await supabase.rpc('get_user_company_id')).data!;
+      const { data: inserted, error } = await supabase
+        .from('vehicle')
+        .insert({
+          name: vehicleName.trim(),
+          capacity: vehicleCap ? parseInt(vehicleCap, 10) : null,
+          company_id: companyId,
+        })
+        .select('id')
+        .single();
       if (error) throw error;
-      toast.success(`Fahrzeug "${vehicleName}" hinzugefügt`);
+
+      const { data: freeDrivers } = await supabase
+        .from('driver')
+        .select('id, name')
+        .eq('company_id', companyId)
+        .is('assigned_vehicle_id', null)
+        .limit(2);
+
+      if (inserted?.id && freeDrivers?.length === 1) {
+        const { error: assignError } = await supabase
+          .from('driver')
+          .update({ assigned_vehicle_id: inserted.id })
+          .eq('id', freeDrivers[0].id);
+        if (assignError) throw assignError;
+        toast.success(
+          `Fahrzeug "${vehicleName}" hinzugefügt und ${freeDrivers[0].name ?? 'Fahrer'} zugeordnet`,
+        );
+      } else {
+        toast.success(`Fahrzeug "${vehicleName}" hinzugefügt`);
+      }
       setVehicleName('');
       setVehicleCap('');
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ['drivers'] });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Fehler');
+    } finally {
+      setAdding(null);
+    }
+  };
+
+  const addShipment = async () => {
+    if (!shipCustomer.trim() || !shipAddress.trim()) return;
+    setAdding('shipment');
+    try {
+      const { data: cid, error: cidError } = await supabase.rpc('get_user_company_id');
+      if (cidError || !cid) throw new Error('Kein Unternehmen zugeordnet');
+      const weight = shipWeight.trim() ? Number(shipWeight.replace(',', '.')) : null;
+      if (shipWeight.trim() && (weight == null || !Number.isFinite(weight) || weight < 0)) {
+        throw new Error('Gewicht muss eine Zahl sein');
+      }
+      const { error } = await supabase.from('shipment').insert({
+        company_id: cid,
+        customer_name: shipCustomer.trim(),
+        delivery_address: shipAddress.trim(),
+        name: shipName.trim() || null,
+        weight_kg: weight,
+        service_date: dateStr,
+        depot_id: selectedDepotId,
+        intake_source: 'manual',
+        intake_status: 'new',
+      });
+      if (error) throw error;
+      toast.success(`Sendung für ${shipCustomer.trim()} angelegt`);
+      setShipCustomer('');
+      setShipAddress('');
+      setShipWeight('');
+      setShipName('');
+      refreshAll();
+      queryClient.invalidateQueries({ queryKey: ['shipments'] });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Sendung konnte nicht angelegt werden');
     } finally {
       setAdding(null);
     }
@@ -110,9 +200,63 @@ export function Kontrollzentrale() {
     }
   };
 
+  const geocodeAddresses = async () => {
+    const { data, error } = await supabase.functions.invoke('geocode-shipments', {
+      body: { date: dateStr },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    return data as { updated?: number; scanned?: number; provider?: string };
+  };
+
+  const fetchImapMails = async () => {
+    setFetchImapLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-imap', {
+        body: { date: dateStr, depot_id: selectedDepotId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const imported = Number(data?.imported ?? 0);
+      const skipped = Number(data?.skipped ?? 0);
+      const failed = Number(data?.failed ?? 0);
+      if (imported === 0 && skipped === 0 && failed === 0) {
+        toast.info('Keine ungelesenen Mails im Postfach');
+      } else {
+        toast.success(
+          `${imported} Sendung(en) angelegt` +
+            (skipped ? `, ${skipped} übersprungen` : '') +
+            (failed ? `, ${failed} fehlgeschlagen` : ''),
+        );
+      }
+      refreshAll();
+      queryClient.invalidateQueries({ queryKey: ['shipments'] });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Mails konnten nicht abgerufen werden');
+    } finally {
+      setFetchImapLoading(false);
+    }
+  };
+
   const startPlanning = async () => {
     setPlanLoading(true);
     try {
+      try {
+        const geocoded = await geocodeAddresses();
+        if ((geocoded.updated ?? 0) > 0) {
+          toast.success(
+            `${geocoded.updated} Adresse(n) geokodiert` +
+              (geocoded.provider ? ` · ${geocoded.provider}` : ''),
+          );
+        }
+      } catch (e: unknown) {
+        toast.warning(
+          e instanceof Error
+            ? `Geokodierung übersprungen: ${e.message}`
+            : 'Geokodierung übersprungen',
+        );
+      }
+
       const assignRes = await supabase.functions.invoke('assign-depot', {
         body: { date: dateStr, force: true },
       });
@@ -145,35 +289,134 @@ export function Kontrollzentrale() {
         <p className="section-title">Lieferscheine</p>
         <h2 className="page-title mt-1">Eingang & Disposition</h2>
         <p className="meta-text mt-1">
-          {selectedDate.toLocaleDateString('de-DE')}
+          {formatDateLabel(selectedDate)}
           {selectedDepotId ? ` · ${selectedDepotLabel}` : ' · alle Depots'}
         </p>
       </div>
 
-      {/* 1. E-Mail-Zugang */}
+      {/* 1. E-Mail-Zugang — manueller IMAP-Abruf, kein Dauerabruf, keine erfundenen Adressen */}
       <div className="glass-card p-5 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <Mail className="w-4 h-4 text-primary" />
             <p className="card-title">E-Mail-Zugang</p>
           </div>
-          <span className="shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm bg-warning/15 text-warning">
-            Ausstehend
-          </span>
+          {imap?.is_active ? (
+            <span className="shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm bg-success/15 text-success">
+              IMAP aktiv
+            </span>
+          ) : (
+            <span className="shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm bg-warning/15 text-warning">
+              {imap ? 'IMAP deaktiviert' : 'Kein IMAP-Konto'}
+            </span>
+          )}
         </div>
-        <p className="meta-text">
-          Lieferscheine per IMAP empfangen — eingehende Mails werden über die System-Integration
-          verarbeitet und als Sendungen angelegt.
-        </p>
-        <div className="sub-card px-3 py-2.5 flex items-center gap-3">
-          <Mail className="w-3.5 h-3.5 text-dim shrink-0" />
-          <code className="font-mono text-sm text-foreground truncate">
-            lieferscheine@dispatch.example.com
-          </code>
+        {integrationsLoading ? (
+          <p className="meta-text">Integrationen werden geladen…</p>
+        ) : imap ? (
+          <>
+            <p className="meta-text">
+              Ungelesene Mails werden auf Knopfdruck geholt und als Sendung ohne
+              erfundene Adresse angelegt. Es gibt noch keinen Dauerabruf. Einen
+              Verkäuferordner legt ihr selbst an und verbindet ihn später unter
+              Einstellungen.
+            </p>
+            <div className="sub-card px-3 py-2.5 flex items-center gap-3">
+              <Mail className="w-3.5 h-3.5 text-dim shrink-0" />
+              <code className="font-mono text-sm text-foreground truncate">
+                {imapHost ?? imap.name}
+              </code>
+            </div>
+          </>
+        ) : (
+          <p className="meta-text">
+            Noch kein IMAP-Konto. Unter Einstellungen Host, Ordner und Zugangsdaten
+            hinterlegen, danach hier Mails abrufen. Es gibt kein Systempostfach.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          {imap?.is_active && (
+            <Button
+              size="sm"
+              className="rounded font-semibold"
+              onClick={() => void fetchImapMails()}
+              disabled={fetchImapLoading}
+            >
+              {fetchImapLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+              ) : (
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              Mails abrufen
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded"
+            onClick={() => navigateTo('einstellungen')}
+          >
+            Einstellungen öffnen
+          </Button>
         </div>
       </div>
 
-      {/* 2. Lieferschein-Tabelle */}
+      {/* 2. Manuelle Sendung — IMAP legt noch keine Adresse an */}
+      <div className="glass-card p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Package className="w-4 h-4 text-primary" />
+          <p className="card-title">Sendung manuell anlegen</p>
+        </div>
+        <p className="meta-text">
+          Kunde und Lieferadresse reichen, damit Geokodierung und Planung greifen. IMAP
+          legt Sendungen ohne Adresse an — die Adresse gehört deshalb hierher, nicht in
+          den Demo-Bereich.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <Input
+            placeholder="Kunde"
+            value={shipCustomer}
+            onChange={(e) => setShipCustomer(e.target.value)}
+            className="h-8 text-sm rounded bg-white/[0.03] border-hairline"
+          />
+          <Input
+            placeholder="Lieferschein-Nr. (optional)"
+            value={shipName}
+            onChange={(e) => setShipName(e.target.value)}
+            className="h-8 text-sm rounded bg-white/[0.03] border-hairline"
+          />
+          <Input
+            placeholder="Lieferadresse, z. B. Steinweg 1, 38100 Braunschweig"
+            value={shipAddress}
+            onChange={(e) => setShipAddress(e.target.value)}
+            className="h-8 text-sm rounded bg-white/[0.03] border-hairline md:col-span-2"
+          />
+          <div className="flex gap-2 md:col-span-2">
+            <Input
+              placeholder="Gewicht kg (optional)"
+              type="number"
+              value={shipWeight}
+              onChange={(e) => setShipWeight(e.target.value)}
+              className="h-8 text-sm rounded w-40 bg-white/[0.03] border-hairline"
+            />
+            <Button
+              size="sm"
+              className="h-8 rounded font-semibold"
+              onClick={() => void addShipment()}
+              disabled={adding === 'shipment' || !shipCustomer.trim() || !shipAddress.trim()}
+            >
+              {adding === 'shipment' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+              ) : (
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              Anlegen
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Lieferschein-Tabelle */}
       <div className="glass-card overflow-hidden">
         <div className="px-5 py-4 flex items-center justify-between gap-3 border-b border-hairline">
           <div className="flex items-center gap-2">
@@ -261,7 +504,7 @@ export function Kontrollzentrale() {
         <ArticleReviewPanel shipments={shipments} dateStr={dateStr} />
       )}
 
-      {/* 3. Demo & Testdaten */}
+      {/* 4. Demo & Testdaten */}
       <div className="rounded-sm border border-dashed border-hairline bg-panel/60 p-5 space-y-4">
         <div>
           <div className="flex items-center gap-2">
@@ -343,6 +586,7 @@ export function Kontrollzentrale() {
         </div>
 
         <div className="border-t border-hairline pt-4 flex flex-wrap gap-2">
+          {showDemoSetup && (
           <Button
             variant="outline"
             className="rounded"
@@ -355,6 +599,37 @@ export function Kontrollzentrale() {
               <Box className="w-4 h-4 mr-1.5" />
             )}
             Demo-Szenario laden · demo-setup
+          </Button>
+          )}
+          <Button
+            variant="outline"
+            className="rounded"
+            onClick={() => {
+              void (async () => {
+                setGeocodeLoading(true);
+                try {
+                  const geocoded = await geocodeAddresses();
+                  toast.success(
+                    `${geocoded.updated ?? 0} von ${geocoded.scanned ?? 0} Adressen geokodiert` +
+                      (geocoded.provider ? ` · ${geocoded.provider}` : ''),
+                  );
+                  refreshAll();
+                  queryClient.invalidateQueries();
+                } catch (e: unknown) {
+                  toast.error(e instanceof Error ? e.message : 'Geokodierung fehlgeschlagen');
+                } finally {
+                  setGeocodeLoading(false);
+                }
+              })();
+            }}
+            disabled={geocodeLoading || planLoading}
+          >
+            {geocodeLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+            ) : (
+              <MapPin className="w-4 h-4 mr-1.5" />
+            )}
+            Adressen geokodieren
           </Button>
           <Button
             className="rounded font-semibold"

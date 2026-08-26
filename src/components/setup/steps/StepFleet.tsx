@@ -11,6 +11,10 @@ import {
   newDraftKey,
 } from '@/lib/onboarding';
 import { seedDefaultPackmittel } from '@/lib/packmittel-defaults';
+import {
+  fileFromDataUrl,
+  uploadDriverPhoto,
+} from '@/lib/driver-photo';
 import { toast } from 'sonner';
 
 const EXISTING_VEHICLE_PREFIX = 'existing:';
@@ -157,24 +161,39 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
           d.assignedVehicleKey,
           vehicleIdByDraftKey,
         );
-        // Lokale Data-URLs nicht in die DB schreiben — Storage folgt nach Bestätigung
-        const photoUrl =
-          d.photoUrl && !d.photoUrl.startsWith('data:') ? d.photoUrl : null;
-
-        const { error } = await supabase.from('driver').insert({
+        const { data: created, error } = await supabase.from('driver').insert({
           company_id: cid,
           name: d.name.trim(),
           phone: d.phone.trim() || null,
           personnel_number: d.personnelNumber.trim() || null,
           birth_date: d.birthDate.trim() || null,
-          photo_url: photoUrl,
+          photo_url: null,
           assigned_vehicle_id: assignedVehicleId,
           notes: d.notes.trim() || null,
           status: 'active',
           shift_start: '06:00',
           shift_end: '16:00',
-        });
+        }).select('id').single();
         if (error) throw new Error(`Fahrer: ${error.message}`);
+
+        const localPhoto =
+          d.photoUrl?.startsWith('data:') ? fileFromDataUrl(d.photoUrl) : null;
+        if (localPhoto && created?.id) {
+          try {
+            const path = await uploadDriverPhoto({
+              companyId: cid,
+              driverId: created.id,
+              file: localPhoto,
+            });
+            const { error: photoError } = await supabase
+              .from('driver')
+              .update({ photo_url: path })
+              .eq('id', created.id);
+            if (photoError) throw photoError;
+          } catch (photoError: unknown) {
+            console.warn('Fahrerfoto:', photoError);
+          }
+        }
       }
 
       const packSeed = await seedDefaultPackmittel(supabase, cid);

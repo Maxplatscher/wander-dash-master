@@ -103,8 +103,16 @@ export type OnboardingDraft = {
   company: CompanyStepData;
   fleet: FleetStepData;
   personal: PersonalStepData;
-  themeName: string;
+  /** Altbestand aus dem entfernten Design-Schritt — wird ignoriert. */
+  themeName?: string;
 };
+
+/** Alter Wizard hatte 5 Schritte (4 = Design). Design ist weg, 4 ist jetzt Berechtigungen. */
+export function normalizeSetupStep(raw: number | undefined): number {
+  if (!raw || raw < 1) return 1;
+  if (raw >= 4) return 4;
+  return raw;
+}
 
 export const ONBOARDING_DRAFT_KEY = 'dc_onboarding_draft_v1';
 
@@ -160,11 +168,10 @@ export function readOnboardingDraft(): OnboardingDraft | null {
       : emptyFleetStep();
 
     return {
-      step: parsed.step ?? 1,
+      step: normalizeSetupStep(parsed.step),
       company: parsed.company ?? emptyCompanyStep(),
       fleet,
       personal: parsed.personal ?? emptyPersonalStep(),
-      themeName: parsed.themeName ?? 'Teal (Standard)',
     };
   } catch {
     return null;

@@ -106,7 +106,10 @@ describe.skipIf(!credentialsAvailable)("Fahrer-Login und Tourablauf (Remote-Supa
       .eq("user_id", authUserId);
 
     expect(error).toBeNull();
-    expect(data?.map((row) => row.role)).toContain("driver");
+    const roles = data?.map((row) => row.role) ?? [];
+    expect(roles).toContain("driver");
+    expect(roles).not.toContain("dispatcher");
+    expect(roles).not.toContain("admin");
   });
 
   it("löst über public.users.driver_id den erwarteten Fahrer auf", async () => {

@@ -3,6 +3,7 @@ import {
   Users, Package, ChevronLeft, ChevronRight, Truck
 } from 'lucide-react';
 import { useDispatch } from '@/lib/dispatch-context';
+import { toDateInputValue } from '@/lib/date-input';
 import { SectionId, getSectionsForRole } from '@/lib/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -20,7 +21,7 @@ const sectionIcons: Record<SectionId, React.ElementType> = {
 export function DispatchSidebar() {
   const { currentSection, navigateTo, role, selectedDepotLabel, selectedDate, selectedDepotId } = useDispatch();
   const [collapsed, setCollapsed] = useState(false);
-  const dateStr = selectedDate.toISOString().split('T')[0];
+  const dateStr = toDateInputValue(selectedDate);
   const { data: problems } = useProblems(dateStr, selectedDepotId);
   const problemCount = problems?.length ?? 0;
 

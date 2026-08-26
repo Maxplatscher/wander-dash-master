@@ -19,6 +19,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -28,6 +36,14 @@ import {
   GOOGLE_MAPS_LOADER_ID,
 } from "@/lib/google-maps";
 import { shipmentCoordinates } from "@/lib/tour-position";
+import { formatGpsAge } from "@/lib/driver-gps";
+import { formatDateLabel } from "@/lib/date-input";
+import { useDriverGpsShare } from "@/hooks/useDriverGpsShare";
+import {
+  acknowledgeDriverGpsConsent,
+  DRIVER_GPS_LEGAL_TEXT,
+  hasAcknowledgedDriverGpsConsent,
+} from "@/lib/gps-consent";
 
 const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
 
@@ -210,6 +226,27 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
       toast.error(`Stop konnte nicht abgeschlossen werden: ${error.message}`);
     },
   });
+  const activeTour = tourQuery.data?.kind === "tour" ? tourQuery.data.tour : null;
+  const gpsShare = useDriverGpsShare(activeTour?.id ?? null, activeTour !== null);
+  const [gpsConsentOpen, setGpsConsentOpen] = useState(false);
+
+  const requestGpsShare = () => {
+    if (gpsShare.sharing) {
+      gpsShare.stop();
+      return;
+    }
+    if (!hasAcknowledgedDriverGpsConsent()) {
+      setGpsConsentOpen(true);
+      return;
+    }
+    void gpsShare.start();
+  };
+
+  const confirmGpsShare = () => {
+    acknowledgeDriverGpsConsent();
+    setGpsConsentOpen(false);
+    void gpsShare.start();
+  };
 
   if (tourQuery.isLoading) {
     return (
@@ -250,7 +287,7 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
       <div className="glass-card p-8 text-center">
         <p className="card-title">Keine aktive Tour</p>
         <p className="meta-text mt-1">
-          Für den {selectedDate.toLocaleDateString("de-DE")} ist dir keine aktive Tour zugeordnet.
+          Für den {formatDateLabel(selectedDate)} ist dir keine aktive Tour zugeordnet.
         </p>
       </div>
     );
@@ -276,7 +313,7 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
           <div>
             <p className="section-title">Meine Tour</p>
             <h3 className="card-title mt-1">
-              {selectedDate.toLocaleDateString("de-DE", {
+              {formatDateLabel(selectedDate, {
                 weekday: "long",
                 day: "2-digit",
                 month: "long",
@@ -287,13 +324,24 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
               {vehicleNames.length ? ` · ${vehicleNames.join(", ")}` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-3 meta-text">
-            <span className="flex items-center gap-1">
-              <Package className="h-3.5 w-3.5" /> {doneWeight}/{totalWeight} kg
-            </span>
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" /> {doneCount}/{stops.length} Stops
-            </span>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-3 meta-text">
+              <span className="flex items-center gap-1">
+                <Package className="h-3.5 w-3.5" /> {doneWeight}/{totalWeight} kg
+              </span>
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" /> {doneCount}/{stops.length} Stops
+              </span>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant={gpsShare.sharing ? "outline" : "default"}
+              className="h-7 rounded text-xs"
+              onClick={requestGpsShare}
+            >
+              {gpsShare.sharing ? "Standort stoppen" : "Standort teilen"}
+            </Button>
           </div>
         </div>
         <div className="progress-track">
@@ -302,7 +350,33 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
             style={{ width: `${stops.length ? (doneCount / stops.length) * 100 : 0}%` }}
           />
         </div>
+        <p className="meta-text mt-2">
+          {gpsShare.sharing
+            ? `GPS aktiv${gpsShare.lastAt ? ` · zuletzt ${formatGpsAge(gpsShare.lastAt)}` : ""}`
+            : "GPS aus — Disposition sieht nur Stop-Lagen, keine Live-Position."}
+          {gpsShare.error ? ` · ${gpsShare.error}` : ""}
+        </p>
+        <p className="meta-text mt-2 max-w-2xl leading-relaxed">{DRIVER_GPS_LEGAL_TEXT}</p>
       </div>
+
+      <Dialog open={gpsConsentOpen} onOpenChange={setGpsConsentOpen}>
+        <DialogContent className="max-w-md rounded-sm border-hairline bg-panel">
+          <DialogHeader>
+            <DialogTitle>Standort mit der Disposition teilen</DialogTitle>
+            <DialogDescription className="leading-relaxed">
+              {DRIVER_GPS_LEGAL_TEXT}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" className="rounded" onClick={() => setGpsConsentOpen(false)}>
+              Ablehnen
+            </Button>
+            <Button type="button" className="rounded" onClick={confirmGpsShare}>
+              Einwilligen und teilen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {stops.length === 0 ? (
         <div className="glass-card p-8 text-center">

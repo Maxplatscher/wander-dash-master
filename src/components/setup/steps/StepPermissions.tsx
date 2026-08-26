@@ -76,24 +76,26 @@ export function StepPermissions({ onBack, onComplete }: StepPermissionsProps) {
       });
 
       const completedAt = new Date().toISOString();
-      let { error } = await supabase
+      const { data: companyId, error: companyIdError } = await supabase.rpc('get_user_company_id');
+      if (companyIdError || !companyId) {
+        throw new Error('Kein Unternehmen zugeordnet — Einrichtung kann nicht abgeschlossen werden.');
+      }
+
+      const { error: companyError } = await supabase
+        .from('company')
+        .update({ onboarding_completed_at: completedAt })
+        .eq('id', companyId);
+      if (companyError) {
+        throw new Error(
+          `${companyError.message} — Migration company.onboarding_completed_at ggf. noch nicht ausgeführt.`,
+        );
+      }
+
+      // Audit: welcher User den Wizard abgeschlossen hat. Die Weiche liest die Firma.
+      await supabase
         .from('users')
         .update({ onboarding_completed_at: completedAt })
         .eq('id', user.id);
-
-      if (error) {
-        const retry = await supabase
-          .from('users')
-          .update({ onboarding_completed_at: completedAt })
-          .eq('email', user.email ?? '');
-        error = retry.error;
-      }
-
-      if (error) {
-        throw new Error(
-          `${error.message} — Migration users.onboarding_completed_at ggf. noch nicht ausgeführt.`,
-        );
-      }
 
       clearOnboardingDraft();
       toast.success('Einrichtung abgeschlossen');
@@ -112,6 +114,7 @@ export function StepPermissions({ onBack, onComplete }: StepPermissionsProps) {
         <p className="text-sm text-muted-foreground leading-relaxed">
           Einzelne Einwilligungen nach DSGVO Art. 6 Abs. 1 lit. a. Ablehnen ist möglich —
           DispoCenter bleibt nutzbar. Widerruf später in den Einstellungen.
+          Design und Akzentfarbe stellst du nach dem Abschluss unter Einstellungen ein.
         </p>
       </div>
 
@@ -135,8 +138,8 @@ export function StepPermissions({ onBack, onComplete }: StepPermissionsProps) {
 
       <PermissionToggle
         icon={FileText}
-        title="Lieferschein-Ordner"
-        description="KI darf hochgeladene Lieferscheine automatisch auslesen."
+        title="Lieferschein-Erkennung"
+        description="KI darf manuell hochgeladene Lieferscheine automatisch auslesen. Ordner, IMAP und SFTP verbindest du später unter Einstellungen."
         checked={deliveryAllowed}
         onCheckedChange={setDeliveryAllowed}
       />

@@ -1,10 +1,8 @@
 /**
- * Kartenpositionen von Touren — ausschließlich aus vorhandenen Sendungskoordinaten.
+ * Kartenpositionen von Tour-Stops — aus vorhandenen Sendungskoordinaten.
  *
- * Es gibt im Projekt keine GPS-Ortung der Fahrzeuge. Die einzige Positionsquelle ist
- * `shipment.location_x` / `shipment.location_y` des jeweiligen Stops. Konvention im
- * Projekt (identisch zu den Edge Functions `assign-depot` und `demo-setup`):
- * `location_x` = Breitengrad, `location_y` = Längengrad.
+ * Fahrer-GPS liegt getrennt in `driver_position` (siehe `src/lib/driver-gps.ts`).
+ * Konvention im Projekt: `location_x` = Breitengrad, `location_y` = Längengrad.
  */
 
 export type LatLng = { lat: number; lng: number };

@@ -13,28 +13,50 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    const { scenario = "A" } = await req.json().catch(() => ({ scenario: "A" }));
-
-    // 1. Create or get demo company
-    const companyName = `Demo ${scenario}`;
-    let { data: company } = await supabase
-      .from("company")
-      .select("id")
-      .eq("name", companyName)
-      .maybeSingle();
-
-    if (!company) {
-      const { data: newCo, error } = await supabase
-        .from("company")
-        .insert({ name: companyName })
-        .select("id")
-        .single();
-      if (error) throw error;
-      company = newCo;
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Anmeldung erforderlich." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-    const companyId = company!.id;
+
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: callerCompanyId, error: companyError } = await userClient.rpc("get_user_company_id");
+    if (companyError || !callerCompanyId) {
+      return new Response(JSON.stringify({ error: "Kein Unternehmen zugeordnet." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: role } = await userClient.rpc("get_my_role");
+    if (role !== "admin" && role !== "dispatcher") {
+      return new Response(JSON.stringify({ error: "Nur Disposition darf Demo-Daten laden." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: callerCompany } = await supabase
+      .from("company")
+      .select("name")
+      .eq("id", callerCompanyId)
+      .maybeSingle();
+    const demoMatch = (callerCompany?.name ?? "").trim().match(/^Demo\s+([A-Z0-9]+)$/i);
+    if (!demoMatch) {
+      return new Response(
+        JSON.stringify({ error: "demo-setup ist nur für interne Demo-Mandanten." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    await req.json().catch(() => ({}));
+    const scenario = demoMatch[1].toUpperCase();
+    const companyId = callerCompanyId as string;
 
     // 2. Vehicles — delete old and recreate
     await supabase.from("vehicle").delete().eq("company_id", companyId);

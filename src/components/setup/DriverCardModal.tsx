@@ -23,6 +23,7 @@ import {
   emptyFleetDriver,
 } from '@/lib/onboarding';
 import { cn } from '@/lib/utils';
+import { validateDriverPhoto } from '@/lib/driver-photo';
 
 export type VehicleOption = {
   key: string;
@@ -75,6 +76,7 @@ export function DriverCardModal({
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [assignedVehicleKey, setAssignedVehicleKey] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -89,13 +91,20 @@ export function DriverCardModal({
     setPhotoUrl(base.photoUrl);
     setAssignedVehicleKey(base.assignedVehicleKey);
     setNotes(base.notes);
+    setPhotoError(null);
   }, [open, initial]);
 
   const fullName = joinName(firstName, lastName);
   const canSave = fullName.length > 0;
 
   const onPickPhoto = (file: File | undefined) => {
-    if (!file || !file.type.startsWith('image/')) return;
+    if (!file) return;
+    const validation = validateDriverPhoto(file);
+    if (validation) {
+      setPhotoError(validation);
+      return;
+    }
+    setPhotoError(null);
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') setPhotoUrl(reader.result);
@@ -152,7 +161,7 @@ export function DriverCardModal({
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               className="hidden"
               onChange={(e) => {
                 onPickPhoto(e.target.files?.[0]);
@@ -165,14 +174,18 @@ export function DriverCardModal({
                 variant="ghost"
                 size="sm"
                 className="h-7 text-xs text-muted-foreground"
-                onClick={() => setPhotoUrl(null)}
+                onClick={() => {
+                  setPhotoUrl(null);
+                  setPhotoError(null);
+                }}
               >
                 <Trash2 className="w-3 h-3 mr-1" />
                 Foto entfernen
               </Button>
             ) : (
-              <p className="text-xs text-muted-foreground">Bild hinzufügen (optional)</p>
+              <p className="text-xs text-muted-foreground">JPEG, PNG oder WebP, max. 2 MB</p>
             )}
+            {photoError && <p className="text-xs text-danger">{photoError}</p>}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

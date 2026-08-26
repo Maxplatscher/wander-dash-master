@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -16,22 +16,36 @@ import {
   Route,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
+import { useDispatch } from "@/lib/dispatch-context";
+import { toast } from "sonner";
+import {
+  DriverPhotoAvatar,
+  DriverPhotoPicker,
+} from "@/components/dispatch/DriverPhoto";
+import {
+  isStoredDriverPhotoPath,
+  removeDriverPhoto,
+  uploadDriverPhoto,
+} from "@/lib/driver-photo";
 import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 import {
   getCyanSquareMarkerIcon,
   getDarkMapOptions,
   getGoogleMapsApiKey,
+  getGpsMarkerIcon,
   getOutlineSquareMarkerIcon,
   GOOGLE_MAPS_LIBRARIES,
   GOOGLE_MAPS_LOADER_ID,
 } from "@/lib/google-maps";
 import { pickTourAnchor, shipmentCoordinates } from "@/lib/tour-position";
+import { formatGpsAge, gpsBadgeLabel, isUsableGpsFix, type GpsFix } from "@/lib/driver-gps";
 
 const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
 
 interface DriverInfo {
+  id?: string | null;
   name: string;
+  photoUrl?: string | null;
   tourId: string | null;
   tourDescription: string;
   /** @deprecated Wird nicht angezeigt — die Lage kommt aus dem letzten bestätigten Stop. */
@@ -91,13 +105,41 @@ function useTourStops(tourId: string | null | undefined) {
   });
 }
 
+function useDriverGps(driverId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["driver-position", driverId],
+    enabled: Boolean(driverId),
+    refetchInterval: 30_000,
+    queryFn: async (): Promise<GpsFix | null> => {
+      const { data, error } = await supabase
+        .from("driver_position")
+        .select("lat, lng, accuracy_m, recorded_at")
+        .eq("driver_id", driverId!)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const fix: GpsFix = {
+        lat: data.lat,
+        lng: data.lng,
+        accuracyM: data.accuracy_m,
+        recordedAt: data.recorded_at,
+      };
+      return isUsableGpsFix(fix) ? fix : null;
+    },
+  });
+}
+
 export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
   const { data: stops, isLoading } = useTourStops(driver?.tourId);
+  const { data: gpsFix } = useDriverGps(driver?.id);
   const { isLoaded } = useJsApiLoader({
     id: GOOGLE_MAPS_LOADER_ID,
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES,
   });
+  const { role, companyId } = useDispatch();
+  const queryClient = useQueryClient();
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const completedStops = stops?.filter((s) => s.driver_completed) ?? [];
   const nextStop = stops?.find((s) => !s.driver_completed);
@@ -119,7 +161,66 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
     [stops],
   );
 
+  const mapCenter = gpsFix
+    ? { lat: gpsFix.lat, lng: gpsFix.lng }
+    : anchor?.coordinates ?? null;
+  const gpsLabel = gpsBadgeLabel(gpsFix ? [gpsFix] : []);
+
   if (!driver) return null;
+
+  const canEditPhoto =
+    Boolean(driver.id && companyId) &&
+    (role === "admin" || role === "dispatcher");
+
+  async function savePhoto(file: File) {
+    if (!driver?.id || !companyId) return;
+    setPhotoBusy(true);
+    try {
+      const path = await uploadDriverPhoto({
+        companyId,
+        driverId: driver.id,
+        file,
+        previousPath: driver.photoUrl,
+      });
+      const { error } = await supabase
+        .from("driver")
+        .update({ photo_url: path })
+        .eq("id", driver.id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      await queryClient.invalidateQueries({ queryKey: ["active-drivers-tour"] });
+      toast.success("Fahrerfoto gespeichert");
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error ? error.message : "Foto konnte nicht gespeichert werden",
+      );
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function clearPhoto() {
+    if (!driver?.id) return;
+    setPhotoBusy(true);
+    try {
+      if (isStoredDriverPhotoPath(driver.photoUrl)) {
+        await removeDriverPhoto(driver.photoUrl!);
+      }
+      const { error } = await supabase
+        .from("driver")
+        .update({ photo_url: null })
+        .eq("id", driver.id);
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["drivers"] });
+      await queryClient.invalidateQueries({ queryKey: ["active-drivers-tour"] });
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error ? error.message : "Foto konnte nicht entfernt werden",
+      );
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   const progressPercent =
     driver.totalStops > 0
@@ -130,6 +231,24 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-0 border-hairline bg-panel sm:rounded">
         <div className="p-5 border-b border-hairline bg-primary/5">
+          <div className="flex items-start gap-3">
+            {canEditPhoto ? (
+              <DriverPhotoPicker
+                name={driver.name}
+                photoUrl={driver.photoUrl ?? null}
+                disabled={photoBusy}
+                sizeClassName="h-14 w-14"
+                onFile={(file) => void savePhoto(file)}
+                onClear={() => void clearPhoto()}
+              />
+            ) : (
+              <DriverPhotoAvatar
+                name={driver.name}
+                photoUrl={driver.photoUrl}
+                className="h-14 w-14 shrink-0"
+              />
+            )}
+            <div className="min-w-0 flex-1">
           <DialogHeader>
             <DialogTitle className="text-foreground text-lg flex items-center gap-2">
               <Truck className="w-5 h-5 text-primary" />
@@ -164,6 +283,8 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
               />
             </div>
           </div>
+            </div>
+          </div>
         </div>
 
         <div className="p-5 space-y-5">
@@ -174,35 +295,40 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
                   <MapPin className="w-4 h-4 text-primary" /> Tourposition
                 </h3>
                 <span className="rounded-sm border border-hairline px-1.5 py-0.5 meta-text text-dim">
-                  Keine GPS-Ortung
+                  {gpsLabel}
                 </span>
               </div>
               <div
                 className="rounded-sm border border-hairline overflow-hidden bg-[#101012]"
                 style={{ height: 200 }}
               >
-                {!anchor ? (
+                {!mapCenter ? (
                   <div className="h-full flex items-center justify-center p-6 text-center">
                     <p className="meta-text max-w-[42ch]">
-                      Zu den Lieferadressen dieser Tour sind keine Koordinaten hinterlegt — die
-                      Adressen wurden noch nicht geokodiert.
+                      Keine Stop-Koordinaten und keine frische GPS-Position.
                     </p>
                   </div>
                 ) : isLoaded ? (
                   <GoogleMap
                     mapContainerStyle={{ width: "100%", height: "100%" }}
-                    center={anchor.coordinates}
+                    center={mapCenter}
                     zoom={12}
                     options={getDarkMapOptions()}
                   >
                     <Marker
-                      position={anchor.coordinates}
+                      position={mapCenter}
                       icon={
-                        anchor.kind === "confirmed"
-                          ? getCyanSquareMarkerIcon()
-                          : getOutlineSquareMarkerIcon()
+                        gpsFix
+                          ? getGpsMarkerIcon()
+                          : anchor?.kind === "confirmed"
+                            ? getCyanSquareMarkerIcon()
+                            : getOutlineSquareMarkerIcon()
                       }
-                      title={`${driver.name} · Stop ${anchor.stop.stopNumber}`}
+                      title={
+                        gpsFix
+                          ? `${driver.name} · GPS ${formatGpsAge(gpsFix.recordedAt)}`
+                          : `${driver.name} · Stop ${anchor?.stop.stopNumber}`
+                      }
                     />
                   </GoogleMap>
                 ) : (
@@ -212,7 +338,11 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
                 )}
               </div>
               <p className="meta-text mt-1.5">
-                {anchor
+                {gpsFix
+                  ? `GPS ${formatGpsAge(gpsFix.recordedAt)}${
+                      gpsFix.accuracyM != null ? ` · ±${Math.round(gpsFix.accuracyM)} m` : ""
+                    }`
+                  : anchor
                   ? anchor.kind === "confirmed"
                     ? `Stop ${anchor.stop.stopNumber} bestätigt${
                         anchor.stop.confirmedAt

@@ -2,13 +2,14 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useDispatch } from '@/lib/dispatch-context';
+import { toDateInputValue } from '@/lib/date-input';
 import { ChevronLeft, ChevronRight, Loader2, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type ViewMode = '1d' | '7d' | 'month' | 'year';
 
 function fmt(d: Date) {
-  return d.toISOString().split('T')[0];
+  return toDateInputValue(d);
 }
 
 function startOfWeek(d: Date) {

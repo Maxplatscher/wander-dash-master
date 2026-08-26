@@ -1,6 +1,6 @@
 # Tagesplan Samstag, 22.08.2026 — Verkaufsblocker Fahrerbetrieb
 
-> Stand nach Block 4: Fahrertour, persistenter Stop-Abschluss, ehrliche Karte und RLS sind umgesetzt, getestet und auf `feat/samstag-fahrerbetrieb`. Geokodierung und Live-GPS bleiben Folgearbeit. Passwort-Rotation vor Verkauf.
+> Stand nach Restzeit: Fahrerbetrieb ohne Demo-Daten ist erreicht. Darüber hinaus: Fahrer-GPS (`driver_position`, mit Messalter). Folgearbeit: Google-Server-Key ohne HTTP-Referrer, Passwort-Rotation, IMAP-Import.
 
 ## Tagesziel
 

@@ -1,4 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  applyHintConstraints,
+  hintAdjustedDistance,
+  parseHintConstraints,
+} from "../_shared/ai-hint-constraints.ts";
+import { resolveTourDriverId } from "../_shared/tour-driver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +20,9 @@ interface ShipmentRow {
   window_start: string | null;
   window_end: string | null;
   depot_id: string | null;
+  customer_name: string | null;
+  name: string | null;
+  delivery_address: string | null;
 }
 
 interface Shipment {
@@ -24,6 +33,12 @@ interface Shipment {
   window_start: string | null;
   window_end: string | null;
   depot_id: string | null;
+  customer_name: string | null;
+  name: string | null;
+  delivery_address: string | null;
+  preferEarly: boolean;
+  deferEarly: boolean;
+  preferLate: boolean;
 }
 
 interface Vehicle {
@@ -42,16 +57,37 @@ function manhattan(a: { location_x: number; location_y: number }, b: { location_
   return Math.abs(a.location_x - b.location_x) * 111_000 + Math.abs(a.location_y - b.location_y) * 111_000 * Math.cos((a.location_x * Math.PI) / 180);
 }
 
-function normalizeShipments(rows: ShipmentRow[]): Shipment[] {
-  return rows.map((row) => ({
-    id: row.id,
-    load: Math.max(row.weight_kg ?? row.demand ?? 1, 0),
-    location_x: row.location_x ?? 0,
-    location_y: row.location_y ?? 0,
-    window_start: row.window_start,
-    window_end: row.window_end,
-    depot_id: row.depot_id,
-  }));
+function hasUsableCoords(row: ShipmentRow): boolean {
+  if (row.location_x == null || row.location_y == null) return false;
+  if (row.location_x === 0 && row.location_y === 0) return false;
+  return Number.isFinite(row.location_x) && Number.isFinite(row.location_y);
+}
+
+function normalizeShipments(rows: ShipmentRow[]): { shipments: Shipment[]; skipped: string[] } {
+  const skipped: string[] = [];
+  const shipments: Shipment[] = [];
+  for (const row of rows) {
+    if (!hasUsableCoords(row)) {
+      skipped.push(row.id);
+      continue;
+    }
+    shipments.push({
+      id: row.id,
+      load: Math.max(row.weight_kg ?? row.demand ?? 1, 0),
+      location_x: row.location_x as number,
+      location_y: row.location_y as number,
+      window_start: row.window_start,
+      window_end: row.window_end,
+      depot_id: row.depot_id,
+      customer_name: row.customer_name,
+      name: row.name,
+      delivery_address: row.delivery_address,
+      preferEarly: false,
+      deferEarly: false,
+      preferLate: false,
+    });
+  }
+  return { shipments, skipped };
 }
 
 function resolveDepotPoint(
@@ -115,7 +151,13 @@ function greedyPlan(
 
       for (let i = 0; i < unassigned.length; i++) {
         const shipment = unassigned[i];
-        const distance = manhattan(current, shipment);
+        const distance = hintAdjustedDistance(
+          manhattan(current, shipment),
+          shipment.preferEarly,
+          shipment.deferEarly,
+          stops.length,
+          shipment.preferLate,
+        );
         if (shipment.load <= remaining && distance < bestDist) {
           bestDist = distance;
           bestIdx = i;
@@ -185,7 +227,7 @@ Deno.serve(async (req) => {
 
     let shipmentQuery = supabase
       .from("shipment")
-      .select("id, weight_kg, demand, location_x, location_y, window_start, window_end, depot_id")
+      .select("id, weight_kg, demand, location_x, location_y, window_start, window_end, depot_id, customer_name, name, delivery_address")
       .eq("company_id", company_id)
       .eq("service_date", date);
 
@@ -201,11 +243,18 @@ Deno.serve(async (req) => {
       shipmentRows = shipmentRows.filter((shipment) => !exclude_shipment_ids.includes(shipment.id));
     }
 
-    const shipments = normalizeShipments((shipmentRows ?? []) as ShipmentRow[]);
+    let { shipments, skipped: skippedNoCoordinates } = normalizeShipments(
+      (shipmentRows ?? []) as ShipmentRow[],
+    );
 
     if (shipments.length === 0) {
-      return new Response(JSON.stringify({ error: "No shipments for this date" }), {
-        status: 400,
+      return new Response(JSON.stringify({
+        error: skippedNoCoordinates.length > 0
+          ? "Keine Sendungen mit Koordinaten. Zuerst Adressen geokodieren."
+          : "No shipments for this date",
+        skipped_no_coordinates: skippedNoCoordinates,
+      }), {
+        status: skippedNoCoordinates.length > 0 ? 422 : 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -240,7 +289,7 @@ Deno.serve(async (req) => {
 
     if (vehicleError) throw vehicleError;
 
-    const vehicles: Vehicle[] = (vehicleRows ?? [])
+    let vehicles: Vehicle[] = (vehicleRows ?? [])
       .map((vehicle) => ({
         id: vehicle.id,
         capacity: vehicle.capacity ?? 0,
@@ -251,6 +300,35 @@ Deno.serve(async (req) => {
 
     if (vehicles.length === 0) {
       return new Response(JSON.stringify({ error: "No vehicles with capacity available", manual_required: true }), {
+        status: 422,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    let appliedHints: ReturnType<typeof applyHintConstraints>["applied"] = [];
+    const { data: hintRows, error: hintError } = await supabase
+      .from("ai_hint")
+      .select("id, role, source, text, parsed")
+      .eq("company_id", company_id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true });
+
+    if (hintError) {
+      console.warn("ai_hint konnte nicht geladen werden:", hintError.message);
+    } else if (hintRows?.length) {
+      const constraints = parseHintConstraints(hintRows.map((row) => row.text));
+      const applied = applyHintConstraints(shipments, vehicles, constraints, date);
+      shipments = applied.shipments;
+      vehicles = applied.vehicles.filter((vehicle) => vehicle.capacity > 0);
+      appliedHints = applied.applied;
+    }
+
+    if (vehicles.length === 0) {
+      return new Response(JSON.stringify({
+        error: "Nach KI-Hinweisen bleibt kein Fahrzeug mit Kapazität. Manuelle Disposition erforderlich.",
+        manual_required: true,
+        hints_applied: appliedHints,
+      }), {
         status: 422,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -329,6 +407,14 @@ Deno.serve(async (req) => {
           depot_id: resolvedDepot.depot_id,
           filter_depot_id: filter_depot_id ?? null,
           depot_groups: groups.size,
+          hints_applied: appliedHints,
+          hints_context: (hintRows ?? []).map((row) => ({
+            id: row.id,
+            role: row.role,
+            source: row.source,
+            text: row.text,
+            parsed: row.parsed,
+          })),
         },
         result_snapshot: { tour_count: planned.length, total_cost: totalCost },
       })
@@ -380,8 +466,27 @@ Deno.serve(async (req) => {
 
     if (planError) throw planError;
 
+    const { data: driverRows, error: driverError } = await supabase
+      .from("driver")
+      .select("id, assigned_vehicle_id")
+      .eq("company_id", company_id);
+
+    if (driverError) throw driverError;
+
+    const usedDriverIds = new Set<string>();
+    const assignedDrivers: { tour_vehicle_id: string; driver_id: string }[] = [];
+
     for (const plannedTour of planned) {
       const vehicle = vehicles.find((item) => item.id === plannedTour.vehicleId);
+      const driverId = resolveTourDriverId(
+        plannedTour.vehicleId,
+        driverRows ?? [],
+        usedDriverIds,
+      );
+      if (driverId) {
+        usedDriverIds.add(driverId);
+        assignedDrivers.push({ tour_vehicle_id: plannedTour.vehicleId, driver_id: driverId });
+      }
       const { data: tour, error: tourError } = await supabase
         .from("tour")
         .insert({
@@ -392,6 +497,7 @@ Deno.serve(async (req) => {
           is_active: auto_activate,
           plan_run_id: planRun.id,
           total_cost: plannedTour.cost,
+          driver_id: driverId,
           description: `Tour ${vehicle?.name ?? "?"} – ${plannedTour.stops.length} Stops`,
         })
         .select("id")
@@ -423,6 +529,10 @@ Deno.serve(async (req) => {
       depot_source: resolvedDepot.source,
       depot_id: resolvedDepot.depot_id,
       depot_groups: groups.size,
+      skipped_no_coordinates: skippedNoCoordinates,
+      hints_applied: appliedHints,
+      hints_count: (hintRows ?? []).length,
+      assigned_drivers: assignedDrivers,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

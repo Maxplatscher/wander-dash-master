@@ -60,7 +60,7 @@ describe('LiveMap', () => {
     renderMap();
 
     expect(await screen.findByText('Tourposition')).toBeInTheDocument();
-    expect(screen.getByText('Letzter bestätigter Stop')).toBeInTheDocument();
+    expect(screen.getByText('Fahrer-GPS oder letzter Stop')).toBeInTheDocument();
     expect(screen.getByText('Keine GPS-Ortung')).toBeInTheDocument();
     expect(screen.queryByText(/Live-Standort/)).not.toBeInTheDocument();
   });
@@ -155,5 +155,29 @@ describe('LiveMap', () => {
     expect(
       screen.getByText(/Lieferadressen nicht in Koordinaten umgerechnet/),
     ).toBeInTheDocument();
+  });
+
+  it('zeigt eine frische GPS-Position mit Alter statt als Live-Standort', async () => {
+    mocks.tables = {
+      tour: [{ id: 'tour-1', description: 'Südtour', driver_id: 'driver-1' }],
+      driver: [{ id: 'driver-1', name: 'Testfahrer' }],
+      tour_stop: [],
+      shipment: [],
+      driver_position: [
+        {
+          driver_id: 'driver-1',
+          lat: 52.373,
+          lng: 9.739,
+          accuracy_m: 18,
+          recorded_at: new Date().toISOString(),
+        },
+      ],
+    };
+
+    renderMap();
+
+    expect(await screen.findByRole('button', { name: 'Testfahrer' })).toBeInTheDocument();
+    expect(screen.getByText(/^GPS /)).toBeInTheDocument();
+    expect(screen.queryByText(/Live-Standort/)).not.toBeInTheDocument();
   });
 });

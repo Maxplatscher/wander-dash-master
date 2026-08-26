@@ -60,6 +60,18 @@ export function getCyanSquareMarkerIcon(): google.maps.Symbol {
   };
 }
 
+/** Ausgefüllter Punkt für eine gemessene Fahrerposition. Nur nach Maps-Load aufrufen. */
+export function getGpsMarkerIcon(): google.maps.Symbol {
+  return {
+    path: 'M 0,0 m -6,0 a 6,6 0 1,0 12,0 a 6,6 0 1,0 -12,0',
+    fillColor: '#7ce8f5',
+    fillOpacity: 1,
+    strokeColor: '#0d0d0f',
+    strokeWeight: 2,
+    scale: 1,
+  };
+}
+
 /** Konturvariante für disponierte, noch nicht bestätigte Stops. Nur nach Maps-Load aufrufen. */
 export function getOutlineSquareMarkerIcon(): google.maps.Symbol {
   return {

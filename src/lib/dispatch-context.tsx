@@ -15,6 +15,7 @@ import {
   readStoredDepotId,
   writeStoredDepotId,
 } from './depot';
+import { isValidDate } from './date-input';
 
 export type { UserRole };
 
@@ -47,7 +48,10 @@ export function DispatchProvider({ children }: { children: React.ReactNode }) {
   const [depots, setDepots] = useState<DepotOption[]>([]);
   const [depotsLoading, setDepotsLoading] = useState(true);
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDateState] = useState(new Date());
+  const setSelectedDate = useCallback((d: Date) => {
+    if (isValidDate(d)) setSelectedDateState(d);
+  }, []);
   const [refreshKey, setRefreshKey] = useState(0);
   const { user, role: authRole } = useAuth();
 
