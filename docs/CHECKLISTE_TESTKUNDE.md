@@ -28,6 +28,7 @@ Erledigt-Markierung: `- [ ]` offen, nicht „schon fast“.
 - [x] **Frontend-Key-Referrer.** Maps-Key auf „Websites“: `http://localhost:8080/*`, `http://127.0.0.1:8080/*`, `https://dispocenter.pages.dev/*`. `https://dispocenter.com/*` erst nach Registrar-Transfer. Andere Hosts (z. B. `*.dispocenter.pages.dev` Preview) sind jetzt blockiert.
 - [ ] **Supabase nicht auf Free-Tier-Pause** lassen. Org ist **Free** (25.08.). Vor dem Kundentermin Upgrade auf Pro entscheiden oder Projekt manuell wachhalten. Pause leert nicht die Tabellen, stoppt aber Auth/API mitten in der Demo. Kein Auto-Upgrade.
 - [x] **App erreichbar machen:** Cloudflare Pages Production `https://dispocenter.pages.dev` (Deploy 1559e884, HTTPS). Env im Pages-Projekt: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (nicht ANON_KEY), `VITE_GOOGLE_MAPS_API_KEY`. Kein Alias auf dispocenter.com.
+- [x] **PWA-Install:** Manifest + Service Worker (App-Shell, `vite-plugin-pwa`). Fahrer können die App über „Zum Homescreen hinzufügen“ installieren, ohne Store. Kein Offline-Cache für Supabase/API. GPS-Test in der installierten PWA steht noch aus.
 
 ### Produkt, das der Kunde am ersten Tag braucht
 
