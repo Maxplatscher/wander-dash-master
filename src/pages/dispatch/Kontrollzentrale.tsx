@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { ArticleReviewPanel } from '@/components/dispatch/ArticleReviewPanel';
 import { parseMissingFields } from '@/lib/article-research';
 import { useIntegrations } from '@/hooks/useIntegrations';
+import { shouldShowDemoSetup } from '@/lib/demo-setup-access';
 
 const STATUS_BADGE: Record<string, string> = {
   new: 'bg-primary/15 text-primary',
@@ -31,6 +32,20 @@ export function Kontrollzentrale() {
   const queryClient = useQueryClient();
   const dateStr = toDateInputValue(selectedDate);
   const { integrations, loading: integrationsLoading } = useIntegrations(companyId);
+  const { data: companyName } = useQuery({
+    queryKey: ['company-name', companyId],
+    enabled: Boolean(companyId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company')
+        .select('name')
+        .eq('id', companyId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.name ?? null;
+    },
+  });
+  const showDemoSetup = shouldShowDemoSetup(companyName);
   const imap = integrations.find((item) => item.system_type === 'email_imap');
   const imapHost =
     imap && typeof imap.config?.host === 'string' && imap.config.host.trim()
@@ -571,6 +586,7 @@ export function Kontrollzentrale() {
         </div>
 
         <div className="border-t border-hairline pt-4 flex flex-wrap gap-2">
+          {showDemoSetup && (
           <Button
             variant="outline"
             className="rounded"
@@ -584,6 +600,7 @@ export function Kontrollzentrale() {
             )}
             Demo-Szenario laden · demo-setup
           </Button>
+          )}
           <Button
             variant="outline"
             className="rounded"
