@@ -48,6 +48,22 @@ export function useIntegrations(companyId: string | null) {
   }) {
     if (!companyId) throw new Error('Keine company_id verfügbar');
 
+    const hasCredentials = Object.values(params.credentials).some((value) => value.trim() !== '');
+    if (!hasCredentials) {
+      const { error: rowError } = await supabase.from('system_integrations').upsert({
+        id: params.id,
+        company_id: companyId,
+        depot_id: params.depot_id,
+        system_type: params.system_type,
+        name: params.name,
+        config: params.config,
+        is_active: params.is_active,
+      });
+      if (rowError) throw new Error(rowError.message);
+      await load();
+      return;
+    }
+
     // Credentials nur an Edge Function — nie an RPC / Klartext-Spalten
     const { data, error: invokeError } = await supabase.functions.invoke('upsert-integration', {
       body: {

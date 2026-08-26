@@ -4,7 +4,8 @@ export type SystemType =
   | 'email_imap'
   | 'rest_api'
   | 'csv_import'
-  | 'research_source';
+  | 'research_source'
+  | 'unc_share';
 
 export interface SystemIntegration {
   id: string;
@@ -15,6 +16,7 @@ export interface SystemIntegration {
   config: Record<string, string>;
   vault_secret_id: string | null;
   is_active: boolean;
+  last_test_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -26,6 +28,7 @@ export const CONFIG_FIELDS: Record<SystemType, string[]> = {
   rest_api: ['base_url', 'timeout_ms'],
   csv_import: ['sftp_host', 'sftp_port', 'remote_path'],
   research_source: ['base_url', 'notiz'],
+  unc_share: ['path'],
 };
 
 export const CONFIG_PLACEHOLDERS: Partial<Record<SystemType, Record<string, string>>> = {
@@ -39,6 +42,9 @@ export const CONFIG_PLACEHOLDERS: Partial<Record<SystemType, Record<string, stri
     sftp_port: '22',
     remote_path: '/lieferscheine',
   },
+  unc_share: {
+    path: '\\\\fileserver\\scans\\lieferscheine',
+  },
 };
 
 export const CREDENTIAL_FIELDS: Record<SystemType, string[]> = {
@@ -48,6 +54,7 @@ export const CREDENTIAL_FIELDS: Record<SystemType, string[]> = {
   rest_api: ['auth_header'],
   csv_import: ['sftp_username', 'sftp_password'],
   research_source: [],
+  unc_share: [],
 };
 
 export const TYPE_LABELS: Record<SystemType, string> = {
@@ -57,6 +64,7 @@ export const TYPE_LABELS: Record<SystemType, string> = {
   rest_api: 'REST API',
   csv_import: 'CSV / SFTP',
   research_source: 'Branchen-Website (Recherchequelle)',
+  unc_share: 'Netzwerkordner (manuell)',
 };
 
 export const TYPE_ICONS: Record<SystemType, string> = {
@@ -66,4 +74,5 @@ export const TYPE_ICONS: Record<SystemType, string> = {
   rest_api: '🔌',
   csv_import: '📂',
   research_source: '🔎',
+  unc_share: '🖥',
 };

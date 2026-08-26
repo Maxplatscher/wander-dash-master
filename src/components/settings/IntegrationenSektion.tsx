@@ -3,6 +3,7 @@ import { Loader2, Pencil, Plus, PlugZap, TestTube2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useIntegrations } from '@/hooks/useIntegrations';
+import { TECHNICAL_TYPES } from '@/lib/folder-source';
 import {
   CONFIG_FIELDS,
   CONFIG_PLACEHOLDERS,
@@ -122,6 +123,10 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
 
   const configFields = useMemo(() => CONFIG_FIELDS[form.system_type], [form.system_type]);
   const credentialFields = useMemo(() => CREDENTIAL_FIELDS[form.system_type], [form.system_type]);
+  const technical = useMemo(
+    () => integrations.filter((item) => TECHNICAL_TYPES.includes(item.system_type)),
+    [integrations],
+  );
 
   const openCreateDialog = () => {
     setEditing(null);
@@ -242,9 +247,8 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="meta-text">
-          Zuerst E-Mail (IMAP) anbinden und in der Kontrollzentrale Mails abrufen.
-          Einen gemeinsamen Verkäuferordner legt ihr selbst an und verbindet ihn
-          später hier — der Ordnerimport ist noch nicht gebaut.
+          Technische Verbindungen (ERP, Telematik, REST, Recherche). IMAP und Ordnerpfade
+          liegen unter Lieferschein-Ordner.
         </p>
         <Button size="sm" className="rounded font-semibold" onClick={openCreateDialog} disabled={!companyId}>
           <Plus className="w-4 h-4 mr-1.5" />
@@ -257,13 +261,13 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
           <Loader2 className="w-4 h-4 animate-spin" />
           Integrationen werden geladen…
         </div>
-      ) : integrations.length === 0 ? (
+      ) : technical.length === 0 ? (
         <div className="rounded-sm border border-dashed border-hairline px-4 py-8 text-center meta-text">
-          Noch keine Integrationen vorhanden.
+          Noch keine technischen Integrationen vorhanden.
         </div>
       ) : (
         <div className="grid gap-3">
-          {integrations.map((integration) => {
+          {technical.map((integration) => {
             const isTesting = testingId === integration.id;
             const isDeleting = deletingId === integration.id;
             const depotLabel = integration.depot_id
@@ -415,7 +419,7 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(TYPE_LABELS) as SystemType[]).map((type) => (
+                  {(TECHNICAL_TYPES as SystemType[]).map((type) => (
                     <SelectItem key={type} value={type}>
                       {TYPE_ICONS[type]} {TYPE_LABELS[type]}
                     </SelectItem>

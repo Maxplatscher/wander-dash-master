@@ -32,6 +32,7 @@ describe("imap-mail", () => {
     expect(draft.delivery_address).toBeNull();
     expect(draft.customer_name).toBeNull();
     expect(draft.intake_source).toBe("email_imap");
+    expect(draft.integration_id).toBeNull();
     expect(draft.missing_fields.needs_review).toBe(true);
   });
 

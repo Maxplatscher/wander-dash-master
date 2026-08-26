@@ -68,6 +68,7 @@ export function shipmentDraftFromMail(input: {
   serviceDate: string;
   companyId: string;
   depotId: string | null;
+  integrationId?: string | null;
 }): {
   company_id: string;
   name: string;
@@ -79,6 +80,7 @@ export function shipmentDraftFromMail(input: {
   intake_status: "new";
   service_date: string;
   depot_id: string | null;
+  integration_id: string | null;
   customer_name: null;
   delivery_address: null;
   weight_kg: null;
@@ -96,6 +98,7 @@ export function shipmentDraftFromMail(input: {
     intake_status: "new",
     service_date: input.serviceDate,
     depot_id: input.depotId,
+    integration_id: input.integrationId ?? null,
     customer_name: null,
     delivery_address: null,
     weight_kg: null,
