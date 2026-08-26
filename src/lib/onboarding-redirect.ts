@@ -10,7 +10,7 @@ export interface OnboardingRedirectState {
   role: UserRole | null;
   /** true sobald der Rollen-Abruf beendet ist — auch bei Fehler oder Timeout. */
   roleResolved: boolean;
-  /** users.onboarding_completed_at als Boolean; null solange nicht geladen. */
+  /** company.onboarding_completed_at als Boolean; null solange nicht geladen. */
   onboardingCompleted: boolean | null;
 }
 
