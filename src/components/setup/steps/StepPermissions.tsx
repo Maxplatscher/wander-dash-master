@@ -138,8 +138,8 @@ export function StepPermissions({ onBack, onComplete }: StepPermissionsProps) {
 
       <PermissionToggle
         icon={FileText}
-        title="Lieferschein-Ordner"
-        description="KI darf hochgeladene Lieferscheine automatisch auslesen."
+        title="Lieferschein-Erkennung"
+        description="KI darf manuell hochgeladene Lieferscheine automatisch auslesen. Ordner, IMAP und SFTP verbindest du später unter Einstellungen."
         checked={deliveryAllowed}
         onCheckedChange={setDeliveryAllowed}
       />

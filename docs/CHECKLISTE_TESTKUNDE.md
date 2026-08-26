@@ -47,10 +47,10 @@ Erledigt-Markierung: `- [ ]` offen, nicht „schon fast“.
 
 ## 2. Sollte der Testkunde nicht als kaputt oder unehrlich erleben
 
-- [ ] **Onboarding-Schritt Design entfernen oder anbinden.** `StepTheme` speichert ein Farbschema, das Dashboard bleibt Dark-Cyan. Auswahl ohne Wirkung.
-- [ ] **`demo-setup` in der Kontrollzentrale** für den Kundenmandanten verstecken oder klar als „nur intern“ markieren — sonst landet Münchner Demo-Zeug in echten Daten.
-- [ ] **Onboarding `onboarding_completed_at` ist pro User**, der Wizard schreibt aber firmweite Stammdaten. Zweiter Dispatcher derselben Firma läuft wieder durch `/setup`.
-- [ ] **Fahrer-Consent:** Fahrer überspringen den Firmen-Wizard. Standortfreigabe passiert erst in Meine Tour — so lassen oder in der Fahreransicht erklären, nicht im Onboarding versprechen.
+- [x] **Onboarding-Schritt Design entfernen oder anbinden.** `StepTheme` und `theme-presets.ts` entfernt (26.08.). Akzentfarbe liegt nur noch in den Einstellungen (`appearance.ts`).
+- [x] **`demo-setup` in der Kontrollzentrale** nur noch bei Firmennamen `Demo A`/`Demo B`. Die Edge Function lehnt andere Mandanten mit 403 ab.
+- [x] **Onboarding `onboarding_completed_at` ist pro Firma** (`company.onboarding_completed_at`, 26.08.). Zweiter Dispatcher derselben Firma überspringt den Wizard.
+- [x] **Fahrer-Consent:** DSGVO-Text steht unter „Standort teilen“ in Meine Tour; erstes Antippen öffnet einen Einwilligungsdialog. Onboarding verspricht keinen Fahrer-Standort.
 - [ ] **Windows in der UI vs. UTC in der DB** dokumentieren (Anzeige in CEST ist kein Stammdatenfehler).
 - [x] **Nominatim-Nutzungsgrenzen.** Google-Server-Key ist gesetzt; Nominatim bleibt nur Fallback. Trotzdem kein Massen-Geocode in einer Kundendemo.
 
@@ -83,5 +83,5 @@ Fahrertour aus der DB, persistenter Stop-Abschluss, Rollen-Navigation, ehrliche 
 4. IMAP-Konto in Einstellungen testen und in der Kontrollzentrale Mails holen; Verkäuferordner später.  
 5. Ein kompletter Dispatcher+Fahrer-Durchstich auf HTTPS.  
 6. Datenschutz/AVV-Pilot.  
-7. Theme-Step und demo-setup für den Kundenmandanten bereinigen.  
+7. Theme-Step und demo-setup für den Kundenmandanten bereinigen. ✅
 8. Rest (Volumen, IMAP-Cron, Ordnerimport, Playwright) nach der ersten echten Tour.
