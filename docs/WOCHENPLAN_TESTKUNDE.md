@@ -34,11 +34,15 @@ Abnahme: Passwort rotiert ✅, Entscheidungen dokumentiert ✅, Nameserver-Umste
 
 ## Dienstag — Hosting fertig + Keys
 
-- Env-Variablen im Hosting-Projekt setzen (Supabase URL, Anon-Key, `VITE_GOOGLE_MAPS_API_KEY` mit Referrer auf Host-Domain)
-- Eigenen Google-Server-Key anlegen: `GOOGLE_MAPS_API_KEY` als Supabase Edge Secret, kein HTTP-Referrer, Geocoding + Distance Matrix aktiviert
-- „Adressen geokodieren" testen, prüfen dass `provider = google` statt Nominatim-Fallback
-- Supabase-Plan prüfen (kein Free-Tier-Pause-Risiko vor Kundentermin)
-- Sobald Domain-Transfer durch ist: DNS auf Pages zeigen, Referrer auf `https://dispocenter.com/*` umstellen
+Stand 25.08., nach Prompt `docs/PROMPT_DIENSTAG_HOSTING_KEYS.md`:
+
+- [x] Env im Pages-Projekt (seit Montag): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_GOOGLE_MAPS_API_KEY` — nicht ANON_KEY. Bundle auf `https://dispocenter.pages.dev` zeigt auf Projekt `sxqbmxqnwtrgibfryvqf`.
+- [x] App unter HTTPS: Login `https://dispocenter.pages.dev/auth` lädt.
+- [x] Domain heute **nicht** anfassen. Registrar-Transfer steht auf „Ready for transfer“ (Schritt 1/3, noch nicht gestartet). Referrer und DNS bleiben auf `*.pages.dev`. Nameserver sind bereits Cloudflare, Zone ohne A/MX — trotzdem kein Pages-Alias, bis der Transfer durch ist.
+- [x] Frontend-Key auf „Websites“ eingeschränkt: `http://localhost:8080/*`, `http://127.0.0.1:8080/*`, `https://dispocenter.pages.dev/*`. `dispocenter.com` unangetastet. Preview-Hosts außerhalb dieser Liste brechen jetzt ab.
+- [x] Eigenen Google-Server-Key als Edge Secret `GOOGLE_MAPS_API_KEY` gesetzt (nicht der Vite-Key). Direktes Geocoding ohne HTTP-Referrer: `status = OK`.
+- [x] `geocode-shipments` antwortet `provider = google` (Secret greift). Für den 25.08. keine Sendungen zum Aktualisieren (`scanned = 0`). Sobald eine Adresse da ist, in der Kontrollzentrale nochmal klicken.
+- [x] Supabase-Organisation ist **Free**. Pause-Risiko vor Kundentermin bleibt — Upgrade nur nach bewusster Entscheidung, kein Auto-Upgrade. Projekt aktuell `ACTIVE_HEALTHY`.
 
 Abnahme: App unter HTTPS erreichbar (Pages-Subdomain reicht vorerst), Geokodierung läuft über Google statt Fallback.
 

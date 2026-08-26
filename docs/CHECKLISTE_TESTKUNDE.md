@@ -9,7 +9,7 @@ Erledigt-Markierung: `- [ ]` offen, nicht „schon fast“.
 ## 0. Entscheidung vor dem Bauen
 
 - [x] **Intake-Weg des Testkunden:** Zuerst **E-Mail-Postfach (IMAP)**. Den gemeinsamen Verkäuferordner legt der Kunde selbst an und verbindet ihn später unter **Einstellungen** (`csv_import` / SFTP). Kein NAS-Watch vom Laptop.
-- [x] **Wo läuft der Pilot?** Cloudflare Pages, bis der Transfer durch ist über `*.pages.dev`. Zieldomain `https://dispocenter.com`. Nameserver-Umstellung ist eingeleitet (24.08., Badge noch `free`) — in ein paar Stunden oder morgen erneut prüfen, nicht davor warten.
+- [x] **Wo läuft der Pilot?** Cloudflare Pages, bis der Registrar-Transfer durch ist über `*.pages.dev`. Zieldomain `https://dispocenter.com`. Nameserver zeigen schon auf Cloudflare; Transfer-UI steht auf „Ready for transfer“ (Schritt 1/3) — DNS/Referrer erst nach Abschluss auf die Apex-Domain.
 
 ---
 
@@ -24,9 +24,9 @@ Erledigt-Markierung: `- [ ]` offen, nicht „schon fast“.
 
 ### Hosting, Keys, Betrieb
 
-- [ ] **Eigenen Google-Server-Key** als Edge Secret `GOOGLE_MAPS_API_KEY` (Geocoding + Distance Matrix, **kein** HTTP-Referrer). Den Vite-Browser-Key nicht kopieren. Danach „Adressen geokodieren“ und prüfen, dass `provider` = `google` ist. Heute: Nominatim-Fallback.
-- [ ] **Produktionsdomain** festlegen und am **Frontend-Key** `VITE_GOOGLE_MAPS_API_KEY` als HTTP-Referrer ergänzen (`https://DOMAIN/*`). Sonst sterben Karte und Places außerhalb von localhost.
-- [ ] **Supabase nicht auf Free-Tier-Pause** lassen. Vor dem Kundentermin Plan prüfen oder Projekt manuell wachhalten. Pause leert nicht die Tabellen, stoppt aber Auth/API mitten in der Demo.
+- [x] **Eigenen Google-Server-Key** als Edge Secret `GOOGLE_MAPS_API_KEY` (nicht der Vite-Key). Direktes Geocoding ohne HTTP-Referrer `OK`; `geocode-shipments` liefert `provider = google`. Am 25.08. keine Sendungen zum Aktualisieren (`scanned = 0`) — nächste Adresse in der Kontrollzentrale nochmal klicken.
+- [x] **Frontend-Key-Referrer.** Maps-Key auf „Websites“: `http://localhost:8080/*`, `http://127.0.0.1:8080/*`, `https://dispocenter.pages.dev/*`. `https://dispocenter.com/*` erst nach Registrar-Transfer. Andere Hosts (z. B. `*.dispocenter.pages.dev` Preview) sind jetzt blockiert.
+- [ ] **Supabase nicht auf Free-Tier-Pause** lassen. Org ist **Free** (25.08.). Vor dem Kundentermin Upgrade auf Pro entscheiden oder Projekt manuell wachhalten. Pause leert nicht die Tabellen, stoppt aber Auth/API mitten in der Demo. Kein Auto-Upgrade.
 - [x] **App erreichbar machen:** Cloudflare Pages Production `https://dispocenter.pages.dev` (Deploy 1559e884, HTTPS). Env im Pages-Projekt: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (nicht ANON_KEY), `VITE_GOOGLE_MAPS_API_KEY`. Kein Alias auf dispocenter.com.
 
 ### Produkt, das der Kunde am ersten Tag braucht
@@ -51,7 +51,7 @@ Erledigt-Markierung: `- [ ]` offen, nicht „schon fast“.
 - [ ] **Onboarding `onboarding_completed_at` ist pro User**, der Wizard schreibt aber firmweite Stammdaten. Zweiter Dispatcher derselben Firma läuft wieder durch `/setup`.
 - [ ] **Fahrer-Consent:** Fahrer überspringen den Firmen-Wizard. Standortfreigabe passiert erst in Meine Tour — so lassen oder in der Fahreransicht erklären, nicht im Onboarding versprechen.
 - [ ] **Windows in der UI vs. UTC in der DB** dokumentieren (Anzeige in CEST ist kein Stammdatenfehler).
-- [ ] **Nominatim-Nutzungsgrenzen**, solange der Google-Server-Key fehlt (kein Massen-Geocode in einer Kundendemo).
+- [x] **Nominatim-Nutzungsgrenzen.** Google-Server-Key ist gesetzt; Nominatim bleibt nur Fallback. Trotzdem kein Massen-Geocode in einer Kundendemo.
 
 ---
 
