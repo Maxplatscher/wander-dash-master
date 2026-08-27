@@ -9,7 +9,7 @@ import { Fahrer } from './dispatch/Fahrer';
 import { Einstellungen } from './dispatch/Einstellungen';
 import { Probleme } from './dispatch/Probleme';
 import {
-  CalendarDays, LogOut, Menu, Search, Bell, Settings as SettingsIcon,
+  CalendarDays, LogOut, Menu, Search, Settings as SettingsIcon,
   LayoutDashboard, Calendar, Package, Users, AlertTriangle, Settings, Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,8 @@ function DashboardLayout() {
     currentSection,
     navigateTo,
     role: navRole,
+    searchQuery,
+    setSearchQuery,
   } = useDispatch();
   const { user, role, signOut } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -117,7 +119,9 @@ function DashboardLayout() {
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
-              type="text"
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Sendung, Fahrer, Adresse suchen..."
               className="w-full h-9 pl-9 pr-4 text-sm bg-white/5 border border-white/10 rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors"
             />
@@ -136,9 +140,6 @@ function DashboardLayout() {
 
             {isSectionAllowed('startseite', navRole) && <DepotSwitcher />}
 
-            <button className="w-8 h-8 rounded flex items-center justify-center hover:bg-white/10 transition-colors">
-              <Bell className="w-4 h-4 text-muted-foreground" />
-            </button>
             {isSectionAllowed('einstellungen', navRole) && (
               <button className="w-8 h-8 rounded flex items-center justify-center hover:bg-white/10 transition-colors" onClick={() => navigateTo('einstellungen')}>
                 <SettingsIcon className="w-4 h-4 text-muted-foreground" />

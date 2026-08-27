@@ -84,6 +84,35 @@ export function clearConsent(): void {
   localStorage.removeItem(CONSENT_STORAGE_KEY);
 }
 
+/** Fahrer-GPS auf „Meine Tour“ — unabhängig vom Dispatcher-Onboarding. */
+export const DRIVER_GPS_STORAGE_KEY = 'dc_driver_gps_v1';
+
+export type DriverGpsConsent = {
+  allowed: boolean;
+  decidedAt: string;
+};
+
+export function readDriverGpsConsent(): DriverGpsConsent | null {
+  try {
+    const raw = localStorage.getItem(DRIVER_GPS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<DriverGpsConsent>;
+    if (typeof parsed.allowed !== 'boolean') return null;
+    return {
+      allowed: parsed.allowed,
+      decidedAt: typeof parsed.decidedAt === 'string' ? parsed.decidedAt : new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function writeDriverGpsConsent(allowed: boolean): DriverGpsConsent {
+  const next: DriverGpsConsent = { allowed, decidedAt: new Date().toISOString() };
+  localStorage.setItem(DRIVER_GPS_STORAGE_KEY, JSON.stringify(next));
+  return next;
+}
+
 export type GeoResult =
   | { ok: true; coords: { lat: number; lng: number } }
   | { ok: false; code: number; message: string };

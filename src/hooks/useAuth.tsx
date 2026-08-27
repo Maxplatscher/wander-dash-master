@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
+import { signInWithDriverPin, type PinLoginResult } from '@/lib/driver-pin';
 
 interface AuthContextType {
   user: User | null;
@@ -10,6 +11,7 @@ interface AuthContextType {
   /** true sobald get_my_role() beantwortet ist — auch bei Fehler oder Timeout. */
   roleResolved: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithPin: (firstName: string, lastName: string, code: string) => Promise<PinLoginResult>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -90,6 +92,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error as Error | null };
   };
 
+  const signInWithPin = async (firstName: string, lastName: string, code: string) => {
+    return signInWithDriverPin(firstName, lastName, code);
+  };
+
   const signUp = async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({
       email,
@@ -108,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, loading, roleResolved, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, loading, roleResolved, signIn, signInWithPin, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

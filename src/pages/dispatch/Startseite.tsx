@@ -22,6 +22,7 @@ import { LiveMap } from '@/components/dispatch/LiveMap';
 import { DriverDetailDialog } from '@/components/dispatch/DriverDetailDialog';
 import { AddDriverDialog } from '@/components/dispatch/AddDriverDialog';
 import { useDispatch } from '@/lib/dispatch-context';
+import { matchesSearch } from '@/lib/dispatch-search';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useProblems } from '@/pages/dispatch/Probleme';
@@ -31,6 +32,7 @@ import { cn } from '@/lib/utils';
 type ViewMode = 'leitstand' | 'zeitstrahl';
 
 type DriverDayRow = {
+  id: string | null;
   name: string;
   status: string;
   currentLocation: string;
@@ -117,7 +119,7 @@ function useActiveDriversOnTour(date: string) {
 
       const { data: tours } = await supabase
         .from('tour')
-        .select('id, description, is_active')
+        .select('id, description, is_active, driver_id')
         .eq('date', date)
         .eq('is_active', true);
 
@@ -169,9 +171,12 @@ function useActiveDriversOnTour(date: string) {
 
         const vehicleId = tourStops.find((s) => s.vehicle_id)?.vehicle_id;
         const vehicle = vehicleId ? vehicleMap.get(vehicleId) : null;
-        const driver = (drivers ?? [])[idx];
+        const driver = tour.driver_id
+          ? (drivers ?? []).find((candidate) => candidate.id === tour.driver_id)
+          : (drivers ?? [])[idx];
 
         tourRows.push({
+          id: driver?.id ?? tour.driver_id ?? null,
           name: driver?.name ?? tour.description ?? `Tour ${idx + 1}`,
           status: driver?.status ?? 'aktiv',
           currentLocation: currentShipment?.delivery_address ?? 'Depot',
@@ -196,6 +201,7 @@ function useActiveDriversOnTour(date: string) {
           const isAbsent =
             status.includes('abwesend') || status.includes('krank') || status === 'inactive';
           return {
+            id: d.id,
             name: d.name ?? 'Fahrer',
             status: d.status ?? 'verfügbar',
             currentLocation: '—',
@@ -439,7 +445,7 @@ function TimelineView({
 }
 
 export function Startseite() {
-  const { selectedDate, selectedDepotId, selectedDepotLabel } = useDispatch();
+  const { selectedDate, selectedDepotId, selectedDepotLabel, searchQuery } = useDispatch();
   const { user } = useAuth();
   const dateStr = selectedDate.toISOString().split('T')[0];
   const { data: kpis } = useKpis(dateStr, selectedDepotId);
@@ -454,8 +460,20 @@ export function Startseite() {
   const [selectedDriver, setSelectedDriver] = useState<DriverDayRow | null>(null);
 
   const activeOnTour = useMemo(
-    () => (driverRows ?? []).filter((d) => d.tourId),
-    [driverRows],
+    () =>
+      (driverRows ?? []).filter(
+        (d) =>
+          d.tourId &&
+          matchesSearch(searchQuery, d.name, d.currentLocation, d.nextStop, d.tourDescription, d.vehicleName),
+      ),
+    [driverRows, searchQuery],
+  );
+  const visibleDriverRows = useMemo(
+    () =>
+      (driverRows ?? []).filter((d) =>
+        matchesSearch(searchQuery, d.name, d.currentLocation, d.nextStop, d.tourDescription, d.vehicleName),
+      ),
+    [driverRows, searchQuery],
   );
 
   const problemCount = problems?.length ?? kpis?.problems ?? 0;
@@ -630,7 +648,7 @@ export function Startseite() {
           </div>
         </div>
       ) : (
-        <TimelineView rows={driverRows ?? []} problems={problems ?? []} />
+        <TimelineView rows={visibleDriverRows} problems={problems ?? []} />
       )}
 
       <AddDriverDialog open={showAddDriver} onOpenChange={setShowAddDriver} />
@@ -643,6 +661,7 @@ export function Startseite() {
         driver={
           selectedDriver?.tourId
             ? {
+                id: selectedDriver.id,
                 name: selectedDriver.name,
                 tourId: selectedDriver.tourId,
                 tourDescription: selectedDriver.tourDescription,

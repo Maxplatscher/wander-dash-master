@@ -4,6 +4,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { IntegrationenSektion } from '@/components/settings/IntegrationenSektion';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { clearConsent, readConsent, writeConsent } from '@/lib/consent';
+import { toast } from 'sonner';
 
 type KeyStatus = 'aktiv' | 'zu_pruefen' | 'offen';
 
@@ -49,32 +53,32 @@ const OPEN_TECH = [
     detail:
       'Code: VITE_GOOGLE_MAPS_API_KEY via .env. GCP: HTTP-Referrer setzen; geleakte Keys rotieren/löschen.',
     phase: 'Phase 9',
-    tone: 'success' as const,
+    tone: 'success' as 'success' | 'warning' | 'danger',
   },
   {
     title: 'GRANT SELECT ON users',
     detail: 'Erledigt: Migration 20260805120000 — authenticated darf users lesen (RLS filtert weiter).',
     phase: 'Phase 1',
-    tone: 'success' as const,
+    tone: 'success' as 'success' | 'warning' | 'danger',
   },
   {
     title: 'Vault-Verschlüsselung',
     detail: 'Integrations-Credentials nur über Edge Function / Vault — Klartext-Spalten entfernt.',
     phase: 'Phase 3B',
-    tone: 'success' as const,
+    tone: 'success' as 'success' | 'warning' | 'danger',
   },
   {
     title: 'Automatische Depot-Auswahl',
     detail:
       'Erledigt: assign-depot (Distance Matrix via GOOGLE_MAPS_API_KEY, sonst Haversine). Braucht Depot-lat/lng + Sendungs-Koordinaten.',
     phase: 'Phase 3A',
-    tone: 'success' as const,
+    tone: 'success' as 'success' | 'warning' | 'danger',
   },
   {
     title: 'config.toml Projekt-ID',
     detail: 'Erledigt: project_id = sxqbmxqnwtrgibfryvqf (DC Project).',
     phase: 'Cleanup',
-    tone: 'success' as const,
+    tone: 'success' as 'success' | 'warning' | 'danger',
   },
 ];
 
@@ -235,7 +239,10 @@ export function Einstellungen() {
         </div>
       </div>
 
-      {/* 3. System-Integrationen */}
+      {/* 3. Einwilligungen */}
+      <ConsentSettings />
+
+      {/* 4. System-Integrationen */}
       <div className="glass-card p-5 space-y-4">
         <div>
           <p className="card-title">System-Integrationen</p>
@@ -244,7 +251,7 @@ export function Einstellungen() {
         <IntegrationenSektion companyId={resolvedCompanyId} />
       </div>
 
-      {/* 4. Offene technische Punkte */}
+      {/* 5. Offene technische Punkte */}
       <div className="glass-card p-5 space-y-3">
         <p className="card-title">Offene technische Punkte</p>
         <div className="space-y-2">
@@ -269,6 +276,52 @@ export function Einstellungen() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ConsentSettings() {
+  const [tick, setTick] = useState(0);
+  const consent = readConsent();
+
+  const toggle = (key: 'time' | 'location' | 'deliveryFolder', value: boolean) => {
+    const current = readConsent();
+    writeConsent({
+      time: key === 'time' ? value : current?.time ?? false,
+      location: key === 'location' ? value : current?.location ?? false,
+      deliveryFolder: key === 'deliveryFolder' ? value : current?.deliveryFolder ?? false,
+      os: current?.os ?? 'other',
+    });
+    setTick((n) => n + 1);
+  };
+
+  const revokeAll = () => {
+    clearConsent();
+    setTick((n) => n + 1);
+    toast.success('Einwilligungen auf diesem Gerät gelöscht');
+  };
+
+  return (
+    <div className="glass-card p-5 space-y-3" data-tick={tick}>
+      <div>
+        <p className="card-title">Einwilligungen</p>
+        <p className="meta-text mt-1">
+          Nur auf diesem Gerät gespeichert. Fahrer-GPS bleibt in „Meine Tour“ getrennt.
+        </p>
+      </div>
+      {[
+        { key: 'time' as const, title: 'Zeit & Datum', on: consent?.time ?? false },
+        { key: 'location' as const, title: 'Standort (dieser Rechner)', on: consent?.location ?? false },
+        { key: 'deliveryFolder' as const, title: 'Lieferschein-Import', on: consent?.deliveryFolder ?? false },
+      ].map((row) => (
+        <div key={row.key} className="flex items-center justify-between gap-3 sub-card p-3">
+          <p className="text-sm text-foreground">{row.title}</p>
+          <Switch checked={row.on} onCheckedChange={(v) => toggle(row.key, v)} />
+        </div>
+      ))}
+      <Button type="button" variant="outline" className="rounded" onClick={revokeAll}>
+        Alle widerrufen
+      </Button>
     </div>
   );
 }

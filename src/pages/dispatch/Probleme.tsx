@@ -8,6 +8,7 @@ import { useDispatch } from '@/lib/dispatch-context';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { matchesSearch } from '@/lib/dispatch-search';
 
 /* ── Types ── */
 type ProblemType = 'unassigned' | 'conflict' | 'absent';
@@ -73,7 +74,7 @@ export function useProblems(date: string, depotId: string | null = null) {
             .maybeSingle(),
           supabase
             .from('tour')
-            .select('id, description, is_active, version, plan_version_id')
+            .select('id, description, is_active, version, plan_version_id, driver_id')
             .eq('date', date)
             .eq('is_active', true),
           supabase.from('driver').select('id, name, status'),
@@ -145,16 +146,27 @@ export function useProblems(date: string, depotId: string | null = null) {
 
       const absentDrivers =
         drivers?.filter((d) => d.status === 'abwesend' || d.status === 'krank') ?? [];
+      const availableDrivers =
+        drivers?.filter((d) => {
+          const s = (d.status ?? '').toLowerCase();
+          return !s.includes('abwesend') && !s.includes('krank') && s !== 'inactive';
+        }) ?? [];
       for (const driver of absentDrivers) {
+        const driverTours = currentTours.filter((t) => t.driver_id === driver.id);
         problems.push({
           id: `P-ABS-${driver.id.slice(0, 6)}`,
           type: 'absent',
           title: `Fahrer ${driver.name ?? 'Unbekannt'} — Abwesend`,
-          detail: `${driver.status === 'krank' ? 'Krank' : 'Abwesend'} ab heute · ${currentTours.length} Touren nicht besetzt`,
+          detail:
+            driverTours.length > 0
+              ? `${driver.status === 'krank' ? 'Krank' : 'Abwesend'} · ${driverTours.length} Tour${driverTours.length === 1 ? '' : 'en'} ohne Vertretung`
+              : `${driver.status === 'krank' ? 'Krank' : 'Abwesend'} · keine aktive Tour`,
           severity: 'warnung',
           meta: {
+            date,
             driver,
-            availableDrivers: drivers?.filter((c) => c.status === 'aktiv' || c.status === 'active') ?? [],
+            tourIds: driverTours.map((t) => t.id),
+            availableDrivers,
           },
         });
       }
@@ -252,10 +264,13 @@ function useAiSuggestion(problem: Problem, date: string, enabled: boolean) {
         const { data, error } = await supabase.functions.invoke('ai-resolve', {
           body: {
             type: problem.type,
-            context:
-              problem.type === 'unassigned'
-                ? { shipments: (problem.meta as { shipments?: unknown })?.shipments, date }
-                : problem.meta,
+            context: {
+              date,
+              ...(problem.meta ?? {}),
+              ...(problem.type === 'unassigned'
+                ? { shipments: (problem.meta as { shipments?: unknown })?.shipments }
+                : {}),
+            },
           },
         });
         if (error) throw error;
@@ -358,14 +373,43 @@ function UnassignedDetail({ meta, date }: { meta: Record<string, unknown>; date:
 
 function AbsentDetail({ meta }: { meta: Record<string, unknown> }) {
   const qc = useQueryClient();
-  const driver = meta.driver as { name?: string; status?: string } | undefined;
+  const [assigning, setAssigning] = useState<string | null>(null);
+  const driver = meta.driver as { id?: string; name?: string; status?: string } | undefined;
   const available = (meta.availableDrivers as { id: string; name?: string }[]) ?? [];
+  const tourIds = (meta.tourIds as string[]) ?? [];
+  const date = typeof meta.date === 'string' ? meta.date : null;
+
+  const assignReplacement = async (replacement: { id: string; name?: string }) => {
+    if (!tourIds.length) {
+      toast.error('Keine aktive Tour dieses Fahrers — nichts zuzuweisen.');
+      return;
+    }
+    setAssigning(replacement.id);
+    try {
+      const { error } = await supabase
+        .from('tour')
+        .update({ driver_id: replacement.id })
+        .in('id', tourIds);
+      if (error) throw error;
+      toast.success(`Vertretung ${replacement.name ?? ''} auf ${tourIds.length} Tour(en) geschrieben`);
+      qc.invalidateQueries({ queryKey: ['problems'] });
+      qc.invalidateQueries({ queryKey: ['drivers'] });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Zuweisung fehlgeschlagen');
+    } finally {
+      setAssigning(null);
+    }
+  };
 
   return (
     <div className="space-y-4 mt-4">
       <div className="sub-card p-4 space-y-1">
         <p className="text-sm font-medium">{driver?.name ?? 'Unbekannt'}</p>
-        <p className="meta-text">Status: {driver?.status}</p>
+        <p className="meta-text">
+          Status: {driver?.status}
+          {date ? ` · ${date}` : ''}
+          {tourIds.length ? ` · ${tourIds.length} Tour(en)` : ''}
+        </p>
       </div>
       <p className="text-sm font-medium">Verfügbare Vertretungen</p>
       {available.length ? (
@@ -379,12 +423,10 @@ function AbsentDetail({ meta }: { meta: Record<string, unknown> }) {
               size="sm"
               variant="outline"
               className="rounded"
-              onClick={() => {
-                toast.success(`Vertretung ${d.name} zugewiesen`);
-                qc.invalidateQueries({ queryKey: ['problems'] });
-              }}
+              disabled={assigning === d.id || !tourIds.length}
+              onClick={() => void assignReplacement(d)}
             >
-              Zuweisen
+              {assigning === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Zuweisen'}
             </Button>
           </div>
         ))
@@ -418,18 +460,39 @@ function AiSuggestionBlock({
       const { data, error } = await supabase.functions.invoke('ai-resolve', {
         body: {
           type: problem.type,
-          context:
-            problem.type === 'unassigned'
-              ? { shipments: (problem.meta as { shipments?: unknown })?.shipments, date }
-              : problem.meta,
           apply: true,
+          context: {
+            date,
+            ...(problem.meta ?? {}),
+            ...(problem.type === 'unassigned'
+              ? { shipments: (problem.meta as { shipments?: unknown })?.shipments }
+              : {}),
+            ...(problem.type === 'absent'
+              ? {
+                  replacementDriverId: (problem.meta?.availableDrivers as { id: string }[] | undefined)?.[0]
+                    ?.id,
+                }
+              : {}),
+          },
         },
       });
       if (error) throw error;
+      if ((data as { error?: string } | null)?.error) {
+        throw new Error(String((data as { error: string }).error));
+      }
+      if ((data as { applied?: boolean } | null)?.applied === false) {
+        toast.message(
+          (data as { message?: string }).message ??
+            'Nur Vorschlag — es wurde nichts in die Datenbank geschrieben.',
+        );
+        return;
+      }
       toast.success(
         (data as { message?: string } | null)?.message ?? s.message ?? 'Vorschlag übernommen',
       );
       qc.invalidateQueries({ queryKey: ['problems'] });
+      qc.invalidateQueries({ queryKey: ['drivers'] });
+      qc.invalidateQueries({ queryKey: ['available-tours'] });
       onDismiss();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'KI-Fehler');
@@ -579,7 +642,7 @@ function ProblemCard({
 
 /* ── Main Component ── */
 export function Probleme() {
-  const { selectedDate, selectedDepotId } = useDispatch();
+  const { selectedDate, selectedDepotId, searchQuery } = useDispatch();
   const dateStr = selectedDate.toISOString().split('T')[0];
   const { data: problems, isLoading } = useProblems(dateStr, selectedDepotId);
   const [filter, setFilter] = useState<ProblemType | null>(null);
@@ -592,9 +655,17 @@ export function Probleme() {
   }, [problems, dismissed]);
 
   const filtered = useMemo(() => {
-    if (!filter) return activeProblem;
-    return activeProblem.filter((p) => p.type === filter);
-  }, [activeProblem, filter]);
+    const byType = filter ? activeProblem.filter((p) => p.type === filter) : activeProblem;
+    return byType.filter((p) =>
+      matchesSearch(
+        searchQuery,
+        p.title,
+        p.detail,
+        p.type,
+        (p.meta?.driver as { name?: string } | undefined)?.name,
+      ),
+    );
+  }, [activeProblem, filter, searchQuery]);
 
   const dismiss = useCallback(
     (id: string) => {

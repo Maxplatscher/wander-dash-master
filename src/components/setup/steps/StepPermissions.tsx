@@ -52,10 +52,11 @@ export function StepPermissions({ onBack, onComplete }: StepPermissionsProps) {
     const result = await requestDeviceLocation();
     setLocationLoading(false);
 
-    if (!result.ok) {
+    if (result.ok === false) {
+      const message = result.message;
       setLocationAllowed(false);
-      setLocationError(result.message);
-      toast.error(result.message);
+      setLocationError(message);
+      toast.error(message);
       return;
     }
 
@@ -111,7 +112,8 @@ export function StepPermissions({ onBack, onComplete }: StepPermissionsProps) {
         <h2 className="text-lg font-semibold text-foreground">Berechtigungen</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Einzelne Einwilligungen nach DSGVO Art. 6 Abs. 1 lit. a. Ablehnen ist möglich —
-          DispoCenter bleibt nutzbar. Widerruf später in den Einstellungen.
+          DispoCenter bleibt nutzbar. Widerruf später unter Einstellungen → Einwilligungen.
+          Fahrer-GPS wird nicht hier, sondern in „Meine Tour“ gefragt.
         </p>
       </div>
 
@@ -126,7 +128,7 @@ export function StepPermissions({ onBack, onComplete }: StepPermissionsProps) {
       <PermissionToggle
         icon={MapPin}
         title="Standort"
-        description="Für Distanzberechnung und Karten. Löst den Browser-Dialog aus."
+        description="Für Distanzberechnung und Karten auf diesem Rechner. Löst den Browser-Dialog aus. Keine Live-Ortung der Fahrzeuge."
         checked={locationAllowed}
         loading={locationLoading}
         error={locationError}
@@ -136,7 +138,7 @@ export function StepPermissions({ onBack, onComplete }: StepPermissionsProps) {
       <PermissionToggle
         icon={FileText}
         title="Lieferschein-Ordner"
-        description="KI darf hochgeladene Lieferscheine automatisch auslesen."
+        description="Erlaubt CSV-Upload und IMAP-Abruf von Lieferscheinen in den Einstellungen. Ein lokaler Ordner-Watcher (UNC) existiert nicht — Windows-Freigaben bleiben manuell."
         checked={deliveryAllowed}
         onCheckedChange={setDeliveryAllowed}
       />
@@ -149,7 +151,7 @@ export function StepPermissions({ onBack, onComplete }: StepPermissionsProps) {
           <div className="min-w-0 space-y-1 flex-1">
             <h3 className="text-sm font-semibold text-foreground">Betriebssystem</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Damit die KI passende lokale Upload-/Download-Pfade vorschlagen kann.
+              Damit CSV- und IMAP-Pfade zum Betriebssystem passen. Kein automatischer Upload-Watcher.
               Vorschlag: {OS_LABELS[suggestedOs]}
             </p>
             <div className="pt-1">

@@ -6,11 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import {
+  emptyFleetVehicle,
   FleetDriverDraft,
   FleetStepData,
-  newDraftKey,
 } from '@/lib/onboarding';
 import { seedDefaultPackmittel } from '@/lib/packmittel-defaults';
+import { inviteDriverAccount } from '@/lib/invite-driver';
+import { generateDriverCode } from '@/lib/driver-pin';
+import { DriverCodeRevealDialog } from '@/components/dispatch/DriverCodeRevealDialog';
+import { parseOptionalMm } from '@/lib/vehicle-volume';
 import { toast } from 'sonner';
 
 const EXISTING_VEHICLE_PREFIX = 'existing:';
@@ -28,6 +32,8 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
   const [modalOpen, setModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<FleetDriverDraft | null>(null);
   const [existingVehicles, setExistingVehicles] = useState<{ id: string; name: string }[]>([]);
+  const [reveal, setReveal] = useState<{ driverName: string; code: string }[] | null>(null);
+  const [pendingContinue, setPendingContinue] = useState<FleetStepData | null>(null);
 
   const patchDrivers = (drivers: FleetStepData['drivers']) => onChange({ ...value, drivers });
   const patchVehicles = (vehicles: FleetStepData['vehicles']) => onChange({ ...value, vehicles });
@@ -71,7 +77,7 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
   }, [value.vehicles, existingVehicles]);
 
   const addVehicle = () => {
-    patchVehicles([...value.vehicles, { key: newDraftKey('v'), name: '', capacity: '' }]);
+    patchVehicles([...value.vehicles, emptyFleetVehicle()]);
   };
 
   const removeDriver = (key: string) => {
@@ -81,7 +87,7 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
   const removeVehicle = (key: string) => {
     const nextVehicles =
       value.vehicles.length <= 1
-        ? [{ key: newDraftKey('v'), name: '', capacity: '' }]
+        ? [emptyFleetVehicle()]
         : value.vehicles.filter((v) => v.key !== key);
     const nextDrivers = value.drivers.map((d) =>
       d.assignedVehicleKey === key ? { ...d, assignedVehicleKey: null } : d,
@@ -136,6 +142,7 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
     try {
       const cid = await resolveCompanyId();
       const vehicleIdByDraftKey = new Map<string, string>();
+      const codeEntries: { driverName: string; code: string }[] = [];
 
       for (const v of filledVehicles) {
         const capacity = Number.parseInt(v.capacity.replace(/\D/g, ''), 10);
@@ -145,6 +152,9 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
             company_id: cid,
             name: v.name.trim(),
             capacity: Number.isFinite(capacity) && capacity > 0 ? capacity : null,
+            length_mm: parseOptionalMm(v.lengthMm),
+            width_mm: parseOptionalMm(v.widthMm),
+            height_mm: parseOptionalMm(v.heightMm),
           })
           .select('id')
           .single();
@@ -161,7 +171,7 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
         const photoUrl =
           d.photoUrl && !d.photoUrl.startsWith('data:') ? d.photoUrl : null;
 
-        const { error } = await supabase.from('driver').insert({
+        const { data: inserted, error } = await supabase.from('driver').insert({
           company_id: cid,
           name: d.name.trim(),
           phone: d.phone.trim() || null,
@@ -173,8 +183,27 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
           status: 'active',
           shift_start: '06:00',
           shift_end: '16:00',
-        });
+        }).select('id').single();
         if (error) throw new Error(`Fahrer: ${error.message}`);
+        if (inserted?.id) {
+          const generated = await generateDriverCode(inserted.id);
+          if (!generated.success || !generated.code) {
+            toast.warning(`${d.name}: Code nicht erzeugt — ${generated.error ?? 'unbekannt'}`);
+          } else {
+            codeEntries.push({ driverName: d.name.trim(), code: generated.code });
+          }
+        }
+        if (inserted?.id && d.email.trim()) {
+          const invite = await inviteDriverAccount(inserted.id, d.email.trim());
+          if (!invite.success) {
+            toast.warning(`${d.name}: Zugang nicht angelegt — ${invite.error}`);
+          } else if (invite.temporary_password) {
+            toast.success(
+              `${d.name}: Login ${invite.email} · Startpasswort ${invite.temporary_password}`,
+              { duration: 20_000 },
+            );
+          }
+        }
       }
 
       const packSeed = await seedDefaultPackmittel(supabase, cid);
@@ -190,7 +219,12 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
         toast.success('Standard-Packmittel angelegt');
       }
 
-      onContinue(value);
+      if (codeEntries.length) {
+        setReveal(codeEntries);
+        setPendingContinue(value);
+      } else {
+        onContinue(value);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
     } finally {
@@ -254,7 +288,7 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate">{d.name}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {d.personnelNumber.trim() || 'Keine Personalnummer'}
+                    {d.email.trim() || d.personnelNumber.trim() || 'Keine Login-E-Mail'}
                   </p>
                 </div>
                 <Button
@@ -331,6 +365,45 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
                     );
                   }}
                 />
+                <Input
+                  value={v.lengthMm}
+                  placeholder="Länge mm"
+                  inputMode="numeric"
+                  className="bg-white/5 border-white/10 rounded-xl"
+                  onChange={(e) => {
+                    patchVehicles(
+                      value.vehicles.map((row) =>
+                        row.key === v.key ? { ...row, lengthMm: e.target.value } : row,
+                      ),
+                    );
+                  }}
+                />
+                <Input
+                  value={v.widthMm}
+                  placeholder="Breite mm"
+                  inputMode="numeric"
+                  className="bg-white/5 border-white/10 rounded-xl"
+                  onChange={(e) => {
+                    patchVehicles(
+                      value.vehicles.map((row) =>
+                        row.key === v.key ? { ...row, widthMm: e.target.value } : row,
+                      ),
+                    );
+                  }}
+                />
+                <Input
+                  value={v.heightMm}
+                  placeholder="Höhe mm"
+                  inputMode="numeric"
+                  className="bg-white/5 border-white/10 rounded-xl sm:col-span-2"
+                  onChange={(e) => {
+                    patchVehicles(
+                      value.vehicles.map((row) =>
+                        row.key === v.key ? { ...row, heightMm: e.target.value } : row,
+                      ),
+                    );
+                  }}
+                />
               </div>
               <Button
                 type="button"
@@ -389,6 +462,18 @@ export function StepFleet({ companyId, value, onChange, onBack, onContinue }: St
         vehicles={vehicleOptions}
         onOpenChange={setModalOpen}
         onSave={saveDriverDraft}
+      />
+      <DriverCodeRevealDialog
+        open={!!reveal?.length}
+        entries={reveal ?? []}
+        onClose={() => {
+          setReveal(null);
+          if (pendingContinue) {
+            const next = pendingContinue;
+            setPendingContinue(null);
+            onContinue(next);
+          }
+        }}
       />
     </div>
   );

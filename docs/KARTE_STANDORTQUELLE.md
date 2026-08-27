@@ -21,23 +21,17 @@ Hinweis „Keine GPS-Ortung". Kein Element darf als Live-Standort gelesen werden
 
 ## Voraussetzung, damit die Karte überhaupt Marker zeigt
 
-`shipment.location_x` / `location_y` müssen befüllt sein. Aktuell sind sie bei echten
-Sendungen NULL, weil die Lieferadressen nirgends geokodiert werden. Vorhandene Bausteine für
-den nächsten Schritt:
-
-- Adresse → Koordinaten läuft im Frontend bereits sauber: `StepCompany.tsx` löst eine
-  Places-Auswahl per `PlacesService.getDetails` (`geometry`) in `lat`/`lng` auf. Dasselbe
-  Muster passt für die Adresseingabe einer Sendung.
-- Serverseitig existiert der Google-Key als `GOOGLE_MAPS_API_KEY` in den Edge Functions
-  (`assign-depot` nutzt ihn für die Distance Matrix). Eine Geokodierung gehört an dieselbe
-  Stelle: `delivery_address` → Geocoding API → `location_x`/`location_y` schreiben, danach
-  `assign-depot` und `plan-tour` rechnen ohne Änderung weiter.
+`shipment.location_x` / `location_y` müssen befüllt sein. `geocode-shipments` läuft vor
+`plan-tour` in Kontrollzentrale und Kalender: Google Geocoding wenn
+`GOOGLE_MAPS_API_KEY` gesetzt ist, sonst Nominatim (siehe `docs/NOMINATIM_LIMITS.md`).
+Ohne Adresse oder ohne Treffer bleibt die Sendung ungeokodiert — nichts wird geschätzt.
 
 ## Echtes Live-GPS später
 
-Quelle: Standortfreigabe im Browser des Fahrers auf der Fahreransicht
-(`navigator.geolocation`, Einwilligung liegt bereits vor: `src/lib/consent.ts`,
-`ConsentDialog`/`StepPermissions`). Kein Fremdanbieter, keine Telematikbox nötig.
+Quelle: Standortfreigabe im Browser des Fahrers auf **Meine Tour**
+(`navigator.geolocation`, `src/lib/consent.ts` → `DRIVER_GPS_STORAGE_KEY`).
+Dispatcher-Consent (Zeit/Standort/Lieferschein) liegt im Onboarding und unter Einstellungen.
+Kein Fremdanbieter, keine Telematikbox. Es wird **noch keine Position gespeichert**.
 
 Dafür fehlt eine eigene Tabelle, z. B. `driver_position`:
 

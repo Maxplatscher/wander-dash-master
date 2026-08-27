@@ -6,6 +6,9 @@ import { useDispatch } from '@/lib/dispatch-context';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { formatTime } from '@/lib/format-time';
+import { geocodeThenPlanTour, planTourSuccessMessage } from '@/lib/start-planning';
+import { matchesSearch } from '@/lib/dispatch-search';
 
 type ViewMode = 'month' | 'week' | 'day';
 
@@ -85,15 +88,6 @@ function isoWeekNumber(d: Date): number {
   return Math.ceil(((t.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
-function formatTime(raw: string | null | undefined): string {
-  if (!raw) return '—';
-  try {
-    return new Date(raw).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return raw.slice(0, 5);
-  }
-}
-
 function formatShift(raw: string | null | undefined): string {
   return raw ? raw.slice(0, 5) : '—';
 }
@@ -162,7 +156,7 @@ function useCalendarRange(from: Date, to: Date, depotId: string | null) {
 }
 
 export function Kalender() {
-  const { selectedDepotId, selectedDate, setSelectedDate, refreshAll } = useDispatch();
+  const { selectedDepotId, selectedDate, setSelectedDate, refreshAll, searchQuery } = useDispatch();
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [viewDate, setViewDate] = useState(() => new Date(selectedDate));
@@ -299,21 +293,14 @@ export function Kalender() {
   const startPlanning = async (dateStr: string) => {
     setPlanLoading(true);
     try {
-      const assignRes = await supabase.functions.invoke('assign-depot', {
-        body: { date: dateStr, force: true },
+      const result = await geocodeThenPlanTour({
+        date: dateStr,
+        depotId: selectedDepotId,
       });
-      if (assignRes.error) throw assignRes.error;
-      if (assignRes.data?.error) throw new Error(assignRes.data.error);
-
-      const { data: planData, error } = await supabase.functions.invoke('plan-tour', {
-        body: {
-          date: dateStr,
-          ...(selectedDepotId ? { depot_id: selectedDepotId } : {}),
-        },
-      });
-      if (error) throw error;
-      if (planData?.error) throw new Error(planData.error);
-      toast.success('Planung gestartet');
+      toast.success(planTourSuccessMessage(result));
+      if (result.geocodeWarning) {
+        toast.warning(`Geokodierung unvollständig: ${result.geocodeWarning}`);
+      }
       refreshAll();
       queryClient.invalidateQueries({ queryKey: ['shipments-range'] });
     } catch (e: unknown) {
@@ -351,7 +338,11 @@ export function Kalender() {
 
   const selectedShipments = shipmentsByDate.get(selectedDay) ?? [];
   const selectedAssigned = assignedByDate.get(selectedDay) ?? new Set();
-  const unassignedSelected = selectedShipments.filter((s) => !selectedAssigned.has(s.id));
+  const unassignedSelected = selectedShipments.filter(
+    (s) =>
+      !selectedAssigned.has(s.id) &&
+      matchesSearch(searchQuery, s.name, s.customer_name, s.delivery_address),
+  );
   const selectedStats = dayStats(selectedDay);
 
   const driverDayRows = useMemo(() => {
@@ -398,18 +389,30 @@ export function Kalender() {
       const key = fmt(d);
       const assigned = assignedByDate.get(key) ?? new Set();
       for (const s of shipmentsByDate.get(key) ?? []) {
-        if (!assigned.has(s.id)) rows.push(s);
+        if (!assigned.has(s.id)) {
+          if (matchesSearch(searchQuery, s.name, s.customer_name, s.delivery_address)) {
+            rows.push(s);
+          }
+        }
       }
     }
     return rows;
-  }, [weekDays, assignedByDate, shipmentsByDate]);
+  }, [weekDays, assignedByDate, shipmentsByDate, searchQuery]);
 
   const dayKey = viewMode === 'day' ? fmt(viewDate) : selectedDay;
   const dayKeyStats = dayStats(dayKey);
   const dayKeyShipments = shipmentsByDate.get(dayKey) ?? [];
   const dayKeyAssigned = assignedByDate.get(dayKey) ?? new Set();
-  const dayKeyUnassigned = dayKeyShipments.filter((s) => !dayKeyAssigned.has(s.id));
-  const dayKeyAssignedList = dayKeyShipments.filter((s) => dayKeyAssigned.has(s.id));
+  const dayKeyUnassigned = dayKeyShipments.filter(
+    (s) =>
+      !dayKeyAssigned.has(s.id) &&
+      matchesSearch(searchQuery, s.name, s.customer_name, s.delivery_address),
+  );
+  const dayKeyAssignedList = dayKeyShipments.filter(
+    (s) =>
+      dayKeyAssigned.has(s.id) &&
+      matchesSearch(searchQuery, s.name, s.customer_name, s.delivery_address),
+  );
 
   const title =
     viewMode === 'month'

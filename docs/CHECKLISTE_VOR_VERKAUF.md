@@ -1,40 +1,44 @@
 # Checkliste vor Verkauf/Launch — DispoCenter
 
-> Stand: 22.08.2026, nach dem Samstags-Fahrerbetrieb. `docs/CLAUDE_PROJECT_PROMPT.md` ist an mehreren Stellen veraltet — z. B. sind die dort gelisteten Alt-Komponenten und `Versionen.tsx` bereits entfernt, `Fahrer.tsx`/`Kalender.tsx` laufen bereits auf echten Daten. Diese Liste ersetzt den technischen Teil davon.
+> Stand: 27.08.2026, nach Technik B+A (Invite, Volumen, IMAP, CSV/SFTP, Playwright, ehrliche UI).
+> `docs/CLAUDE_PROJECT_PROMPT.md` ist an mehreren Stellen veraltet. Für den Testkunden:
+> `docs/CHECKLISTE_TESTKUNDE.md`.
 
-## A. Kernfunktionen, die noch nicht echt sind (Blocker)
+## A. Kern — im Code erledigt, Deploy/Betrieb oft noch offen
 
-1. **Live-Standortkarte (`LiveMap.tsx`)** — Demo-Marker und das Label „Live-Standort" sind entfernt. Die Karte zeigt nur echte Stop-Koordinaten als „Tourposition / letzter bestätigter Stop" und sonst einen ehrlichen Leerzustand („Keine GPS-Ortung"). Es gibt weiterhin **keine GPS-Quelle**; Marker erscheinen erst, wenn `shipment.location_x`/`location_y` per Geokodierung befüllt sind. Nächster Schritt und spätere GPS-Tabelle: `docs/KARTE_STANDORTQUELLE.md`.
-2. **„Meine Tour heute" für Fahrer-Rolle (`DriverTourView.tsx`)** — erledigt am 22.08.2026. Ein Fahrer sieht über `users.driver_id` → `tour.driver_id` seine aktive Tagestour, schließt Stops über die RPC `complete_my_tour_stop` ab, und der Status bleibt nach Reload in `tour_stop` gespeichert. Navigation zeigt nur „Meine Tour"; der Firmen-Wizard unter `/setup` wird für Fahrer übersprungen.
-3. **E-Mail/IMAP-Import für Lieferscheine** — in `Kontrollzentrale.tsx` nach wie vor nur ein Platzhalter („Ausstehend", feste Beispiel-Adresse `lieferscheine@dispatch.example.com`). Keine echte IMAP-Anbindung, kein automatisches Anlegen von `shipment`-Zeilen aus Mails. Das ist aber genau die Berechtigung, die im Onboarding-Wizard bereits abgefragt wird („Zugriff auf Lieferscheine erlauben") — Erwartung vs. Funktion klaffen auseinander.
+1. **Karte** — keine GPS-Quelle. Marker nur aus geokodierten `shipment.location_x`/`location_y`. Vor Planung läuft `geocode-shipments` (Google, sonst Nominatim). Limits: `docs/NOMINATIM_LIMITS.md`. Live-GPS und Historie fehlen bewusst.
+2. **Meine Tour** — Fahrer über `users.driver_id`, Stops über `complete_my_tour_stop`. Invite legt den Login an (`invite-driver`). GPS-Consent auf Meine Tour, keine Übertragung.
+3. **IMAP** — Parser setzt Adresse/Name/Gewicht nur wenn gefunden. Manueller Abruf plus geplanter Cron (`fetch-imap`, Secret). Deploy + `IMAP_CRON_SECRET` sind Betreiber-Schritte.
+4. **CSV/SFTP** — Upload unter Integrationen, `fetch-sftp` für HTTPS/SFTP-CSV. UNC bleibt manuell.
 
-## B. Sicherheit
+## B. Sicherheit (Betreiber)
 
-4. Security-Advisor am 22.08.2026 erneut geprüft: `function_search_path_mutable` auf `set_updated_at` ist behoben; `anon` hat kein EXECUTE mehr auf `encrypt`/`decrypt_integration_secret`, `ensure_default_company` und `handle_new_user`. Fahrer können Stammdaten und Integrationen nicht mehr schreiben; `delete_integration_with_secret` prüft Admin/Dispatcher. Verbleibend (WARN, bewusst): `authenticated` darf die für RLS/App nötigen SECURITY-DEFINER-Funktionen (`get_my_role`, `get_user_company_id`, `has_role`, `complete_my_tour_stop`, `get_current_driver_id`, `delete_integration_with_secret`) ausführen. „Leaked Password Protection" ist in Supabase Auth deaktiviert — vor Live-Betrieb aktivieren. Das Passwort des Testaccounts liegt im Git-Verlauf (Commit `0df1dfd`) und muss vor Verkauf rotiert werden.
-5. Google Cloud: HTTP-Referrer-Einschränkung für den Maps-Key gilt bisher nur für `localhost`/LAN-IP — sobald eine Produktionsdomain feststeht, dort ergänzen (sonst blockt Places/Maps live).
+5. Leaked-Password-Protection in Supabase Auth vor Live aktivieren. Testpasswörter aus Git-Verlauf rotieren.
+6. Google-Maps-Key: HTTP-Referrer auf Produktionsdomain setzen.
+7. Functions nach Freigabe deployen: `invite-driver`, `fetch-imap`, `fetch-sftp`, `geocode-shipments`, `plan-tour`. Migration Fahrzeug-L/B/H remote anwenden.
 
-## C. Tourenplanung/KI — Tiefe fehlt noch
+## C. Planung
 
-6. `plan-tour` rechnet weiterhin nur 1-dimensional mit Gewicht (`weight_kg`/`demand`) und einer Manhattan-Distanz-Heuristik — keine Volumen-/Packmittel-Logik, obwohl `artikel`/`packmittel`-Tabellen bereits existieren. Die Verknüpfung „Artikelmaße → Ladevolumen → Tourenplanung" ist konzeptionell offen (war als Donnerstag-Punkt vorgesehen).
-7. `vehicle`-Tabelle hat noch keine Laderaum-Maße (Länge/Breite/Höhe) — Voraussetzung für Punkt 6.
-8. Artikel-KI-Recherche (`research-article`/`ArticleReviewPanel`) ist mit Serper end-to-end getestet: konkrete Herstellerquelle, 95 % Confidence und verifizierte Produktmaße. Gemini Google Search bleibt als Fallback eingebaut; quelllose Schätzungen werden bewusst abgelehnt.
+8. `plan-tour` prüft Rest-kg und Rest-m³, wenn L/B/H am Fahrzeug stehen. Kein 3D-Bin-Packing.
+9. Artikel-KI (`research-article`) unverändert: quelllose Schätzungen werden abgelehnt.
 
-## D. Fehlende Infrastruktur
+## D. Infrastruktur
 
-9. Kein Storage-Bucket in Supabase vorhanden — die Fahrer-Visitenkarte hat ein `photo_url`-Feld, aber ohne Bucket kann kein Foto hochgeladen werden.
-10. Onboarding-Wizard fragt weiterhin ein Farbschema ab (`StepTheme.tsx`, `theme-presets.ts`), das feste Dark-Cyan-Design im Dashboard selbst berücksichtigt diese Wahl aber gar nicht mehr — Auswahl ohne Wirkung. Entweder Step entfernen oder als reine Akzentfarbe im festen Dark-Theme wieder einbauen.
-11. Supabase-Projekt pausiert bei Inaktivität (Free-Tier) — vor einem Kundentermin/Demo prüfen, ob das Projekt noch aktiv ist bzw. auf einen bezahlten Plan wechseln, sonst sind bei einem Neustart alle Tabellen leer.
+10. Kein Storage-Bucket — Fahrer-Foto kann nicht hochgeladen werden.
+11. Farbschema/Hell-Modus ist Design-Arbeit, nicht Teil dieser Runde.
+12. Supabase Free-Tier pausiert — vor Kundentermin prüfen oder Pro buchen.
 
-## E. Tests/QA
+## E. Tests
 
-12. Vollständiger End-to-End-Test: Registrierung → Onboarding → Startseite → Lieferschein → Artikel-Erkennung → Tourenplanung — laut Tagesplan für Freitag vorgesehen, Stand unklar. Der Fahrerpfad (Login → eigene Tour → Stop abschließen → Reload) ist am 22.08.2026 automatisiert (`npm run test:integration`) und im Browser geprüft.
-13. RLS für `artikel`/`packmittel` unter echter Fahreridentität geprüft: Lesen der eigenen Company ja, Schreiben nein; fremde Companies unsichtbar. Zusätzlich geschlossen: Mandantenleck in `email_log` ohne `company_id`, Fahrer-Schreibrechte auf Depot/Tourenplan/Firma/Integrationen, `TRUNCATE` für `anon`/`authenticated`.
-14. Automatisierte Tests: 25 Unit-Tests plus 9 Integrationstests für den Fahrer-Login und Stop-Abschluss. Playwright bleibt ungenutzt; der kritische Fahrerpfad läuft über Vitest gegen die Remote-DB.
+13. Unit: Vitest inkl. Invite, Volumen, IMAP-Parser, CSV, Suche, formatTime, Demo-Zugang.
+14. Integration: `npm run test:integration` (Fahrer-Login/Stop).
+15. E2E: `npm run test:e2e` (Playwright, `.env.test`). Registrierungs-Wizard nicht im E2E, Invite deckt den Fahrerpfad.
 
-## F. Versionsstand
+## F. Recht / Verkauf — nicht im Code final
 
-15. Samstag 22.08.2026: Fahrerbetrieb ohne Demo-Daten (Tour, Stop-Abschluss, ehrliche Karte, RLS). Branch `feat/samstag-fahrerbetrieb`. Offene technische Restpunkte: Geokodierung der Lieferadressen, echtes Live-GPS, Passwort-Rotation, IMAP-Import.
+16. `/impressum` und `/datenschutz` sind Entwürfe mit Banner. AVV fehlt.
+17. Preismodell, Support, Monitoring, Telematik: außerhalb.
 
-## G. Außerhalb meines Blickfelds — bitte selbst einordnen
+## G. Totcode
 
-Ich sehe nur Code und Datenbank, keine geschäftliche/rechtliche Seite. Für „Verkauf" typischerweise zusätzlich nötig: Impressum/AGB/Datenschutzerklärung, Auftragsverarbeitungsvertrag (AVV) mit Kunden (personenbezogene Fahrer-/Kundendaten!), Preismodell/Abrechnung, Support-Prozess, Datenmigration für echte Bestandskunden, Produktions-Hosting-Plan (Supabase-Tier, Domain, Backups/Monitoring). Kann ich bei Bedarf mit recherchieren, sobald klar ist, was davon schon existiert.
+18. Ungeroutete Lovable-Reste entfernt: `Index`, `AppSidebar`, `NavLink`, `StatCard`, `TourCard`, `DispatchSidebar`, `SetupConsent`, `ConsentDialog`. Consent sitzt im Onboarding (`StepPermissions`) und in den Einstellungen.
