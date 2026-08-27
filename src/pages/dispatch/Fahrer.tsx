@@ -8,6 +8,7 @@ import { DriverDetailDialog } from "@/components/dispatch/DriverDetailDialog";
 import { DriverTourView } from "@/components/dispatch/DriverTourView";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { cubicMetersFromMm } from "@/lib/vehicle-volume";
 
 interface FleetCard {
   id: string;
@@ -18,6 +19,7 @@ interface FleetCard {
   shiftEnd: string;
   vehicleName: string;
   capacity: number;
+  volumeM3: number | null;
   weight: number;
   util: number;
   tourId: string | null;
@@ -82,7 +84,7 @@ function useFleetCards(companyId: string | null, date: string) {
           .order("name"),
         supabase
           .from("vehicle")
-          .select("id, name, capacity")
+          .select("id, name, capacity, length_mm, width_mm, height_mm")
           .eq("company_id", cid),
         supabase
           .from("tour")
@@ -145,6 +147,11 @@ function useFleetCards(companyId: string | null, date: string) {
           0,
         );
         const capacity = vehicle?.capacity ?? 0;
+        const volumeM3 = cubicMetersFromMm(
+          vehicle?.length_mm,
+          vehicle?.width_mm,
+          vehicle?.height_mm,
+        );
         const util =
           capacity > 0
             ? Math.min(100, Math.round((weight / capacity) * 100))
@@ -159,6 +166,7 @@ function useFleetCards(companyId: string | null, date: string) {
           shiftEnd: driver.shift_end?.slice(0, 5) || "—",
           vehicleName: vehicle?.name ?? "—",
           capacity,
+          volumeM3,
           weight,
           util,
           tourId: tour?.id ?? null,
@@ -294,6 +302,7 @@ export function Fahrer() {
                     </p>
                     <p className="text-sm text-foreground mt-0.5 whitespace-nowrap">
                       {d.weight} / {d.capacity || "—"} kg
+                      {d.volumeM3 != null ? ` · ${d.volumeM3.toFixed(1)} m³` : ""}
                     </p>
                   </div>
                   <div className="col-span-2">

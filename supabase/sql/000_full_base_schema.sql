@@ -27,7 +27,10 @@ CREATE TABLE public.vehicle (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES public.company(id) ON DELETE CASCADE,
   name TEXT,
-  capacity INTEGER
+  capacity INTEGER,
+  length_mm INTEGER,
+  width_mm INTEGER,
+  height_mm INTEGER
 );
 ALTER TABLE public.vehicle ENABLE ROW LEVEL SECURITY;
 

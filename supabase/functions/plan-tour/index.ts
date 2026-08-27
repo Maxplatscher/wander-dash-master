@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  cubicMetersFromMm,
+  shipmentFitsVehicle,
+  volumeFromShipmentJson,
+} from "../_shared/vehicle-volume.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,11 +19,14 @@ interface ShipmentRow {
   window_start: string | null;
   window_end: string | null;
   depot_id: string | null;
+  missing_fields: unknown;
+  positionen: unknown;
 }
 
 interface Shipment {
   id: string;
   load: number;
+  volume_m3: number | null;
   location_x: number;
   location_y: number;
   window_start: string | null;
@@ -29,6 +37,7 @@ interface Shipment {
 interface Vehicle {
   id: string;
   capacity: number;
+  volume_m3: number | null;
   name: string;
 }
 
@@ -46,6 +55,7 @@ function normalizeShipments(rows: ShipmentRow[]): Shipment[] {
   return rows.map((row) => ({
     id: row.id,
     load: Math.max(row.weight_kg ?? row.demand ?? 1, 0),
+    volume_m3: volumeFromShipmentJson(row.missing_fields, row.positionen),
     location_x: row.location_x ?? 0,
     location_y: row.location_y ?? 0,
     window_start: row.window_start,
@@ -105,6 +115,7 @@ function greedyPlan(
     if (unassigned.length === 0) break;
 
     let remaining = vehicle.capacity;
+    let remainingVolume = vehicle.volume_m3;
     let current = depot;
     const stops: { shipmentId: string; index: number }[] = [];
     let totalCost = 0;
@@ -116,7 +127,13 @@ function greedyPlan(
       for (let i = 0; i < unassigned.length; i++) {
         const shipment = unassigned[i];
         const distance = manhattan(current, shipment);
-        if (shipment.load <= remaining && distance < bestDist) {
+        const fits = shipmentFitsVehicle({
+          remainingKg: remaining,
+          remainingM3: remainingVolume,
+          shipmentKg: shipment.load,
+          shipmentM3: shipment.volume_m3,
+        });
+        if (fits && distance < bestDist) {
           bestDist = distance;
           bestIdx = i;
         }
@@ -126,6 +143,9 @@ function greedyPlan(
 
       const chosen = unassigned.splice(bestIdx, 1)[0];
       remaining -= chosen.load;
+      if (remainingVolume != null && chosen.volume_m3 != null) {
+        remainingVolume -= chosen.volume_m3;
+      }
       totalCost += bestDist;
       stops.push({ shipmentId: chosen.id, index: stops.length });
       current = { location_x: chosen.location_x, location_y: chosen.location_y };
@@ -185,7 +205,7 @@ Deno.serve(async (req) => {
 
     let shipmentQuery = supabase
       .from("shipment")
-      .select("id, weight_kg, demand, location_x, location_y, window_start, window_end, depot_id")
+      .select("id, weight_kg, demand, location_x, location_y, window_start, window_end, depot_id, missing_fields, positionen")
       .eq("company_id", company_id)
       .eq("service_date", date);
 
@@ -235,7 +255,7 @@ Deno.serve(async (req) => {
 
     const { data: vehicleRows, error: vehicleError } = await supabase
       .from("vehicle")
-      .select("id, capacity, name")
+      .select("id, capacity, name, length_mm, width_mm, height_mm")
       .eq("company_id", company_id);
 
     if (vehicleError) throw vehicleError;
@@ -244,6 +264,7 @@ Deno.serve(async (req) => {
       .map((vehicle) => ({
         id: vehicle.id,
         capacity: vehicle.capacity ?? 0,
+        volume_m3: cubicMetersFromMm(vehicle.length_mm, vehicle.width_mm, vehicle.height_mm),
         name: vehicle.name ?? "Fahrzeug",
       }))
       .filter((vehicle) => vehicle.capacity > 0)

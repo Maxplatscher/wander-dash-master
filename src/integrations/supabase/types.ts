@@ -760,20 +760,29 @@ export type Database = {
         Row: {
           capacity: number | null
           company_id: string
+          height_mm: number | null
           id: string
+          length_mm: number | null
           name: string | null
+          width_mm: number | null
         }
         Insert: {
           capacity?: number | null
           company_id: string
+          height_mm?: number | null
           id?: string
+          length_mm?: number | null
           name?: string | null
+          width_mm?: number | null
         }
         Update: {
           capacity?: number | null
           company_id?: string
+          height_mm?: number | null
           id?: string
+          length_mm?: number | null
           name?: string | null
+          width_mm?: number | null
         }
         Relationships: [
           {

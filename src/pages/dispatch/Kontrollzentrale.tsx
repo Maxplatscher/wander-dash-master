@@ -9,6 +9,7 @@ import { useDispatch } from '@/lib/dispatch-context';
 import { cn } from '@/lib/utils';
 import { ArticleReviewPanel } from '@/components/dispatch/ArticleReviewPanel';
 import { parseMissingFields } from '@/lib/article-research';
+import { parseOptionalMm, cubicMetersFromMm } from '@/lib/vehicle-volume';
 
 const STATUS_BADGE: Record<string, string> = {
   new: 'bg-primary/15 text-primary',
@@ -48,6 +49,9 @@ export function Kontrollzentrale() {
   const [driverPhone, setDriverPhone] = useState('');
   const [vehicleName, setVehicleName] = useState('');
   const [vehicleCap, setVehicleCap] = useState('');
+  const [vehicleLengthMm, setVehicleLengthMm] = useState('');
+  const [vehicleWidthMm, setVehicleWidthMm] = useState('');
+  const [vehicleHeightMm, setVehicleHeightMm] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
   const [demoLoading, setDemoLoading] = useState(false);
   const [planLoading, setPlanLoading] = useState(false);
@@ -81,12 +85,18 @@ export function Kontrollzentrale() {
       const { error } = await supabase.from('vehicle').insert({
         name: vehicleName.trim(),
         capacity: vehicleCap ? parseInt(vehicleCap, 10) : null,
+        length_mm: parseOptionalMm(vehicleLengthMm),
+        width_mm: parseOptionalMm(vehicleWidthMm),
+        height_mm: parseOptionalMm(vehicleHeightMm),
         company_id: (await supabase.rpc('get_user_company_id')).data!,
       });
       if (error) throw error;
       toast.success(`Fahrzeug "${vehicleName}" hinzugefügt`);
       setVehicleName('');
       setVehicleCap('');
+      setVehicleLengthMm('');
+      setVehicleWidthMm('');
+      setVehicleHeightMm('');
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Fehler');
@@ -324,6 +334,27 @@ export function Kontrollzentrale() {
                 value={vehicleCap}
                 onChange={(e) => setVehicleCap(e.target.value)}
                 className="h-8 text-sm rounded w-28 bg-white/[0.03] border-hairline"
+              />
+              <Input
+                placeholder="L mm"
+                type="number"
+                value={vehicleLengthMm}
+                onChange={(e) => setVehicleLengthMm(e.target.value)}
+                className="h-8 text-sm rounded w-20 bg-white/[0.03] border-hairline"
+              />
+              <Input
+                placeholder="B mm"
+                type="number"
+                value={vehicleWidthMm}
+                onChange={(e) => setVehicleWidthMm(e.target.value)}
+                className="h-8 text-sm rounded w-20 bg-white/[0.03] border-hairline"
+              />
+              <Input
+                placeholder="H mm"
+                type="number"
+                value={vehicleHeightMm}
+                onChange={(e) => setVehicleHeightMm(e.target.value)}
+                className="h-8 text-sm rounded w-20 bg-white/[0.03] border-hairline"
               />
               <Button
                 size="sm"
