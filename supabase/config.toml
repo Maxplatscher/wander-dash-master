@@ -1,1 +1,4 @@
 project_id = "sxqbmxqnwtrgibfryvqf"
+
+[functions.fetch-imap]
+verify_jwt = false

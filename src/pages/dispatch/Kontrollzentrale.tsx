@@ -8,8 +8,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useDispatch } from '@/lib/dispatch-context';
 import { cn } from '@/lib/utils';
 import { ArticleReviewPanel } from '@/components/dispatch/ArticleReviewPanel';
+import { useIntegrations } from '@/hooks/useIntegrations';
 import { parseMissingFields } from '@/lib/article-research';
-import { parseOptionalMm, cubicMetersFromMm } from '@/lib/vehicle-volume';
+import { parseOptionalMm } from '@/lib/vehicle-volume';
 
 const STATUS_BADGE: Record<string, string> = {
   new: 'bg-primary/15 text-primary',
@@ -26,9 +27,15 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 export function Kontrollzentrale() {
-  const { selectedDate, refreshKey, selectedDepotId, selectedDepotLabel, refreshAll } = useDispatch();
+  const { selectedDate, refreshKey, selectedDepotId, selectedDepotLabel, refreshAll, companyId } = useDispatch();
   const queryClient = useQueryClient();
   const dateStr = selectedDate.toISOString().split('T')[0];
+  const { integrations } = useIntegrations(companyId);
+  const imap = integrations.find((item) => item.system_type === 'email_imap' && item.is_active);
+  const imapHost =
+    imap && typeof imap.config?.host === 'string' && imap.config.host.trim()
+      ? imap.config.host.trim()
+      : null;
 
   const { data: shipments, isLoading: shipmentsLoading } = useQuery({
     queryKey: ['shipments', dateStr, selectedDepotId, refreshKey],
@@ -53,6 +60,7 @@ export function Kontrollzentrale() {
   const [vehicleWidthMm, setVehicleWidthMm] = useState('');
   const [vehicleHeightMm, setVehicleHeightMm] = useState('');
   const [adding, setAdding] = useState<string | null>(null);
+  const [imapLoading, setImapLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   const [planLoading, setPlanLoading] = useState(false);
 
@@ -102,6 +110,25 @@ export function Kontrollzentrale() {
       toast.error(e instanceof Error ? e.message : 'Fehler');
     } finally {
       setAdding(null);
+    }
+  };
+
+  const fetchImap = async () => {
+    setImapLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-imap');
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(
+        `${data?.created ?? 0} Sendung(en) aus dem Postfach übernommen` +
+          (data?.cron ? ' · Cron' : ''),
+      );
+      refreshAll();
+      queryClient.invalidateQueries({ queryKey: ['shipments'] });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'IMAP-Abruf fehlgeschlagen');
+    } finally {
+      setImapLoading(false);
     }
   };
 
@@ -167,20 +194,29 @@ export function Kontrollzentrale() {
             <Mail className="w-4 h-4 text-primary" />
             <p className="card-title">E-Mail-Zugang</p>
           </div>
-          <span className="shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm bg-warning/15 text-warning">
-            Ausstehend
+          <span className={cn(
+            'shrink-0 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-sm',
+            imapHost ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning',
+          )}>
+            {imapHost ? 'verbunden' : 'Ausstehend'}
           </span>
         </div>
         <p className="meta-text">
-          Lieferscheine per IMAP empfangen — eingehende Mails werden über die System-Integration
-          verarbeitet und als Sendungen angelegt.
+          {imapHost
+            ? `Ungelesene Mails werden manuell oder alle 15 Minuten von ${imapHost} geholt. Adressen werden nur gesetzt, wenn sie im Text stehen.`
+            : 'Noch kein IMAP-Konto. Unter Einstellungen Host, Ordner und Zugangsdaten hinterlegen, danach hier Mails abrufen.'}
         </p>
-        <div className="sub-card px-3 py-2.5 flex items-center gap-3">
-          <Mail className="w-3.5 h-3.5 text-dim shrink-0" />
-          <code className="font-mono text-sm text-foreground truncate">
-            lieferscheine@dispatch.example.com
-          </code>
-        </div>
+        {imapHost && (
+          <Button
+            variant="outline"
+            className="rounded"
+            onClick={() => void fetchImap()}
+            disabled={imapLoading}
+          >
+            {imapLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Mail className="w-4 h-4 mr-1.5" />}
+            Mails abrufen
+          </Button>
+        )}
       </div>
 
       {/* 2. Lieferschein-Tabelle */}
