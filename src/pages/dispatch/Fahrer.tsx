@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDispatch } from "@/lib/dispatch-context";
+import { matchesSearch } from "@/lib/dispatch-search";
 import { AddDriverDialog } from "@/components/dispatch/AddDriverDialog";
 import { DriverDetailDialog } from "@/components/dispatch/DriverDetailDialog";
 import { DriverTourView } from "@/components/dispatch/DriverTourView";
@@ -183,7 +184,7 @@ function useFleetCards(companyId: string | null, date: string) {
 }
 
 export function Fahrer() {
-  const { role, companyId, selectedDate } = useDispatch();
+  const { role, companyId, selectedDate, searchQuery } = useDispatch();
   const dateStr = fmtDate(selectedDate);
   // Fahrer sehen keine Flotte — die Flottenabfrage bleibt für sie ungenutzt.
   const { data: fleet, isLoading } = useFleetCards(
@@ -192,7 +193,13 @@ export function Fahrer() {
   );
   const [showAddDriver, setShowAddDriver] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState<FleetCard | null>(null);
-  const cards = fleet?.cards;
+  const cards = useMemo(
+    () =>
+      (fleet?.cards ?? []).filter((d) =>
+        matchesSearch(searchQuery, d.name, d.phone, d.vehicleName, d.tourLabel, d.tourId),
+      ),
+    [fleet?.cards, searchQuery],
+  );
 
   if (role === "driver") {
     return <DriverTourView selectedDate={selectedDate} />;
@@ -204,7 +211,7 @@ export function Fahrer() {
         <div>
           <p className="section-title">Fahrer & Fahrzeuge</p>
           <h2 className="page-title mt-1">
-            {cards?.length ?? 0} Fahrer · {fleet?.vehicleCount ?? 0} Fahrzeuge
+          {cards.length ?? 0} Fahrer · {fleet?.vehicleCount ?? 0} Fahrzeuge
           </h2>
           <p className="meta-text mt-1">
             {selectedDate.toLocaleDateString("de-DE", {
@@ -229,8 +236,9 @@ export function Fahrer() {
         </div>
       ) : !cards?.length ? (
         <div className="glass-card p-8 text-center meta-text">
-          Noch keine Fahrer angelegt — im Onboarding oder unter Lieferscheine
-          ergänzen.
+          {fleet?.cards?.length
+            ? "Keine Fahrer passen zur Suche."
+            : "Noch keine Fahrer angelegt — unter Fahrer & Fahrzeuge oder im Onboarding anlegen."}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

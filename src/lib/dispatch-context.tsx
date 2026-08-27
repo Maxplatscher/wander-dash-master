@@ -34,6 +34,8 @@ interface DispatchContextType {
   selectedDepotLabel: string;
   selectedDate: Date;
   setSelectedDate: (d: Date) => void;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
   role: UserRole;
   refreshAll: () => void;
   refreshKey: number;
@@ -48,6 +50,7 @@ export function DispatchProvider({ children }: { children: React.ReactNode }) {
   const [depotsLoading, setDepotsLoading] = useState(true);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const { user, role: authRole } = useAuth();
 
@@ -176,6 +179,8 @@ export function DispatchProvider({ children }: { children: React.ReactNode }) {
       selectedDepotLabel,
       selectedDate,
       setSelectedDate,
+      searchQuery,
+      setSearchQuery,
       role,
       refreshAll,
       refreshKey,

@@ -27,7 +27,13 @@ import {
   GOOGLE_MAPS_LIBRARIES,
   GOOGLE_MAPS_LOADER_ID,
 } from "@/lib/google-maps";
+import { formatTime } from "@/lib/format-time";
 import { shipmentCoordinates } from "@/lib/tour-position";
+import {
+  readDriverGpsConsent,
+  requestDeviceLocation,
+  writeDriverGpsConsent,
+} from "@/lib/consent";
 
 const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
 
@@ -69,17 +75,14 @@ function formatLocalDate(date: Date): string {
 }
 
 function formatTimeWindow(start: string | null, end: string | null): string {
-  const format = (value: string | null) =>
-    value
-      ? new Date(value).toLocaleTimeString("de-DE", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : null;
-  const startLabel = format(start);
-  const endLabel = format(end);
-  if (startLabel && endLabel) return `${startLabel}–${endLabel}`;
-  return startLabel ?? endLabel ?? "Kein Zeitfenster";
+  const startLabel = start ? formatTime(start) : null;
+  const endLabel = end ? formatTime(end) : null;
+  const startOk = startLabel && startLabel !== "—";
+  const endOk = endLabel && endLabel !== "—";
+  if (startOk && endOk) return `${startLabel}–${endLabel}`;
+  if (startOk) return startLabel!;
+  if (endOk) return endLabel!;
+  return "Kein Zeitfenster";
 }
 
 async function loadDriverTour(date: string): Promise<DriverTourResult> {
@@ -236,22 +239,28 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
   const result = tourQuery.data;
   if (!result || result.kind === "unassigned") {
     return (
-      <div className="glass-card p-8 text-center">
-        <p className="card-title">Keine Fahrerzuordnung</p>
-        <p className="meta-text mt-1">
-          Dein Benutzerkonto ist noch keinem Fahrerprofil zugeordnet.
-        </p>
+      <div className="space-y-4">
+        <DriverGpsConsentBanner />
+        <div className="glass-card p-8 text-center">
+          <p className="card-title">Keine Fahrerzuordnung</p>
+          <p className="meta-text mt-1">
+            Dein Benutzerkonto ist noch keinem Fahrerprofil zugeordnet.
+          </p>
+        </div>
       </div>
     );
   }
 
   if (result.kind === "no-tour") {
     return (
-      <div className="glass-card p-8 text-center">
-        <p className="card-title">Keine aktive Tour</p>
-        <p className="meta-text mt-1">
-          Für den {selectedDate.toLocaleDateString("de-DE")} ist dir keine aktive Tour zugeordnet.
-        </p>
+      <div className="space-y-4">
+        <DriverGpsConsentBanner />
+        <div className="glass-card p-8 text-center">
+          <p className="card-title">Keine aktive Tour</p>
+          <p className="meta-text mt-1">
+            Für den {selectedDate.toLocaleDateString("de-DE")} ist dir keine aktive Tour zugeordnet.
+          </p>
+        </div>
       </div>
     );
   }
@@ -271,6 +280,7 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
 
   return (
     <div className="space-y-4">
+      <DriverGpsConsentBanner />
       <div className="glass-card p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
@@ -475,6 +485,54 @@ export function DriverTourView({ selectedDate }: DriverTourViewProps) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function DriverGpsConsentBanner() {
+  const [decision, setDecision] = useState(() => readDriverGpsConsent());
+  const [loading, setLoading] = useState(false);
+
+  const allow = async () => {
+    setLoading(true);
+    const result = await requestDeviceLocation();
+    setLoading(false);
+    if (result.ok === false) {
+      const message = result.message;
+      writeDriverGpsConsent(false);
+      setDecision(readDriverGpsConsent());
+      toast.error(message);
+      return;
+    }
+    writeDriverGpsConsent(true);
+    setDecision(readDriverGpsConsent());
+    toast.success("Standort für diese Tour auf dem Gerät erlaubt");
+  };
+
+  const deny = () => {
+    writeDriverGpsConsent(false);
+    setDecision(readDriverGpsConsent());
+  };
+
+  return (
+    <div className="glass-card p-4 space-y-2">
+      <p className="card-title">Standort auf diesem Gerät</p>
+      <p className="meta-text">
+        Für Navigation am Handy. Es gibt noch keine Live-Übertragung an die Disposition.
+        {decision
+          ? decision.allowed
+            ? " Aktuell erlaubt."
+            : " Aktuell abgelehnt."
+          : " Noch nicht entschieden."}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" className="rounded" disabled={loading} onClick={() => void allow()}>
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Erlauben"}
+        </Button>
+        <Button size="sm" variant="outline" className="rounded" onClick={deny}>
+          Ablehnen
+        </Button>
+      </div>
     </div>
   );
 }

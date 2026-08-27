@@ -46,9 +46,10 @@ export function ConsentDialog({ onComplete, className }: ConsentDialogProps) {
     const result = await requestDeviceLocation();
     setLocationLoading(false);
 
-    if (!result.ok) {
+    if (result.ok === false) {
+      const message = result.message;
       setLocationChoice('denied');
-      setLocationError(result.message);
+      setLocationError(message);
       return;
     }
 

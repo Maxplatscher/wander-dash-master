@@ -11,6 +11,9 @@ import { ArticleReviewPanel } from '@/components/dispatch/ArticleReviewPanel';
 import { useIntegrations } from '@/hooks/useIntegrations';
 import { parseMissingFields } from '@/lib/article-research';
 import { parseOptionalMm } from '@/lib/vehicle-volume';
+import { shouldShowDemoSetup } from '@/lib/demo-setup-access';
+import { matchesSearch } from '@/lib/dispatch-search';
+import { geocodeThenPlanTour, planTourSuccessMessage } from '@/lib/start-planning';
 
 const STATUS_BADGE: Record<string, string> = {
   new: 'bg-primary/15 text-primary',
@@ -27,7 +30,7 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 export function Kontrollzentrale() {
-  const { selectedDate, refreshKey, selectedDepotId, selectedDepotLabel, refreshAll, companyId } = useDispatch();
+  const { selectedDate, refreshKey, selectedDepotId, selectedDepotLabel, refreshAll, companyId, searchQuery } = useDispatch();
   const queryClient = useQueryClient();
   const dateStr = selectedDate.toISOString().split('T')[0];
   const { integrations } = useIntegrations(companyId);
@@ -36,6 +39,21 @@ export function Kontrollzentrale() {
     imap && typeof imap.config?.host === 'string' && imap.config.host.trim()
       ? imap.config.host.trim()
       : null;
+
+  const { data: companyName } = useQuery({
+    queryKey: ['company-name', companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company')
+        .select('name')
+        .eq('id', companyId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.name ?? null;
+    },
+  });
+  const showDemoSetup = shouldShowDemoSetup(companyName);
 
   const { data: shipments, isLoading: shipmentsLoading } = useQuery({
     queryKey: ['shipments', dateStr, selectedDepotId, refreshKey],
@@ -51,6 +69,9 @@ export function Kontrollzentrale() {
       return data ?? [];
     },
   });
+  const visibleShipments = (shipments ?? []).filter((s) =>
+    matchesSearch(searchQuery, s.name, s.customer_name, s.delivery_address, s.id),
+  );
 
   const [driverName, setDriverName] = useState('');
   const [driverPhone, setDriverPhone] = useState('');
@@ -150,23 +171,14 @@ export function Kontrollzentrale() {
   const startPlanning = async () => {
     setPlanLoading(true);
     try {
-      const assignRes = await supabase.functions.invoke('assign-depot', {
-        body: { date: dateStr, force: true },
+      const result = await geocodeThenPlanTour({
+        date: dateStr,
+        depotId: selectedDepotId,
       });
-      if (assignRes.error) throw assignRes.error;
-      if (assignRes.data?.error) throw new Error(assignRes.data.error);
-
-      const { data, error } = await supabase.functions.invoke('plan-tour', {
-        body: {
-          date: dateStr,
-          ...(selectedDepotId ? { depot_id: selectedDepotId } : {}),
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast.success(
-        `Planung gestartet${data?.depot_source ? ` (Depot: ${data.depot_source})` : ''}`,
-      );
+      toast.success(planTourSuccessMessage(result));
+      if (result.geocodeWarning) {
+        toast.warning(`Geokodierung unvollständig: ${result.geocodeWarning}`);
+      }
       refreshAll();
       queryClient.invalidateQueries();
     } catch (e: unknown) {
@@ -226,16 +238,21 @@ export function Kontrollzentrale() {
             <Package className="w-4 h-4 text-primary" />
             <p className="card-title">Lieferscheine</p>
           </div>
-          <span className="meta-text text-dim">{shipments?.length ?? 0} Einträge</span>
+          <span className="meta-text text-dim">
+            {visibleShipments.length}
+            {searchQuery.trim() && shipments?.length ? ` / ${shipments.length}` : ''} Einträge
+          </span>
         </div>
 
         {shipmentsLoading ? (
           <div className="flex items-center justify-center py-14">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
-        ) : !shipments?.length ? (
+        ) : !visibleShipments.length ? (
           <p className="text-center py-14 meta-text">
-            Keine Lieferscheine für dieses Datum vorhanden.
+            {shipments?.length
+              ? 'Keine Lieferscheine passen zur Suche.'
+              : 'Keine Lieferscheine für dieses Datum vorhanden.'}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -253,7 +270,7 @@ export function Kontrollzentrale() {
                 </tr>
               </thead>
               <tbody>
-                {shipments.map((s) => {
+                {visibleShipments.map((s) => {
                   const status = s.intake_status ?? 'new';
                   const source = s.intake_source || 'manual';
                   const pendingArticles =
@@ -307,7 +324,22 @@ export function Kontrollzentrale() {
         <ArticleReviewPanel shipments={shipments} dateStr={dateStr} />
       )}
 
-      {/* 3. Demo & Testdaten */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          className="rounded font-semibold"
+          onClick={() => void startPlanning()}
+          disabled={planLoading}
+        >
+          {planLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+          ) : (
+            <Play className="w-4 h-4 mr-1.5" />
+          )}
+          Planung starten · plan-tour
+        </Button>
+      </div>
+
+      {showDemoSetup && (
       <div className="rounded-sm border border-dashed border-hairline bg-panel/60 p-5 space-y-4">
         <div>
           <div className="flex items-center gap-2">
@@ -315,7 +347,7 @@ export function Kontrollzentrale() {
             <p className="card-title">Demo & Testdaten</p>
           </div>
           <p className="meta-text mt-1">
-            Dev-Bereich — manuell Testdaten anlegen oder Edge-Functions auslösen.
+            Nur interne Demo-Mandanten. Fahrer und Fahrzeuge für Kunden unter „Fahrer & Fahrzeuge“.
           </p>
         </div>
 
@@ -423,20 +455,9 @@ export function Kontrollzentrale() {
             )}
             Demo-Szenario laden · demo-setup
           </Button>
-          <Button
-            className="rounded font-semibold"
-            onClick={() => void startPlanning()}
-            disabled={planLoading}
-          >
-            {planLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
-            ) : (
-              <Play className="w-4 h-4 mr-1.5" />
-            )}
-            Planung starten · plan-tour
-          </Button>
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -41,22 +41,110 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
-
-    // Stable alias avoids hard failures when a dated model is retired for an API key/project.
-    const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-latest";
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
-    const { type, context = {} } = body;
+    const { type, context = {}, apply = false } = body;
 
     if (!type) {
       return jsonResponse({ error: "type required" }, 400);
     }
+
+    if (apply === true) {
+      if (type === "unassigned" || type === "capacity") {
+        const companyId = await resolveCompanyId(type, context, supabase);
+        if (!companyId) {
+          return jsonResponse({ error: "Keine Firma im Kontext — nichts geschrieben." }, 400);
+        }
+        const planResponse = await fetch(`${supabaseUrl}/functions/v1/plan-tour`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            company_id: companyId,
+            force_replan: true,
+            date: context.date,
+          }),
+        });
+        const rawPlanResult = await planResponse.text();
+        const planResult = rawPlanResult ? JSON.parse(rawPlanResult) : {};
+        if (planResponse.ok && (planResult.success || planResult.tours != null)) {
+          return jsonResponse({
+            applied: true,
+            message: `Neu geplant: ${planResult.tours ?? "?"} Touren, ${planResult.total_stops ?? "?"} Stops.`,
+            actions: [],
+            resolved: true,
+            result: planResult,
+          });
+        }
+        return jsonResponse({
+          error: planResult.error ?? "plan-tour hat nichts geschrieben.",
+          applied: false,
+          result: planResult,
+        }, planResponse.status === 422 ? 422 : 500);
+      }
+
+      if (type === "conflict") {
+        const stopA = context.stopA as { id?: string; stop_index?: number } | undefined;
+        const stopB = context.stopB as { id?: string; stop_index?: number } | undefined;
+        if (!stopA?.id || !stopB?.id || stopA.stop_index == null || stopB.stop_index == null) {
+          return jsonResponse({
+            error: "Konflikt ohne Stop-IDs — nichts geschrieben. Bitte manuell neu planen.",
+          }, 400);
+        }
+        const idxA = stopA.stop_index;
+        const idxB = stopB.stop_index;
+        const { error: e1 } = await supabase.from("tour_stop").update({ stop_index: 100000 + idxA }).eq("id", stopA.id);
+        if (e1) throw e1;
+        const { error: e2 } = await supabase.from("tour_stop").update({ stop_index: idxA }).eq("id", stopB.id);
+        if (e2) throw e2;
+        const { error: e3 } = await supabase.from("tour_stop").update({ stop_index: idxB }).eq("id", stopA.id);
+        if (e3) throw e3;
+        return jsonResponse({
+          applied: true,
+          message: `Stop-Reihenfolge getauscht (${idxA} ↔ ${idxB}).`,
+          resolved: true,
+        });
+      }
+
+      if (type === "absent") {
+        const replacementId =
+          typeof context.replacementDriverId === "string" ? context.replacementDriverId : "";
+        const tourIds = Array.isArray(context.tourIds)
+          ? context.tourIds.filter((id: unknown) => typeof id === "string")
+          : [];
+        if (!replacementId || tourIds.length === 0) {
+          return jsonResponse({
+            error: "Keine Vertretung oder keine Tour — nichts geschrieben.",
+          }, 400);
+        }
+        const { error: upError } = await supabase
+          .from("tour")
+          .update({ driver_id: replacementId })
+          .in("id", tourIds);
+        if (upError) throw upError;
+        return jsonResponse({
+          applied: true,
+          message: `Vertretung auf ${tourIds.length} Tour(en) geschrieben.`,
+          resolved: true,
+        });
+      }
+
+      return jsonResponse({
+        error: `Typ ${type} kann nicht automatisch übernommen werden.`,
+        applied: false,
+      }, 400);
+    }
+
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+
+    // Stable alias avoids hard failures when a dated model is retired for an API key/project.
+    const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-flash-latest";
 
     let systemPrompt = "Du bist ein KI-Disponent für eine Spedition. Analysiere das Problem und gib eine strukturierte Lösung.";
     let userPrompt = "";
@@ -68,49 +156,6 @@ Deno.serve(async (req) => {
       }
       case "capacity": {
         userPrompt = `Tour hat Kapazitätsüberschreitung: ${context.totalWeight}kg bei einem Fahrzeuglimit von ${context.vehicleCapacity}kg. Tour-ID: ${context.tourId}. Plane die Tour um, sodass das Gewichtslimit eingehalten wird. Welche Sendungen sollen auf eine andere Tour verschoben werden?`;
-
-        try {
-          const companyId = await resolveCompanyId(type, context, supabase);
-          const planResponse = await fetch(`${supabaseUrl}/functions/v1/plan-tour`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${serviceKey}`,
-            },
-            body: JSON.stringify({
-              company_id: companyId,
-              force_replan: true,
-              date: context.date,
-            }),
-          });
-
-          const rawPlanResult = await planResponse.text();
-          const planResult = rawPlanResult ? JSON.parse(rawPlanResult) : {};
-
-          if (planResponse.ok && planResult.success) {
-            return jsonResponse({
-              message: `Kapazitätsproblem gelöst: ${planResult.tours} Touren mit ${planResult.total_stops} Stops neu geplant.`,
-              actions: [],
-              resolved: true,
-              requires_manual: false,
-              result: planResult,
-            });
-          }
-
-          if (planResponse.status === 422) {
-            return jsonResponse({
-              message: planResult.error ?? "Kapazitätsproblem konnte nicht automatisch gelöst werden. Manueller Eingriff erforderlich.",
-              actions: [],
-              resolved: false,
-              requires_manual: true,
-              result: planResult,
-            });
-          }
-
-          console.error("Auto-replan failed:", planResponse.status, rawPlanResult);
-        } catch (error) {
-          console.error("Auto-replan failed, falling back to AI analysis:", error);
-        }
         break;
       }
       case "conflict": {
@@ -217,7 +262,7 @@ Deno.serve(async (req) => {
       resolution.requires_manual = true;
     }
 
-    return jsonResponse(resolution);
+    return jsonResponse({ ...resolution, applied: false });
   } catch (error) {
     console.error("ai-resolve error:", error);
     return jsonResponse({ error: (error as Error).message }, 500);

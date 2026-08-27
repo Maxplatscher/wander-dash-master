@@ -22,6 +22,7 @@ import { LiveMap } from '@/components/dispatch/LiveMap';
 import { DriverDetailDialog } from '@/components/dispatch/DriverDetailDialog';
 import { AddDriverDialog } from '@/components/dispatch/AddDriverDialog';
 import { useDispatch } from '@/lib/dispatch-context';
+import { matchesSearch } from '@/lib/dispatch-search';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useProblems } from '@/pages/dispatch/Probleme';
@@ -439,7 +440,7 @@ function TimelineView({
 }
 
 export function Startseite() {
-  const { selectedDate, selectedDepotId, selectedDepotLabel } = useDispatch();
+  const { selectedDate, selectedDepotId, selectedDepotLabel, searchQuery } = useDispatch();
   const { user } = useAuth();
   const dateStr = selectedDate.toISOString().split('T')[0];
   const { data: kpis } = useKpis(dateStr, selectedDepotId);
@@ -454,8 +455,20 @@ export function Startseite() {
   const [selectedDriver, setSelectedDriver] = useState<DriverDayRow | null>(null);
 
   const activeOnTour = useMemo(
-    () => (driverRows ?? []).filter((d) => d.tourId),
-    [driverRows],
+    () =>
+      (driverRows ?? []).filter(
+        (d) =>
+          d.tourId &&
+          matchesSearch(searchQuery, d.name, d.currentLocation, d.nextStop, d.tourDescription, d.vehicleName),
+      ),
+    [driverRows, searchQuery],
+  );
+  const visibleDriverRows = useMemo(
+    () =>
+      (driverRows ?? []).filter((d) =>
+        matchesSearch(searchQuery, d.name, d.currentLocation, d.nextStop, d.tourDescription, d.vehicleName),
+      ),
+    [driverRows, searchQuery],
   );
 
   const problemCount = problems?.length ?? kpis?.problems ?? 0;
@@ -630,7 +643,7 @@ export function Startseite() {
           </div>
         </div>
       ) : (
-        <TimelineView rows={driverRows ?? []} problems={problems ?? []} />
+        <TimelineView rows={visibleDriverRows} problems={problems ?? []} />
       )}
 
       <AddDriverDialog open={showAddDriver} onOpenChange={setShowAddDriver} />
