@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Pencil, Plus, PlugZap, TestTube2, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, PlugZap, TestTube2, Trash2, Upload, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useIntegrations } from '@/hooks/useIntegrations';
@@ -16,8 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  Dialog,
+import { parseCsvShipments } from '@/lib/csv-import';
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -91,6 +90,8 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<SystemIntegration | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [fetchingId, setFetchingId] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<SystemIntegration | null>(null);
   const [form, setForm] = useState<FormState>(buildInitialForm());
@@ -185,6 +186,54 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
       toast.error(message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCsvUpload = async (integration: SystemIntegration, file: File) => {
+    setUploadingId(integration.id);
+    try {
+      const text = await file.text();
+      const date = new Date().toISOString().slice(0, 10);
+      const rows = parseCsvShipments(text, date);
+      if (rows.length === 0) throw new Error('Keine Sendungszeilen in der CSV gefunden.');
+      const { data: company } = await supabase.rpc('get_user_company_id');
+      if (!company) throw new Error('Kein Unternehmen zugeordnet');
+      const { error: insertError } = await supabase.from('shipment').insert(
+        rows.map((row) => ({
+          company_id: company,
+          name: row.name,
+          customer_name: row.customer_name,
+          delivery_address: row.delivery_address,
+          weight_kg: row.weight_kg,
+          service_date: row.service_date ?? date,
+          intake_source: 'csv_import',
+          intake_status: row.delivery_address ? 'complete' : 'new',
+          depot_id: integration.depot_id,
+          missing_fields: row.delivery_address ? {} : { needs_review: true },
+        })),
+      );
+      if (insertError) throw insertError;
+      toast.success(`${rows.length} Sendung(en) aus CSV übernommen`);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'CSV-Import fehlgeschlagen');
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
+  const handleSftpFetch = async (integration: SystemIntegration) => {
+    setFetchingId(integration.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-sftp', {
+        body: { integration_id: integration.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`${data?.created ?? 0} Sendung(en) per SFTP/CSV geholt`);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'SFTP-Abholung fehlgeschlagen');
+    } finally {
+      setFetchingId(null);
     }
   };
 
@@ -318,6 +367,55 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
                       <Pencil className="w-3.5 h-3.5 mr-1.5" />
                       Bearbeiten
                     </Button>
+                    {integration.system_type === 'csv_import' && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded h-8"
+                          disabled={fetchingId === integration.id}
+                          onClick={() => void handleSftpFetch(integration)}
+                        >
+                          {fetchingId === integration.id ? (
+                            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5 mr-1.5" />
+                          )}
+                          Jetzt abholen
+                        </Button>
+                        <label className="inline-flex">
+                          <input
+                            type="file"
+                            accept=".csv,text/csv"
+                            className="hidden"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              event.target.value = '';
+                              if (file) void handleCsvUpload(integration, file);
+                            }}
+                          />
+                          <span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="rounded h-8"
+                              disabled={uploadingId === integration.id}
+                              asChild
+                            >
+                              <span>
+                                {uploadingId === integration.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                ) : (
+                                  <Upload className="w-3.5 h-3.5 mr-1.5" />
+                                )}
+                                CSV hochladen
+                              </span>
+                            </Button>
+                          </span>
+                        </label>
+                      </>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -363,6 +461,9 @@ export function IntegrationenSektion({ companyId }: { companyId: string | null }
             </DialogTitle>
             <DialogDescription>
               Sensible Zugangsdaten werden serverseitig im Vault abgelegt.
+              {form.system_type === 'csv_import'
+                ? ' CSV-Upload funktioniert sofort. SFTP holt .csv-Dateien vom hinterlegten Pfad. UNC-Netzwerkordner bleiben manuell — Edge Functions erreichen keinen Firmen-UNC-Pfad.'
+                : ''}
             </DialogDescription>
           </DialogHeader>
 
