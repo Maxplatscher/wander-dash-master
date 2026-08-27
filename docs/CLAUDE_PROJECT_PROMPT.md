@@ -45,11 +45,11 @@ Frühere Vorstufe des Projekts hieß „Easy Planning" (FastAPI + Vanilla JS) un
 
 ```
 src/main.tsx                     → Einstiegspunkt, mountet <App />
-src/App.tsx                      → Router-Setup: /auth, / (geschützt), * (404)
-src/pages/Auth.tsx                → Login/Registrierung (Supabase Auth, Email+Passwort)
+src/App.tsx                      → Router-Setup: /auth, /impressum, /datenschutz, / (geschützt), * (404)
+src/pages/Auth.tsx                → Login (keine öffentliche Registrierung im Piloten)
 src/pages/DispatchDashboard.tsx  → Haupt-Layout: Sidebar + Topbar + Section-Switching (Hash-Routing, kein echtes React-Router-Nesting)
 src/pages/NotFound.tsx            → 404-Seite
-src/pages/Index.tsx               → verwaist / nicht geroutet (Alt-Lastenrelikt, siehe Abschnitt 8)
+src/pages/legal/                 → Impressum/Datenschutz (Entwurf-Banner)
 ```
 
 **Navigation:** Es gibt keine echten Unterrouten — `DispatchDashboard` hält einen `currentSection`-State (`SectionId`) im `DispatchContext`, gesteuert über den URL-Hash (`#tagesleitstelle` etc., siehe `src/lib/navigation.ts`). Sidebar-Klick → `navigateTo(id)` → `history.replaceState` + State-Update.
@@ -125,8 +125,9 @@ src/pages/Index.tsx               → verwaist / nicht geroutet (Alt-Lastenrelik
 ### Komponenten (`src/components/settings/`)
 - `IntegrationenSektion.tsx` — vollständiges CRUD für System-Integrationen (5 Typen), inkl. Verbindungstest (Edge Function `test-integration`, mit SSRF-Schutz), Confirm-Dialog beim Löschen, Secrets werden serverseitig ins Vault-Pattern verschoben (`credentials_enc`-Spalte als Interimslösung)
 
-### Verwaiste Komponenten (nirgends importiert außer sich gegenseitig — Kandidaten zum Löschen)
-- `src/pages/Index.tsx`, `src/components/AppSidebar.tsx`, `src/components/NavLink.tsx`, `src/components/StatCard.tsx`, `src/components/TourCard.tsx`, `src/components/dispatch/DispatchSidebar.tsx` — Reste einer früheren Layout-Version, nicht mehr geroutet/eingebunden
+### Verwaiste Komponenten
+
+Die Lovable-Reste (`Index`, `AppSidebar`, `NavLink`, `StatCard`, `TourCard`, `DispatchSidebar`, `SetupConsent`, `ConsentDialog`) sind entfernt. Consent: `StepPermissions` + Einstellungen; Fahrer-GPS: Meine Tour.
 
 ### shadcn/ui Primitives (`src/components/ui/*`)
 ~40 Standard-shadcn-Komponenten (Button, Card, Dialog, Select, Table, Sheet, Tabs, Toast, etc.) — unverändertes shadcn, bezieht Farben automatisch aus den globalen CSS-Variablen. Bei Design-Arbeiten i.d.R. nicht einzeln anfassen.
@@ -186,7 +187,7 @@ Das ist der Hauptauftrag für die Weiterarbeit: **die restlichen Seiten auf `.gl
 2. **Mock-/Fake-Daten statt echter DB-Anbindung** in: `Fahrer.tsx` (6 hardcodierte Fahrer), `Kalender.tsx` (`demoEvents`), `DriverTourView.tsx` (6 Fake-Stops in Berlin), `LiveMap.tsx` (4 Fake-Marker), `DriverDetailDialog.tsx` (Kartenposition fix auf Berlin), `Versionen.tsx` (komplett). Das widerspricht dem im Projekt dokumentierten Grundsatz „keine Mock-Daten, nur echte DB-Werte".
 3. **`supabase/config.toml`** — erledigt (`sxqbmxqnwtrgibfryvqf`).
 4. **`Versionen.tsx` ist nicht geroutet** — entweder in die Navigation einbinden oder als totes Feature entfernen.
-5. **Verwaiste Alt-Komponenten** (`Index.tsx`, `AppSidebar.tsx`, `NavLink.tsx`, `StatCard.tsx`, `TourCard.tsx`, `DispatchSidebar.tsx`) — Cleanup-Kandidaten.
+5. **Verwaiste Alt-Komponenten** — erledigt (gelöscht 27.08.2026).
 6. **Theme-Picker in `Einstellungen.tsx`** erlaubt 6 Farbschemata über CSS-Var-Overrides (Teal/Blau/Violett/Orange/Grün/Rot) — kollidiert konzeptionell mit dem jetzt fest verdrahteten Dark-Glass-Design. Sollte entweder entfernt oder als „Akzentfarbe innerhalb des Dark-Themes" neu gedacht werden.
 7. **`ParticleBackground.tsx`** nutzt noch violette Partikelfarbe (`#a78bfa`), während der Rest des Designs auf Blau/Cyan (`--accent-blue`/`--accent-cyan`) läuft — visuelle Inkonsistenz.
 8. **Supabase-Projekt pausiert bei Inaktivität** (Free-Tier) — beim letzten Neustart waren alle Tabellen leer (0 Zeilen), inkl. des Test-Admin-Users. Vor dem Weiterarbeiten prüfen, ob ein Test-User/Testdaten neu angelegt werden müssen (z. B. über die `demo-setup`-Edge-Function oder `create-admin`).

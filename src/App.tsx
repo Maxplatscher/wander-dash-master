@@ -8,6 +8,8 @@ import DispatchDashboard from "./pages/DispatchDashboard";
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
 import NotFound from "./pages/NotFound.tsx";
+import Impressum from "./pages/legal/Impressum";
+import Datenschutz from "./pages/legal/Datenschutz";
 import { CompanySetupRoute, OnboardingRoute } from "@/components/setup/OnboardingRoute";
 import { Loader2 } from "lucide-react";
 
@@ -35,6 +37,8 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/impressum" element={<Impressum />} />
+            <Route path="/datenschutz" element={<Datenschutz />} />
             <Route
               path="/setup"
               element={
