@@ -2,3 +2,9 @@ project_id = "sxqbmxqnwtrgibfryvqf"
 
 [functions.fetch-imap]
 verify_jwt = false
+
+[functions.driver-pin-login]
+verify_jwt = false
+
+[functions.generate-driver-code]
+verify_jwt = true
