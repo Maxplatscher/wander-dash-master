@@ -1,4 +1,4 @@
-import { expect, test, dispatcherCreds } from "./helpers";
+import { expect, test, dispatcherCreds, loginOnDispoTab } from "./helpers";
 
 test.describe("Dispatcher-Kernflow", () => {
   test.skip(
@@ -7,10 +7,7 @@ test.describe("Dispatcher-Kernflow", () => {
   );
 
   test("meldet sich an und sieht das Dashboard", async ({ page }) => {
-    await page.goto("/auth");
-    await page.getByLabel("E-Mail").fill(dispatcherCreds.email);
-    await page.getByLabel("Passwort").fill(dispatcherCreds.password);
-    await page.getByRole("button", { name: "Anmelden" }).click();
+    await loginOnDispoTab(page, dispatcherCreds.email, dispatcherCreds.password);
     await expect(
       page.getByRole("heading", { name: /Guten |DispoCenter einrichten/i }).or(
         page.getByText("Startseite"),
@@ -19,10 +16,7 @@ test.describe("Dispatcher-Kernflow", () => {
   });
 
   test("öffnet Lieferscheine", async ({ page }) => {
-    await page.goto("/auth");
-    await page.getByLabel("E-Mail").fill(dispatcherCreds.email);
-    await page.getByLabel("Passwort").fill(dispatcherCreds.password);
-    await page.getByRole("button", { name: "Anmelden" }).click();
+    await loginOnDispoTab(page, dispatcherCreds.email, dispatcherCreds.password);
     const lieferscheine = page.getByRole("button", { name: "Lieferscheine" });
     if (await lieferscheine.isVisible().catch(() => false)) {
       await lieferscheine.click();
