@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { inviteDriverAccount, isValidInviteEmail } from "@/lib/invite-driver";
+import { parseOptionalMm } from "@/lib/vehicle-volume";
 
 interface AddDriverDialogProps {
   open: boolean;
@@ -29,8 +30,12 @@ interface AddDriverDialogProps {
 const EMPTY_DRIVER = {
   name: "",
   phone: "",
+  email: "",
   vehicleName: "",
   vehicleCapacity: "",
+  vehicleLengthMm: "",
+  vehicleWidthMm: "",
+  vehicleHeightMm: "",
   hints: "",
 };
 
@@ -70,6 +75,9 @@ export function AddDriverDialog({
             capacity: newDriver.vehicleCapacity
               ? parseInt(newDriver.vehicleCapacity, 10)
               : null,
+            length_mm: parseOptionalMm(newDriver.vehicleLengthMm),
+            width_mm: parseOptionalMm(newDriver.vehicleWidthMm),
+            height_mm: parseOptionalMm(newDriver.vehicleHeightMm),
             company_id: companyId,
           })
           .select("id")
@@ -80,17 +88,32 @@ export function AddDriverDialog({
         vehicleId = selectedVehicleId;
       }
 
-      const { error } = await supabase.from("driver").insert({
+      const { data: created, error } = await supabase.from("driver").insert({
         name: newDriver.name.trim(),
         phone: newDriver.phone.trim() || null,
         company_id: companyId,
         status: "verfügbar",
         assigned_vehicle_id: vehicleId,
         notes: newDriver.hints.trim() || null,
-      });
+      }).select("id").single();
       if (error) throw error;
 
-      toast.success("Fahrer & Fahrzeug hinzugefügt");
+      let inviteNote = "";
+      if (created?.id && newDriver.email.trim()) {
+        if (!isValidInviteEmail(newDriver.email)) {
+          throw new Error("Bitte eine gültige Login-E-Mail angeben.");
+        }
+        const invite = await inviteDriverAccount(created.id, newDriver.email);
+        if (!invite.success) {
+          inviteNote = ` Fahrer gespeichert, Zugang nicht angelegt: ${invite.error}`;
+        } else if (invite.temporary_password) {
+          inviteNote = ` Login ${invite.email} · Startpasswort ${invite.temporary_password}`;
+        }
+      }
+
+      toast.success(`Fahrer & Fahrzeug hinzugefügt.${inviteNote}`, {
+        duration: inviteNote ? 20_000 : 4000,
+      });
       setNewDriver(EMPTY_DRIVER);
       setSelectedVehicleId("new");
       onOpenChange(false);
@@ -128,6 +151,22 @@ export function AddDriverDialog({
                 setNewDriver((previous) => ({
                   ...previous,
                   name: event.target.value,
+                }))
+              }
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground mb-1 block">
+              Login-E-Mail
+            </label>
+            <Input
+              type="email"
+              placeholder="fahrer@firma.de — legt den Zugang an"
+              value={newDriver.email}
+              onChange={(event) =>
+                setNewDriver((previous) => ({
+                  ...previous,
+                  email: event.target.value,
                 }))
               }
             />
@@ -208,6 +247,41 @@ export function AddDriverDialog({
                         }
                       />
                     </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Input
+                        type="number"
+                        placeholder="L mm"
+                        value={newDriver.vehicleLengthMm}
+                        onChange={(event) =>
+                          setNewDriver((previous) => ({
+                            ...previous,
+                            vehicleLengthMm: event.target.value,
+                          }))
+                        }
+                      />
+                      <Input
+                        type="number"
+                        placeholder="B mm"
+                        value={newDriver.vehicleWidthMm}
+                        onChange={(event) =>
+                          setNewDriver((previous) => ({
+                            ...previous,
+                            vehicleWidthMm: event.target.value,
+                          }))
+                        }
+                      />
+                      <Input
+                        type="number"
+                        placeholder="H mm"
+                        value={newDriver.vehicleHeightMm}
+                        onChange={(event) =>
+                          setNewDriver((previous) => ({
+                            ...previous,
+                            vehicleHeightMm: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
                   </div>
                 )}
               </>
@@ -237,6 +311,41 @@ export function AddDriverDialog({
                     }))
                   }
                 />
+                <div className="grid grid-cols-3 gap-2">
+                  <Input
+                    type="number"
+                    placeholder="L mm"
+                    value={newDriver.vehicleLengthMm}
+                    onChange={(event) =>
+                      setNewDriver((previous) => ({
+                        ...previous,
+                        vehicleLengthMm: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    type="number"
+                    placeholder="B mm"
+                    value={newDriver.vehicleWidthMm}
+                    onChange={(event) =>
+                      setNewDriver((previous) => ({
+                        ...previous,
+                        vehicleWidthMm: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    type="number"
+                    placeholder="H mm"
+                    value={newDriver.vehicleHeightMm}
+                    onChange={(event) =>
+                      setNewDriver((previous) => ({
+                        ...previous,
+                        vehicleHeightMm: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
               </div>
             )}
           </div>

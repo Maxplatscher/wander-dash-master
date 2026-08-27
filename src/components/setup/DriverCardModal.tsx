@@ -75,6 +75,7 @@ export function DriverCardModal({
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [assignedVehicleKey, setAssignedVehicleKey] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  const [email, setEmail] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -89,6 +90,7 @@ export function DriverCardModal({
     setPhotoUrl(base.photoUrl);
     setAssignedVehicleKey(base.assignedVehicleKey);
     setNotes(base.notes);
+    setEmail(base.email);
   }, [open, initial]);
 
   const fullName = joinName(firstName, lastName);
@@ -114,6 +116,7 @@ export function DriverCardModal({
       photoUrl,
       assignedVehicleKey,
       notes: notes.trim(),
+      email: email.trim(),
     });
     onOpenChange(false);
   };
@@ -196,6 +199,18 @@ export function DriverCardModal({
                 onChange={(e) => setLastName(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="driver-email">Login-E-Mail</Label>
+            <Input
+              id="driver-email"
+              type="email"
+              value={email}
+              placeholder="fahrer@firma.de — legt den Zugang an"
+              className="bg-white/5 border-white/10 rounded-xl"
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
 
           <div className="space-y-1.5">

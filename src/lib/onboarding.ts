@@ -41,12 +41,17 @@ export type FleetDriverDraft = {
   /** Draft-Key des zugewiesenen Fahrzeugs aus Schritt 2 */
   assignedVehicleKey: string | null;
   notes: string;
+  /** Login-Mail — nach Speichern wird ein Fahrer-Account angelegt. */
+  email: string;
 };
 
 export type FleetVehicleDraft = {
   key: string;
   name: string;
   capacity: string;
+  lengthMm: string;
+  widthMm: string;
+  heightMm: string;
 };
 
 export type FleetStepData = {
@@ -64,6 +69,7 @@ export function emptyFleetDriver(key?: string): FleetDriverDraft {
     photoUrl: null,
     assignedVehicleKey: null,
     notes: '',
+    email: '',
   };
 }
 
@@ -80,6 +86,7 @@ function normalizeFleetDriver(raw: Partial<FleetDriverDraft> | undefined): Fleet
     photoUrl: raw.photoUrl ?? null,
     assignedVehicleKey: raw.assignedVehicleKey ?? null,
     notes: raw.notes ?? '',
+    email: raw.email ?? '',
   };
 }
 
@@ -124,10 +131,35 @@ export function emptyCompanyStep(): CompanyStepData {
   };
 }
 
+export function emptyFleetVehicle(key?: string): FleetVehicleDraft {
+  return {
+    key: key ?? newDraftKey('v'),
+    name: '',
+    capacity: '',
+    lengthMm: '',
+    widthMm: '',
+    heightMm: '',
+  };
+}
+
+function normalizeFleetVehicle(raw: Partial<FleetVehicleDraft> | undefined): FleetVehicleDraft {
+  const base = emptyFleetVehicle(raw?.key);
+  if (!raw) return base;
+  return {
+    ...base,
+    key: raw.key ?? base.key,
+    name: raw.name ?? '',
+    capacity: raw.capacity ?? '',
+    lengthMm: raw.lengthMm ?? '',
+    widthMm: raw.widthMm ?? '',
+    heightMm: raw.heightMm ?? '',
+  };
+}
+
 export function emptyFleetStep(): FleetStepData {
   return {
     drivers: [],
-    vehicles: [{ key: 'v1', name: '', capacity: '' }],
+    vehicles: [emptyFleetVehicle('v1')],
   };
 }
 
@@ -154,7 +186,7 @@ export function readOnboardingDraft(): OnboardingDraft | null {
       ? {
           drivers: (fleetRaw.drivers ?? []).map((d) => normalizeFleetDriver(d)),
           vehicles: fleetRaw.vehicles?.length
-            ? fleetRaw.vehicles
+            ? fleetRaw.vehicles.map((v) => normalizeFleetVehicle(v))
             : emptyFleetStep().vehicles,
         }
       : emptyFleetStep();
