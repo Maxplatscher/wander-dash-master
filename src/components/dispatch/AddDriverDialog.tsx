@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { inviteDriverAccount, isValidInviteEmail } from "@/lib/invite-driver";
+import { generateDriverCode } from "@/lib/driver-pin";
+import { DriverCodeRevealDialog } from "@/components/dispatch/DriverCodeRevealDialog";
 import { parseOptionalMm } from "@/lib/vehicle-volume";
 
 interface AddDriverDialogProps {
@@ -29,7 +31,8 @@ interface AddDriverDialogProps {
 }
 
 const EMPTY_DRIVER = {
-  name: "",
+  firstName: "",
+  lastName: "",
   phone: "",
   email: "",
   vehicleName: "",
@@ -49,6 +52,7 @@ export function AddDriverDialog({
   const [newDriver, setNewDriver] = useState(EMPTY_DRIVER);
   const [selectedVehicleId, setSelectedVehicleId] = useState("new");
   const [saving, setSaving] = useState(false);
+  const [reveal, setReveal] = useState<{ driverName: string; code: string }[] | null>(null);
 
   const { data: existingVehicles } = useQuery({
     queryKey: ["vehicles-for-driver"],
@@ -61,7 +65,7 @@ export function AddDriverDialog({
   });
 
   const handleAddDriver = async () => {
-    if (!newDriver.name.trim()) return;
+    if (!newDriver.firstName.trim() || !newDriver.lastName.trim()) return;
     setSaving(true);
     try {
       const { data: companyId } = await supabase.rpc("get_user_company_id");
@@ -89,8 +93,11 @@ export function AddDriverDialog({
         vehicleId = selectedVehicleId;
       }
 
+      const name = [newDriver.firstName.trim(), newDriver.lastName.trim()]
+        .filter(Boolean)
+        .join(" ");
       const { data: created, error } = await supabase.from("driver").insert({
-        name: newDriver.name.trim(),
+        name,
         phone: newDriver.phone.trim() || null,
         company_id: companyId,
         status: "verfügbar",
@@ -106,18 +113,29 @@ export function AddDriverDialog({
         }
         const invite = await inviteDriverAccount(created.id, newDriver.email);
         if (!invite.success) {
-          inviteNote = ` Fahrer gespeichert, Zugang nicht angelegt: ${invite.error}`;
+          inviteNote = ` E-Mail-Zugang nicht angelegt: ${invite.error}`;
         } else if (invite.temporary_password) {
-          inviteNote = ` Login ${invite.email} · Startpasswort ${invite.temporary_password}`;
+          inviteNote = ` Optionaler E-Mail-Login ${invite.email} · Startpasswort ${invite.temporary_password}`;
         }
       }
 
-      toast.success(`Fahrer & Fahrzeug hinzugefügt.${inviteNote}`, {
+      let codeEntries: { driverName: string; code: string }[] = [];
+      if (created?.id) {
+        const generated = await generateDriverCode(created.id);
+        if (!generated.success || !generated.code) {
+          inviteNote += ` Code nicht erzeugt: ${generated.error ?? "unbekannt"}`;
+        } else {
+          codeEntries = [{ driverName: name, code: generated.code }];
+        }
+      }
+
+      toast.success(`Fahrer hinzugefügt.${inviteNote}`, {
         duration: inviteNote ? 20_000 : 4000,
       });
       setNewDriver(EMPTY_DRIVER);
       setSelectedVehicleId("new");
       onOpenChange(false);
+      if (codeEntries.length) setReveal(codeEntries);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["active-drivers-tour"] }),
         queryClient.invalidateQueries({ queryKey: ["drivers"] }),
@@ -135,34 +153,55 @@ export function AddDriverDialog({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg border-hairline">
         <DialogHeader>
           <DialogTitle>Neuen Fahrer hinzufügen</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
-          <div>
-            <label className="text-sm font-medium text-foreground mb-1 block">
-              Name *
-            </label>
-            <Input
-              placeholder="z.B. Max Müller"
-              value={newDriver.name}
-              onChange={(event) =>
-                setNewDriver((previous) => ({
-                  ...previous,
-                  name: event.target.value,
-                }))
-              }
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">
+                Vorname *
+              </label>
+              <Input
+                placeholder="Max"
+                value={newDriver.firstName}
+                onChange={(event) =>
+                  setNewDriver((previous) => ({
+                    ...previous,
+                    firstName: event.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">
+                Nachname *
+              </label>
+              <Input
+                placeholder="Müller"
+                value={newDriver.lastName}
+                onChange={(event) =>
+                  setNewDriver((previous) => ({
+                    ...previous,
+                    lastName: event.target.value,
+                  }))
+                }
+              />
+            </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Der Fahrer meldet sich mit genau diesem Vor- und Nachnamen plus Code an.
+          </p>
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">
-              Login-E-Mail
+              Login-E-Mail (optional)
             </label>
             <Input
               type="email"
-              placeholder="fahrer@firma.de — legt den Zugang an"
+              placeholder="optional, nicht für den Fahrer-Login"
               value={newDriver.email}
               onChange={(event) =>
                 setNewDriver((previous) => ({
@@ -171,6 +210,9 @@ export function AddDriverDialog({
                 }))
               }
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Nur nötig, falls der Fahrer zusätzlich per E-Mail eingeladen werden soll.
+            </p>
           </div>
           <div>
             <label className="text-sm font-medium text-foreground mb-1 block">
@@ -373,7 +415,9 @@ export function AddDriverDialog({
             </Button>
             <Button
               onClick={() => void handleAddDriver()}
-              disabled={saving || !newDriver.name.trim()}
+              disabled={
+                saving || !newDriver.firstName.trim() || !newDriver.lastName.trim()
+              }
             >
               {saving ? "Speichern…" : "Fahrer anlegen"}
             </Button>
@@ -381,5 +425,11 @@ export function AddDriverDialog({
         </div>
       </DialogContent>
     </Dialog>
+    <DriverCodeRevealDialog
+      open={!!reveal?.length}
+      entries={reveal ?? []}
+      onClose={() => setReveal(null)}
+    />
+    </>
   );
 }

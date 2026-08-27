@@ -338,6 +338,7 @@ export function Fahrer() {
         driver={
           selectedDriver
             ? {
+                id: selectedDriver.id,
                 name: selectedDriver.name,
                 tourId: selectedDriver.tourId,
                 tourDescription:

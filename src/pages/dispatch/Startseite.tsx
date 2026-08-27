@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils';
 type ViewMode = 'leitstand' | 'zeitstrahl';
 
 type DriverDayRow = {
+  id: string | null;
   name: string;
   status: string;
   currentLocation: string;
@@ -118,7 +119,7 @@ function useActiveDriversOnTour(date: string) {
 
       const { data: tours } = await supabase
         .from('tour')
-        .select('id, description, is_active')
+        .select('id, description, is_active, driver_id')
         .eq('date', date)
         .eq('is_active', true);
 
@@ -170,9 +171,12 @@ function useActiveDriversOnTour(date: string) {
 
         const vehicleId = tourStops.find((s) => s.vehicle_id)?.vehicle_id;
         const vehicle = vehicleId ? vehicleMap.get(vehicleId) : null;
-        const driver = (drivers ?? [])[idx];
+        const driver = tour.driver_id
+          ? (drivers ?? []).find((candidate) => candidate.id === tour.driver_id)
+          : (drivers ?? [])[idx];
 
         tourRows.push({
+          id: driver?.id ?? tour.driver_id ?? null,
           name: driver?.name ?? tour.description ?? `Tour ${idx + 1}`,
           status: driver?.status ?? 'aktiv',
           currentLocation: currentShipment?.delivery_address ?? 'Depot',
@@ -197,6 +201,7 @@ function useActiveDriversOnTour(date: string) {
           const isAbsent =
             status.includes('abwesend') || status.includes('krank') || status === 'inactive';
           return {
+            id: d.id,
             name: d.name ?? 'Fahrer',
             status: d.status ?? 'verfügbar',
             currentLocation: '—',
@@ -656,6 +661,7 @@ export function Startseite() {
         driver={
           selectedDriver?.tourId
             ? {
+                id: selectedDriver.id,
                 name: selectedDriver.name,
                 tourId: selectedDriver.tourId,
                 tourDescription: selectedDriver.tourDescription,

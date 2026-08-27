@@ -202,15 +202,18 @@ export function DriverCardModal({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="driver-email">Login-E-Mail</Label>
+            <Label htmlFor="driver-email">E-Mail (optional)</Label>
             <Input
               id="driver-email"
               type="email"
               value={email}
-              placeholder="fahrer@firma.de — legt den Zugang an"
+              placeholder="nicht nötig für den Fahrer-Login"
               className="bg-white/5 border-white/10 rounded-xl"
               onChange={(e) => setEmail(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              Login erfolgt mit Vorname, Nachname und Code. E-Mail nur für optionale Einladung.
+            </p>
           </div>
 
           <div className="space-y-1.5">

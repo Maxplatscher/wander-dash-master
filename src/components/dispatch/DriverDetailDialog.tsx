@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -14,8 +14,13 @@ import {
   Clock,
   Truck,
   Route,
+  KeyRound,
 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { generateDriverCode } from "@/lib/driver-pin";
+import { DriverCodeRevealDialog } from "@/components/dispatch/DriverCodeRevealDialog";
 import { cn } from "@/lib/utils";
 import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 import {
@@ -31,6 +36,7 @@ import { pickTourAnchor, shipmentCoordinates } from "@/lib/tour-position";
 const GOOGLE_MAPS_API_KEY = getGoogleMapsApiKey();
 
 interface DriverInfo {
+  id?: string | null;
   name: string;
   tourId: string | null;
   tourDescription: string;
@@ -92,7 +98,22 @@ function useTourStops(tourId: string | null | undefined) {
 }
 
 export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
+  const queryClient = useQueryClient();
+  const [regenerating, setRegenerating] = useState(false);
+  const [reveal, setReveal] = useState<{ driverName: string; code: string }[] | null>(null);
   const { data: stops, isLoading } = useTourStops(driver?.tourId);
+  const { data: codeSetAt } = useQuery({
+    queryKey: ["driver-login-code-flag", driver?.id],
+    enabled: open && !!driver?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("driver")
+        .select("login_code_set_at")
+        .eq("id", driver!.id!)
+        .maybeSingle();
+      return data?.login_code_set_at ?? null;
+    },
+  });
   const { isLoaded } = useJsApiLoader({
     id: GOOGLE_MAPS_LOADER_ID,
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -121,12 +142,39 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
 
   if (!driver) return null;
 
+  const handleRegenerateCode = async () => {
+    if (!driver.id || regenerating) return;
+    if (
+      !window.confirm(
+        "Alter Code wird sofort ungültig. Neuen Code erzeugen und einmalig anzeigen?",
+      )
+    ) {
+      return;
+    }
+    setRegenerating(true);
+    try {
+      const generated = await generateDriverCode(driver.id);
+      if (!generated.success || !generated.code) {
+        throw new Error(generated.error ?? "Code konnte nicht erzeugt werden.");
+      }
+      setReveal([{ driverName: driver.name, code: generated.code }]);
+      await queryClient.invalidateQueries({
+        queryKey: ["driver-login-code-flag", driver.id],
+      });
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Code nicht erzeugt");
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
   const progressPercent =
     driver.totalStops > 0
       ? Math.round((driver.completedStops / driver.totalStops) * 100)
       : 0;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-0 border-hairline bg-panel sm:rounded">
         <div className="p-5 border-b border-hairline bg-primary/5">
@@ -136,7 +184,29 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
               {driver.name}
             </DialogTitle>
           </DialogHeader>
-          <p className="text-primary text-sm mt-1">{driver.tourDescription}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <p className="text-primary text-sm">{driver.tourDescription}</p>
+            {driver.id ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="ml-auto h-8 rounded"
+                disabled={regenerating}
+                onClick={() => void handleRegenerateCode()}
+              >
+                <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+                {regenerating ? "Code wird erzeugt…" : "Code neu generieren"}
+              </Button>
+            ) : null}
+          </div>
+          {driver.id ? (
+            <p className="meta-text mt-1">
+              {codeSetAt
+                ? "Login-Code gesetzt — Klartext wird nur bei Neu-Generieren gezeigt."
+                : "Noch kein Login-Code. Bitte erzeugen und dem Fahrer mitteilen."}
+            </p>
+          ) : null}
           <div className="flex items-center gap-4 mt-3 meta-text">
             <span className="flex items-center gap-1.5 min-w-0">
               <MapPin className="w-3.5 h-3.5 shrink-0" />
@@ -316,5 +386,11 @@ export function DriverDetailDialog({ open, onOpenChange, driver }: Props) {
         </div>
       </DialogContent>
     </Dialog>
+    <DriverCodeRevealDialog
+      open={!!reveal?.length}
+      entries={reveal ?? []}
+      onClose={() => setReveal(null)}
+    />
+    </>
   );
 }

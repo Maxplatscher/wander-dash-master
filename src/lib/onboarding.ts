@@ -41,7 +41,7 @@ export type FleetDriverDraft = {
   /** Draft-Key des zugewiesenen Fahrzeugs aus Schritt 2 */
   assignedVehicleKey: string | null;
   notes: string;
-  /** Login-Mail — nach Speichern wird ein Fahrer-Account angelegt. */
+  /** Optional — nur für Einladung, nicht für den Fahrer-Code-Login. */
   email: string;
 };
 
