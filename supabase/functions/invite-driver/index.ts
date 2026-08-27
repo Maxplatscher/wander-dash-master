@@ -102,32 +102,30 @@ Deno.serve(async (req) => {
       user_metadata: { full_name: driver.name ?? "", role: "driver" },
     });
 
-    if (createError) {
+    if (!createError) {
+      userId = createdUser.user?.id ?? null;
+      created = true;
+    } else {
       userId = await findAuthUserId(supabaseUrl, serviceKey, email);
       if (!userId) {
         return json({ error: createError.message }, 400);
+      }
+      const { data: existingProfile } = await admin
+        .from("users")
+        .select("id, company_id, driver_id")
+        .eq("id", userId)
+        .maybeSingle();
+      if (existingProfile?.company_id && existingProfile.company_id !== companyId) {
+        return json({ error: "Diese E-Mail gehört bereits zu einem anderen Unternehmen." }, 409);
       }
       const { error: updatePwError } = await admin.auth.admin.updateUserById(userId, {
         password,
         email_confirm: true,
       });
       if (updatePwError) throw updatePwError;
-    } else {
-      userId = createdUser.user?.id ?? null;
-      created = true;
     }
 
     if (!userId) return json({ error: "Auth-User konnte nicht angelegt werden." }, 500);
-
-    const { data: existingProfile } = await admin
-      .from("users")
-      .select("id, company_id, driver_id")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (existingProfile?.company_id && existingProfile.company_id !== companyId) {
-      return json({ error: "Diese E-Mail gehört bereits zu einem anderen Unternehmen." }, 409);
-    }
 
     const { error: profileError } = await admin.from("users").upsert(
       {

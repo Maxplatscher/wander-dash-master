@@ -72,6 +72,16 @@ function normalizeHeader(raw: string): string {
   return raw.trim().toLowerCase().replace(/^\ufeff/, '');
 }
 
+function parseServiceDate(value: string, fallback: string): string {
+  const iso = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const dmy = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if (dmy) {
+    return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  }
+  return fallback;
+}
+
 export function parseCsvShipments(raw: string, fallbackDate: string): CsvShipmentDraft[] {
   const text = raw.replace(/^\ufeff/, '').replace(/\r\n/g, '\n').trim();
   if (!text) return [];
@@ -86,7 +96,7 @@ export function parseCsvShipments(raw: string, fallbackDate: string): CsvShipmen
   const mapped = headers.map((h) => HEADER_ALIASES[h] ?? null);
 
   const rows: CsvShipmentDraft[] = [];
-  for (const line of lines.slice(1)) {
+  for (const line of lines.slice(1, 201)) {
     const cells = split(line);
     const draft: CsvShipmentDraft = {
       name: '',
@@ -103,7 +113,7 @@ export function parseCsvShipments(raw: string, fallbackDate: string): CsvShipmen
         const n = Number.parseFloat(value.replace(',', '.').replace(/[^\d.]/g, ''));
         draft.weight_kg = Number.isFinite(n) ? Math.round(n) : null;
       } else if (key === 'service_date') {
-        draft.service_date = value.slice(0, 10);
+        draft.service_date = parseServiceDate(value, fallbackDate);
       } else {
         draft[key] = value.slice(0, key === 'delivery_address' ? 2000 : 300);
       }

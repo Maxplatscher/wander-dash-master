@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import SftpClient from "npm:ssh2-sftp-client@9.0.4";
 import { parseCsvShipments } from "../_shared/csv-import.ts";
+import { assertPublicHostname, validateExternalUrl } from "../_shared/ssrf.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,15 +77,23 @@ Deno.serve(async (req) => {
 
     const files: Array<{ name: string; text: string }> = [];
     if (/^https?:\/\//i.test(remotePath)) {
-      const response = await fetch(remotePath);
+      const checked = validateExternalUrl(remotePath);
+      if (!checked.ok) return json({ error: checked.reason }, 400);
+      const response = await fetch(checked.url, { redirect: "error" });
       if (!response.ok) throw new Error(`HTTP ${response.status} beim CSV-Abruf.`);
-      files.push({ name: remotePath, text: await response.text() });
+      const length = Number(response.headers.get("content-length") ?? "0");
+      if (length > 2_000_000) return json({ error: "CSV größer als 2 MB." }, 413);
+      const text = await response.text();
+      if (text.length > 2_000_000) return json({ error: "CSV größer als 2 MB." }, 413);
+      files.push({ name: checked.url.pathname || remotePath, text });
     } else {
       const username = (secret.sftp_username ?? "").trim();
       const password = secret.sftp_password ?? "";
       if (!host || !username || !password) {
         return json({ error: "SFTP-Host oder Zugangsdaten fehlen." }, 400);
       }
+      assertPublicHostname(host);
+      if (port < 1 || port > 65535) return json({ error: "Ungültiger SFTP-Port." }, 400);
       const sftp = new SftpClient();
       await sftp.connect({ host, port, username, password, readyTimeout: 12_000 });
       try {

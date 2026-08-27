@@ -50,6 +50,10 @@ Deno.serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceKey);
     const { data: companyId } = await userClient.rpc("get_user_company_id");
     if (!companyId) return json({ error: "Kein Unternehmen zugeordnet." }, 403);
+    const { data: role } = await userClient.rpc("get_my_role");
+    if (role !== "admin" && role !== "dispatcher") {
+      return json({ error: "Nur Disposition darf Adressen geokodieren." }, 403);
+    }
 
     const body = await req.json().catch(() => ({}));
     const date = (body.date as string) || new Date().toISOString().split("T")[0];

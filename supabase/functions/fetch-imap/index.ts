@@ -6,6 +6,7 @@ import {
   parseShipmentFieldsFromMail,
   previewFromBody,
 } from "../_shared/imap-mail.ts";
+import { assertPublicHostname } from "../_shared/ssrf.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,6 +71,14 @@ async function fetchForIntegration(
   const password = creds.password ?? "";
   if (!host || !user || !password) {
     return { fetched: 0, created: 0, skipped: 0, error: "IMAP-Zugangsdaten unvollständig." };
+  }
+  try {
+    assertPublicHostname(host);
+  } catch (err) {
+    return { fetched: 0, created: 0, skipped: 0, error: (err as Error).message };
+  }
+  if (port < 1 || port > 65535) {
+    return { fetched: 0, created: 0, skipped: 0, error: "Ungültiger IMAP-Port." };
   }
 
   const client = new ImapClient(host, port);

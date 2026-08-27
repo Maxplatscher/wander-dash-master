@@ -40,20 +40,25 @@ export class ImapClient {
   async searchUnseen(): Promise<string[]> {
     const res = await this.command('UID SEARCH UNSEEN');
     const line = res.split('\n').find((row) => /^\* SEARCH/i.test(row.trim())) ?? '';
-    const ids = line.replace(/^\*\s+SEARCH/i, '').trim().split(/\s+/).filter(Boolean);
+    const ids = line.replace(/^\*\s+SEARCH/i, '').trim().split(/\s+/).filter((id) => /^\d+$/.test(id));
     return ids;
   }
 
   async fetchRfc822(uid: string): Promise<string> {
+    if (!/^\d+$/.test(uid)) throw new Error('Ungültige IMAP-UID.');
     const res = await this.command(`UID FETCH ${uid} (RFC822)`);
     const literal = res.match(/\{(\d+)\}\r?\n/);
-    if (!literal) return res;
+    if (!literal) return res.slice(0, 1_000_000);
     const size = Number(literal[1]);
+    if (!Number.isFinite(size) || size < 0 || size > 1_000_000) {
+      throw new Error('IMAP-Nachricht zu groß oder ungültig.');
+    }
     const start = res.indexOf(literal[0]) + literal[0].length;
     return res.slice(start, start + size);
   }
 
   async markSeen(uid: string): Promise<void> {
+    if (!/^\d+$/.test(uid)) throw new Error('Ungültige IMAP-UID.');
     await this.command(`UID STORE ${uid} +FLAGS (\\Seen)`);
   }
 
@@ -96,6 +101,9 @@ export class ImapClient {
       const chunk = new Uint8Array(8192);
       const n = await this.conn.read(chunk);
       if (n === null) return this.decoder.decode(this.buffer);
+      if (this.buffer.length + n > 2_000_000) {
+        throw new Error('IMAP-Antwort zu groß.');
+      }
       const next = new Uint8Array(this.buffer.length + n);
       next.set(this.buffer);
       next.set(chunk.subarray(0, n), this.buffer.length);

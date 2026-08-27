@@ -13,4 +13,12 @@ describe('parseCsvShipments', () => {
     expect(rows[0].weight_kg).toBe(125);
     expect(rows[0].name).toBe('LS-1');
   });
+
+  it('nimmt nur ISO- oder deutsches Datum, sonst Fallback', () => {
+    const rows = parseCsvShipments(
+      'Kunde;Datum\nTest;27.08.2026\n',
+      '2026-01-01',
+    );
+    expect(rows[0].service_date).toBe('2026-08-27');
+  });
 });
