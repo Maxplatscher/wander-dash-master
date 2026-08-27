@@ -46,9 +46,39 @@ CREATE TABLE public.driver (
   birth_date DATE,
   photo_url TEXT,
   assigned_vehicle_id UUID REFERENCES public.vehicle(id) ON DELETE SET NULL,
-  notes TEXT
+  notes TEXT,
+  login_code_set_at TIMESTAMPTZ
 );
 ALTER TABLE public.driver ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.driver_login_secret (
+  driver_id UUID PRIMARY KEY REFERENCES public.driver(id) ON DELETE CASCADE,
+  code_hash TEXT NOT NULL,
+  set_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  failed_attempts INTEGER NOT NULL DEFAULT 0,
+  locked_until TIMESTAMPTZ
+);
+ALTER TABLE public.driver_login_secret ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.driver_login_attempt (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name_normalized TEXT NOT NULL,
+  ip TEXT,
+  success BOOLEAN NOT NULL,
+  driver_id UUID REFERENCES public.driver(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.driver_login_attempt ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE public.driver_login_throttle (
+  name_normalized TEXT NOT NULL,
+  ip TEXT NOT NULL,
+  failed_attempts INTEGER NOT NULL DEFAULT 0,
+  window_started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  locked_until TIMESTAMPTZ,
+  PRIMARY KEY (name_normalized, ip)
+);
+ALTER TABLE public.driver_login_throttle ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE public.shipment (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -784,3 +814,39 @@ CREATE INDEX idx_artikel_company_id ON public.artikel(company_id);
 CREATE INDEX idx_artikel_company_name ON public.artikel(company_id, lower(name));
 CREATE INDEX idx_artikel_company_nummer ON public.artikel(company_id, artikelnummer)
   WHERE artikelnummer IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.normalize_driver_name(raw TEXT)
+RETURNS TEXT
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+  SELECT lower(trim(regexp_replace(coalesce(raw, ''), '\s+', ' ', 'g')));
+$$;
+
+CREATE INDEX idx_driver_name_normalized
+  ON public.driver (public.normalize_driver_name(name));
+
+CREATE OR REPLACE FUNCTION public.drivers_by_normalized_name(p_name TEXT)
+RETURNS TABLE (id UUID, name TEXT, company_id UUID)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT d.id, d.name, d.company_id
+  FROM public.driver d
+  WHERE public.normalize_driver_name(d.name) = public.normalize_driver_name(p_name);
+$$;
+
+REVOKE ALL ON FUNCTION public.normalize_driver_name(TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.normalize_driver_name(TEXT) TO service_role;
+REVOKE ALL ON FUNCTION public.drivers_by_normalized_name(TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.drivers_by_normalized_name(TEXT) TO service_role;
+
+REVOKE ALL ON TABLE public.driver_login_secret FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.driver_login_attempt FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.driver_login_throttle FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE public.driver_login_secret TO service_role;
+GRANT ALL ON TABLE public.driver_login_attempt TO service_role;
+GRANT ALL ON TABLE public.driver_login_throttle TO service_role;

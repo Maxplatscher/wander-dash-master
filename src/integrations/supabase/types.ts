@@ -167,6 +167,7 @@ export type Database = {
           shift_end: string | null
           shift_start: string | null
           status: string | null
+          login_code_set_at: string | null
         }
         Insert: {
           assigned_vehicle_id?: string | null
@@ -181,6 +182,7 @@ export type Database = {
           shift_end?: string | null
           shift_start?: string | null
           status?: string | null
+          login_code_set_at?: string | null
         }
         Update: {
           assigned_vehicle_id?: string | null
@@ -195,6 +197,7 @@ export type Database = {
           shift_end?: string | null
           shift_start?: string | null
           status?: string | null
+          login_code_set_at?: string | null
         }
         Relationships: [
           {
@@ -810,6 +813,15 @@ export type Database = {
       get_current_driver_id: { Args: never; Returns: string }
       get_my_role: { Args: never; Returns: string }
       get_user_company_id: { Args: never; Returns: string }
+      normalize_driver_name: { Args: { raw: string }; Returns: string }
+      drivers_by_normalized_name: {
+        Args: { p_name: string }
+        Returns: {
+          company_id: string
+          id: string
+          name: string | null
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
